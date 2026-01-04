@@ -1,0 +1,7 @@
+{
+  "name": "inventoryapp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
