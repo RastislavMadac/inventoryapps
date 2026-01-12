@@ -10,12 +10,11 @@
       <ion-button (click)="novaInventura()">
         <ion-icon name="add" slot="icon-only"></ion-icon>
       </ion-button>
-
       <ion-button (click)="odhlasit()">
         <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
       </ion-button>
     </ion-buttons>
-    </ion-toolbar>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true" class="ion-padding">
@@ -38,33 +37,27 @@
       
       <ion-button *ngIf="!inv.datum_uzavretia" 
                   slot="end"
-                  color="danger" 
+                  color="warning" 
                   fill="outline"
                   (click)="potvrditUzavretie(inv)">
         Uzavrieť
       </ion-button>
 
-      <div *ngIf="inv.datum_uzavretia" slot="end" class="export-panel">
+      <div *ngIf="inv.datum_uzavretia" slot="end" class="action-panel">
         
-        <div class="export-row">
+        <div class="download-group">
           <ion-button color="success" fill="clear" (click)="stiahnutExcel(inv)" class="btn-icon">
             <ion-icon src="assets/icon/excel.svg" slot="icon-only"></ion-icon>
           </ion-button>
           
-          <ion-button color="success" fill="clear" (click)="poslatExcelEmailom(inv)" class="btn-icon">
-            <ion-icon name="share-social-outline" slot="icon-only"></ion-icon>
-          </ion-button>
-        </div>
-
-        <div class="export-row">
           <ion-button color="dark" fill="clear" (click)="stiahnutPDF(inv)" class="btn-icon">
             <ion-icon src="assets/icon/pdf.svg" slot="icon-only"></ion-icon>
           </ion-button>
-          
-          <ion-button color="danger" fill="clear" (click)="poslatPDFEmailom(inv)" class="btn-icon">
-            <ion-icon name="share-social-outline" slot="icon-only"></ion-icon>
-          </ion-button>
         </div>
+
+        <ion-button color="medium" fill="clear" (click)="zmazat(inv)" class="btn-icon delete-btn">
+          <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+        </ion-button>
 
       </div>
 

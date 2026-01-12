@@ -46,6 +46,9 @@
             {{ s.nazov }}
           </ion-select-option>
         </ion-select>
+        <ion-icon slot="end" name="add-circle-outline" color="primary" 
+                  style="margin-top: 15px; cursor: pointer;"
+                  (click)="$event.stopPropagation(); otvoritNovuLokaciu()"></ion-icon>
       </ion-item>
 
       <ion-item fill="outline" style="flex: 1;">
@@ -55,6 +58,9 @@
             {{ r.nazov }}
           </ion-select-option>
         </ion-select>
+        <ion-icon slot="end" name="add-circle-outline" color="primary"
+                  style="margin-top: 15px; cursor: pointer;"
+                  (click)="$event.stopPropagation(); otvoritNovuLokaciu()"></ion-icon>
       </ion-item>
 
     </div>

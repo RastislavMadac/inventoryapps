@@ -56,7 +56,7 @@ export class LoginPage {
     try {
       this.isLoading = true;
       await this.supabaseService.signIn(this.email, this.password);
-      this.navCtrl.navigateRoot('/inventury-zoznam');
+      this.navCtrl.navigateRoot('/home');
 
     } catch (error: any) {
       this.zobrazToast('Nesprávny email alebo heslo', 'danger');

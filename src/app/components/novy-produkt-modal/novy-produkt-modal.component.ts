@@ -3,8 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ModalController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { barcodeOutline } from 'ionicons/icons';
+// Pridaný import addCircleOutline
+import { barcodeOutline, addCircleOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
+
+// IMPORT MODALU PRE NOVÚ LOKÁCIU
+import { NovaLokaciaModalComponent } from '../nova-lokacia-modal/nova-lokacia-modal.component';
 
 @Component({
   selector: 'app-novy-produkt-modal',
@@ -23,11 +27,9 @@ export class NovyProduktModalComponent implements OnInit {
     balenie_ks: 1
   };
 
-
   kategorie: any[] = [];
   sklady: any[] = [];
   regaly: any[] = [];
-
 
   vybranySkladId: number | null = null;
   vybranyRegalId: number | null = null;
@@ -37,12 +39,19 @@ export class NovyProduktModalComponent implements OnInit {
     private supabase: SupabaseService,
     private toastCtrl: ToastController
   ) {
-    addIcons({ 'barcode-Outline': barcodeOutline });
+    // Registrácia ikon
+    addIcons({
+      'barcode-outline': barcodeOutline,
+      'add-circle-outline': addCircleOutline
+    });
   }
 
   async ngOnInit() {
-    try {
+    await this.nacitajData();
+  }
 
+  async nacitajData() {
+    try {
       const [katData, skladyData] = await Promise.all([
         this.supabase.getKategorie(),
         this.supabase.getSklady()
@@ -50,13 +59,11 @@ export class NovyProduktModalComponent implements OnInit {
 
       this.kategorie = katData || [];
       this.sklady = skladyData || [];
-
     } catch (e) {
       console.error(e);
       this.toast('Nepodarilo sa načítať dáta.', 'danger');
     }
   }
-
 
   async onSkladChange() {
     this.vybranyRegalId = null;
@@ -71,6 +78,30 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
+  // --- NOVÁ FUNKCIA NA OTVORENIE MODALU LOKÁCIE ---
+  async otvoritNovuLokaciu() {
+    const modal = await this.modalCtrl.create({
+      component: NovaLokaciaModalComponent,
+      initialBreakpoint: 0.6,
+      breakpoints: [0, 0.6, 0.9]
+    });
+
+    await modal.present();
+
+    const { role } = await modal.onWillDismiss();
+
+    if (role === 'confirm') {
+      // Obnovíme zoznam skladov
+      await this.nacitajData();
+
+      // Ak už bol vybraný sklad, obnovíme aj regále (pre prípad, že pribudol regál)
+      if (this.vybranySkladId) {
+        await this.onSkladChange();
+      }
+    }
+  }
+  // -----------------------------------------------
+
   zrusit() {
     this.modalCtrl.dismiss(null, 'cancel');
   }
@@ -79,15 +110,12 @@ export class NovyProduktModalComponent implements OnInit {
     if (!this.produkt.nazov) return;
 
     try {
-
       const novy = await this.supabase.vytvoritProduktSLocation(
         this.produkt,
         this.vybranyRegalId
       );
 
       this.toast('Produkt vytvorený a priradený.', 'success');
-
-
       this.modalCtrl.dismiss({ ...novy, regal_id: this.vybranyRegalId }, 'confirm');
 
     } catch (e) {

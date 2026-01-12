@@ -368,4 +368,44 @@ export class SupabaseService {
             umiestnenie: d.regaly?.nazov || `Regál č. ${d.regal_id}`
         }));
     }
+
+    async zmazatInventuru(id: number) {
+        // Najprv zmažeme položky inventúry (ak nemáte v databáze nastavené ON DELETE CASCADE)
+        await this.supabase.from('inventura_polozky').delete().eq('inventura_id', id);
+
+        // Potom zmažeme samotnú inventúru
+        const { error } = await this.supabase
+            .from('inventury')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    }
+    // ... existujúci kód ...
+
+    // 1. Vytvorenie Skladu
+    async vytvoritSklad(nazov: string) {
+        const { data, error } = await this.supabase
+            .from('sklady')
+            .insert({ nazov: nazov })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    // 2. Vytvorenie Regálu (musí byť priradený k skladu)
+    async vytvoritRegal(nazov: string, skladId: number) {
+        const { data, error } = await this.supabase
+            .from('regaly')
+            .insert({ nazov: nazov, sklad_id: skladId })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+
 }

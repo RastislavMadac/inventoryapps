@@ -28,8 +28,13 @@
   <div class="filter-panel">
     
     <div *ngIf="rezimZobrazenia === 'regal'" class="select-row fade-in">
+      
       <div class="select-wrapper">
-        <span class="input-label">Sklad</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="input-label" style="margin-bottom: 0;">Sklad</span>
+          <ion-icon name="add-circle-outline" color="primary" style="font-size: 20px;" (click)="otvoritNovuLokaciu()"></ion-icon>
+        </div>
+        
         <div class="custom-input-box">
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [value]="vybranySkladId" (ionChange)="onSkladChange($event.detail.value)">
@@ -40,7 +45,11 @@
       </div>
 
       <div class="select-wrapper">
-        <span class="input-label">Regál</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="input-label" style="margin-bottom: 0;">Regál</span>
+          <ion-icon name="add-circle-outline" color="primary" style="font-size: 20px;" (click)="otvoritNovuLokaciu()"></ion-icon>
+        </div>
+        
         <div class="custom-input-box" [class.disabled]="!vybranySkladId">
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [value]="vybranyRegalId" (ionChange)="onRegalChange($event.detail.value)"
@@ -74,6 +83,10 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="bg-gray">
+
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
 
   <div class="center-content" *ngIf="isLoading">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
