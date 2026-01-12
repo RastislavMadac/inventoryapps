@@ -5,7 +5,7 @@
   "homepage": "https://ionicframework.com/",
   "scripts": {
     "config": "node set-env.js",
-    "build": "node set-env.js && npx ng build --configuration production",
+    "build": "node set-env.js && npx ng build --configuration=production --output-path=www",
     "start": "ng serve",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
