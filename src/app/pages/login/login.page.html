@@ -1,0 +1,45 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Prihlásenie</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  
+  <div class="login-wrapper">
+    
+    <ion-icon name="cube-outline"></ion-icon>
+    <h1 style="color: black; margin: 0;">Skladová Inventúra</h1>
+    <p style="color: grey; margin-bottom: 30px;">Zadajte prihlasovacie údaje</p>
+
+    <ion-item lines="none" class="custom-input">
+      <ion-input 
+        label="Email" 
+        labelPlacement="stacked" 
+        type="email" 
+        [(ngModel)]="email"
+        placeholder="vzor@email.com">
+      </ion-input>
+    </ion-item>
+   
+
+    <ion-item lines="none" class="custom-input">
+      <ion-input 
+        label="Heslo" 
+        labelPlacement="stacked" 
+        type="password" 
+        [(ngModel)]="password"
+        placeholder="Vaše heslo">
+      </ion-input>
+    </ion-item>
+
+    <ion-button expand="block" class="login-btn" (click)="prihlasitSa()">
+      Prihlásiť sa
+      <ion-spinner *ngIf="isLoading" name="crescent" style="margin-left: 10px; color: white;"></ion-spinner>
+    </ion-button>
+
+   
+
+  </div>
+
+</ion-content>

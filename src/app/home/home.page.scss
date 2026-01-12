@@ -1,27 +1,115 @@
-#container {
-  text-align: center;
-
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+ion-content {
+  --background: #f2f4f8; /* Moderná svetlošedá */
 }
 
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
+.main-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-#container p {
-  font-size: 16px;
-  line-height: 22px;
+/* --- HLAVIČKA --- */
+.header-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40px;
+  margin-bottom: 40px;
 
-  color: #8c8c8c;
+  .logo-circle {
+    background: var(--ion-color-primary);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(var(--ion-color-primary-rgb), 0.3);
+    margin-bottom: 15px;
 
-  margin: 0;
+    ion-icon {
+      font-size: 40px;
+    }
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1c2536;
+    margin: 0;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: #9da4ae;
+    font-size: 14px;
+  }
 }
 
-#container a {
-  text-decoration: none;
+/* --- GRID (Dve karty vedľa seba) --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Dva rovnaké stĺpce */
+  gap: 15px;
+}
+
+/* --- KARTY --- */
+.dashboard-card {
+  margin: 0; /* Ionic default margin reset */
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  overflow: visible; /* Aby tieň nebol odrezaný */
+  transition: transform 0.2s ease;
+
+  /* Efekt pri kliknutí */
+  &:active {
+    transform: scale(0.98);
+  }
+
+  .card-content {
+    padding: 25px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  /* Farebné krúžky pod ikonami */
+  .icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+
+    ion-icon {
+      font-size: 30px;
+    }
+
+    &.blue {
+      background: rgba(var(--ion-color-primary-rgb), 0.1);
+      ion-icon { color: var(--ion-color-primary); }
+    }
+
+    &.orange {
+      background: rgba(var(--ion-color-secondary-rgb), 0.1);
+      ion-icon { color: var(--ion-color-secondary); }
+    }
+  }
+
+  ion-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+  }
+
+  ion-note {
+    font-size: 12px;
+    color: #95a5a6;
+  }
 }

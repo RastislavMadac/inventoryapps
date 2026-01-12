@@ -1,0 +1,34 @@
+// Šedý text pre dátum uzavretia
+.text-uzavreta {
+    color: var(--ion-color-medium); // Používa Ionic tému (lepšie ako 'gray')
+    font-size: 0.9rem;
+  }
+  
+  // Hlavný kontajner pre ikonky vpravo (stĺpec)
+  .export-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px; // Medzera medzi riadkami Excel a PDF
+  }
+  
+  // Jeden riadok (napr. Excel + Share)
+  .export-row {
+    display: flex;
+    align-items: center;
+  }
+  
+  // Štýl pre malé tlačidlá
+  .btn-icon {
+    height: 32px;
+    margin: 0;
+    
+    // Trochu zmenšíme vnútorné odsadenie, aby boli tlačidlá bližšie k sebe
+    --padding-start: 4px;
+    --padding-end: 4px;
+  
+    // Štýl pre samotnú ikonku vo vnútri tlačidla
+    ion-icon {
+      font-size: 24px;
+    }
+  }

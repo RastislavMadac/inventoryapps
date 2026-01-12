@@ -1,20 +1,37 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <div class="main-container">
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
+    <div class="header-section">
+      <div class="logo-circle">
+        <ion-icon name="cube-outline" color="light"></ion-icon>
+      </div>
+      <h1>Skladový Systém</h1>
+      <p>Vitajte späť</p>
+    </div>
+
+    <div class="dashboard-grid">
+
+      <ion-card routerLink="/inventury-zoznam" button="true" class="dashboard-card">
+        <div class="card-content">
+          <div class="icon-box blue">
+            <ion-icon name="cube-outline"></ion-icon>
+          </div>
+          <ion-card-title>Inventúry</ion-card-title>
+          <ion-note>História & Nové</ion-note>
+        </div>
+      </ion-card>
+
+      <ion-card routerLink="/inventory" button="true" class="dashboard-card">
+        <div class="card-content">
+          <div class="icon-box orange">
+            <ion-icon name="layers-outline"></ion-icon>
+          </div>
+          <ion-card-title>Živý Sklad</ion-card-title>
+          <ion-note>Prehľad zásob</ion-note>
+        </div>
+      </ion-card>
+
+    </div>
+
   </div>
 </ion-content>

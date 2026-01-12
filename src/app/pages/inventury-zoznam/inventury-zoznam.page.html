@@ -1,0 +1,79 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home"></ion-back-button>
+    </ion-buttons>
+    
+    <ion-title>Zoznam Inventúr</ion-title>
+    
+    <ion-buttons slot="end">
+      <ion-button (click)="novaInventura()">
+        <ion-icon name="add" slot="icon-only"></ion-icon>
+      </ion-button>
+
+      <ion-button (click)="odhlasit()">
+        <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+
+  <ion-list>
+    <ion-list-header>
+      <ion-label>História</ion-label>
+    </ion-list-header>
+
+    <ion-item *ngFor="let inv of zoznam" lines="full">
+      
+      <ion-label>
+        <h2>{{ inv.nazov }}</h2>
+        <p>Vytvorená: {{ inv.datum_vytvorenia | date:'dd.MM.yyyy HH:mm' }}</p>
+        
+        <p *ngIf="inv.datum_uzavretia" class="text-uzavreta">
+          Uzavretá: {{ inv.datum_uzavretia | date:'dd.MM.yyyy HH:mm' }}
+        </p>
+      </ion-label>
+      
+      <ion-button *ngIf="!inv.datum_uzavretia" 
+                  slot="end"
+                  color="danger" 
+                  fill="outline"
+                  (click)="potvrditUzavretie(inv)">
+        Uzavrieť
+      </ion-button>
+
+      <div *ngIf="inv.datum_uzavretia" slot="end" class="export-panel">
+        
+        <div class="export-row">
+          <ion-button color="success" fill="clear" (click)="stiahnutExcel(inv)" class="btn-icon">
+            <ion-icon src="assets/icon/excel.svg" slot="icon-only"></ion-icon>
+          </ion-button>
+          
+          <ion-button color="success" fill="clear" (click)="poslatExcelEmailom(inv)" class="btn-icon">
+            <ion-icon name="share-social-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </div>
+
+        <div class="export-row">
+          <ion-button color="dark" fill="clear" (click)="stiahnutPDF(inv)" class="btn-icon">
+            <ion-icon src="assets/icon/pdf.svg" slot="icon-only"></ion-icon>
+          </ion-button>
+          
+          <ion-button color="danger" fill="clear" (click)="poslatPDFEmailom(inv)" class="btn-icon">
+            <ion-icon name="share-social-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </div>
+
+      </div>
+
+    </ion-item>
+  </ion-list>
+
+  <div *ngIf="zoznam.length === 0" class="ion-text-center ion-padding">
+    <p>Zatiaľ žiadna inventúra.</p>
+    <ion-button (click)="novaInventura()">Vytvoriť prvú</ion-button>
+  </div>
+
+</ion-content>

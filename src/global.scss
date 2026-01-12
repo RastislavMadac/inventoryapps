@@ -1,13 +1,23 @@
 /*
  * App Global CSS
- * ----------------------------------------------------------------------------
- * Put style rules here that you want to apply globally. These styles are for
- * the entire app and not just one component. Additionally, this file can be
- * used as an entry point to import other CSS/Sass files to be included in the
- * output CSS.
- * For more information on global stylesheets, visit the documentation:
- * https://ionicframework.com/docs/layout/global-stylesheets
  */
+
+/* Fix pre farby inputov (aby boli viditeľné) */
+ion-input, ion-textarea {
+  --color: #000000 !important;
+  --placeholder-color: #666666 !important;
+}
+
+ion-item {
+  --background: transparent !important;
+  --color: #000000 !important;
+}
+ ion-content {
+  --padding-top: env(safe-area-inset-top);
+  --padding-bottom: env(safe-area-inset-bottom);
+  --padding-start: env(safe-area-inset-left);
+  --padding-end: env(safe-area-inset-right);
+}
 
 /* Core CSS required for Ionic components to work properly */
 @import "@ionic/angular/css/core.css";
@@ -28,10 +38,69 @@
 /**
  * Ionic Dark Mode
  * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
+ * VŠETKO ZAKOMENTOVANÉ = ŽIADNY TMAVÝ REŽIM
  */
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+/* @import '@ionic/angular/css/palettes/dark.system.css'; */ /* 👈 TOTO SOM ZAKOMENTOVAL */
+
+.alert-danger-button {
+    color: var(--ion-color-danger) !important;
+    font-weight: bold;
+}
+
+/* Vynútenie svetlého režimu NATVRDO */
+:root {
+  --ion-background-color: #ffffff !important;
+  --ion-background-color-rgb: 255, 255, 255 !important;
+
+  --ion-text-color: #000000 !important;
+  --ion-text-color-rgb: 0, 0, 0 !important;
+}
+
+body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Oprava inputov, aby boli viditeľné */
+ion-item, ion-input, ion-label {
+  --background: #ffffff !important;
+  --color: #000000 !important;
+  color: #000000 !important;
+}
+
+/* 👇👇👇 ŠPECIÁLNA OPRAVA PRE HESLO 👇👇👇 */
+
+/* Vynútenie čiernej farby pre password input */
+ion-input[type="password"],
+ion-input[type="password"] .native-input,
+input[type="password"] {
+  --color: #000000 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important; /* Toto je kľúčové pre Android */
+  opacity: 1 !important;
+}
+
+/* Ak používaš ikonku "oka" na zobrazenie hesla, zviditeľni ju */
+ion-input-password-toggle,
+.password-toggle-icon {
+  --color: #555555 !important;
+  color: #555555 !important;
+}
+
+/* Oprava, ak ti Android ponúka "Autofill" (žlté/modré pozadie) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active  {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: black !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+ion-toast {
+  --z-index: 10000;
+  margin-top: 50px; // Aby nebol úplne nalepený na vrchu pod status barom
+}

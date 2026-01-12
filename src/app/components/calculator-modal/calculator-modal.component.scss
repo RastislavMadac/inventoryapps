@@ -1,0 +1,74 @@
+/* 1. HLAVNÝ OBAL - Toto zarovná všetko na stred */
+.centered-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertikálny stred */
+  align-items: center;     /* Horizontálny stred */
+  height: 100%;            /* Roztiahne sa na celú výšku */
+  width: 100%;
+}
+
+/* 2. DISPLEJ */
+.display-container {
+  background: #f4f4f4;
+  padding: 20px;
+  text-align: right;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  width: 100%;             /* Aby to nebolo úzke */
+  max-width: 400px;        /* Maximálna šírka na tablete */
+
+  .calculation-text {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #333;
+    font-family: monospace;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* 3. TLAČIDLO BALENIE */
+.balenie-btn-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* 4. KLÁVESNICA */
+.keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+  /* Vyhodil som "height: 60vh", aby sa to prispôsobilo obsahu a bolo to pekne v strede */
+}
+
+/* 5. RIADKY TLAČIDIEL */
+.row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px; /* Menšia medzera */
+
+  ion-button {
+    flex: 1;           /* Všetky tlačidlá rovnako široké */
+    margin: 0 4px;     /* Medzery bokom */
+    height: 65px;      /* Výška tlačidiel */
+    font-size: 1.4rem;
+    --border-radius: 10px; /* Okrúhlejšie tlačidlá */
+  }
+}
+
+/* 6. SPODNÝ RIADOK (0, ., OK) */
+.bottom-row {
+  ion-button {
+    flex: 1;
+  }
+
+  /* Tlačidlo OK je širšie */
+  .wide-btn {
+    flex: 2; 
+    font-weight: bold;
+  }
+}

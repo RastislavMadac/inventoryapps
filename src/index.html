@@ -7,7 +7,7 @@
 
   <base href="/" />
 
-  <meta name="color-scheme" content="light dark" />
+  <meta name="color-scheme" content="light" />
   <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="format-detection" content="telephone=no" />
   <meta name="msapplication-tap-highlight" content="no" />
@@ -17,6 +17,34 @@
   <!-- add to homescreen for ios -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+  <script>
+    (function() {
+      if (typeof navigator !== 'undefined') {
+        console.log('🚨 Spúšťam opravu Navigator Locks z index.html');
+        var mockLockRequest = function(_name, _options, callback) {
+          if (!callback || typeof _options === 'function') {
+            callback = _options;
+          }
+          return Promise.resolve(callback({ name: _name }));
+        };
+
+        try {
+          Object.defineProperty(navigator, 'locks', {
+            value: { request: mockLockRequest },
+            configurable: true,
+            writable: true
+          });
+        } catch (e) {
+          if (navigator.locks) {
+             navigator.locks.request = mockLockRequest;
+          } else {
+             navigator.locks = { request: mockLockRequest };
+          }
+        }
+      }
+    })();
+  </script>
 </head>
 
 <body>
