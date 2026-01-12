@@ -44,7 +44,7 @@ export class SupabaseService {
     private supabase: SupabaseClient;
 
     constructor() {
-        alert('Supabase URL: ' + environment.supabaseUrl);
+
         this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey, {
             auth: {
                 persistSession: true,
