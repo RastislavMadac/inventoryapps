@@ -16,7 +16,7 @@ export class CalculatorModalComponent {
   @Input() balenie: number = 1;
   display: string = '';
   vysledok: number | null = null;
-
+  private lastClickTime: number = 0;
   constructor(private modalController: ModalController) { }
 
   ngOnInit() {
@@ -26,7 +26,12 @@ export class CalculatorModalComponent {
 
 
   stlacene(hodnota: string) {
+    const now = Date.now();
+    if (now - this.lastClickTime < 100) {
 
+      return;
+    }
+    this.lastClickTime = now;
     if (hodnota === '.') {
       const casti = this.display.split(/[\+\-\*\/]/);
       const aktualneCislo = casti[casti.length - 1];

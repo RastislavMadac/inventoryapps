@@ -407,5 +407,28 @@ export class SupabaseService {
         return data;
     }
 
+    async getInventuraStavNaRegali(inventuraId: number, regalId: number) {
+        const { data, error } = await this.supabase
+            .from('inventura_polozky')
+
+            .select('produkt_id, mnozstvo')
+            .eq('inventura_id', inventuraId)
+            .eq('regal_id', regalId);
+
+        if (error) throw error;
+        return data as { produkt_id: number, mnozstvo: number }[];
+    }
+
+    async getRawInventuraData(inventuraId: number) {
+        const { data, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('produkt_id, regal_id, mnozstvo')
+            .eq('inventura_id', inventuraId);
+
+        if (error) throw error;
+        return data as { produkt_id: number, regal_id: number, mnozstvo: number }[];
+    }
 
 }
+
+
