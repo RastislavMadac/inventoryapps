@@ -27,6 +27,7 @@ export interface SkladovaZasobaView {
     umiestnenie?: string;
     regal_id?: number;
     v_inventure?: boolean;
+    jednotka?: string;
 }
 
 export interface Inventura {
@@ -87,6 +88,7 @@ export class SupabaseService {
           id,
           nazov,
           balenie_ks,
+          jednotka,
           kategorie ( nazov )
         )
       `)
@@ -100,7 +102,8 @@ export class SupabaseService {
             nazov: item.produkt?.nazov || 'Neznámy produkt',
             kategoria: item.produkt?.kategorie?.nazov || 'Bez kategórie',
             mnozstvo_ks: item.mnozstvo_ks,
-            balenie_ks: item.produkt?.balenie_ks || 1
+            balenie_ks: item.produkt?.balenie_ks || 1,
+            jednotka: item.produkt?.jednotka || 'kg'
         }));
 
         return sformatovaneData.sort((a, b) => a.nazov.localeCompare(b.nazov));
@@ -220,7 +223,8 @@ export class SupabaseService {
         ),
         regal:regaly (
           id, nazov,
-          sklad:sklady ( nazov )
+          sklad:sklady ( nazov ),
+          jednotka
         )
       `);
 
@@ -234,7 +238,8 @@ export class SupabaseService {
             mnozstvo_ks: item.mnozstvo_ks,
             balenie_ks: item.produkt?.balenie_ks || 1,
             regal_id: item.regal_id,
-            umiestnenie: `${item.regal?.sklad?.nazov} | ${item.regal?.nazov}`
+            umiestnenie: `${item.regal?.sklad?.nazov} | ${item.regal?.nazov}`,
+            jednotka: item.produkt?.jednotka || 'kg'
         }));
 
         return sformatovaneData.sort((a, b) => a.nazov.localeCompare(b.nazov));
@@ -257,7 +262,7 @@ export class SupabaseService {
         mnozstvo,
         produkt:produkty (
           nazov,
-          ean,
+          vlastne_id,
           balenie_ks,
           jednotka,
           kategoria:kategorie ( nazov )
@@ -273,7 +278,7 @@ export class SupabaseService {
 
         return data.map((item: any) => ({
             'Produkt': item.produkt?.nazov || 'Neznámy',
-            'EAN': item.produkt?.ean || '',
+            'Product ID': item.produkt?.vlastne_id || '',
             'Kategória': item.produkt?.kategoria?.nazov || '',
             'Sklad': item.regal?.sklad?.nazov || '',
             'Regál': item.regal?.nazov || '',
@@ -428,7 +433,17 @@ export class SupabaseService {
         if (error) throw error;
         return data as { produkt_id: number, regal_id: number, mnozstvo: number }[];
     }
+    async vytvoritKategoriu(nazov: string) {
+        const { data, error } = await this.supabase
+            .from('kategorie')
+            .insert({ nazov: nazov })
+            .select()
+            .single();
 
+        if (error) throw error;
+        return data;
+    }
 }
+
 
 

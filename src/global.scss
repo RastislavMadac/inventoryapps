@@ -8,6 +8,11 @@ ion-input, ion-textarea {
   --placeholder-color: #666666 !important;
 }
 
+ion-item, ion-input, ion-label {
+  --color: #000000 !important;
+  color: #000000 !important;
+}
+
 ion-item {
   --background: transparent !important;
   --color: #000000 !important;

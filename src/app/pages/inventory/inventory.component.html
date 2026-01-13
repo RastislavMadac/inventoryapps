@@ -138,10 +138,11 @@
 
       <div class="card-right">
         <span class="qty">{{ z.mnozstvo_ks }}</span>
-        <small>ks</small>
+        <small>{{ z.jednotka || 'kg' }}</small>
       </div>
     </ion-card>
   </div>
+  
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed" style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">

@@ -90,10 +90,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       'list-outline': listOutline,
       'checkmark-circle': checkmarkCircle,
       'checkmark-done-outline': checkmarkDoneOutline,
-      'time-outline': timeOutline
+      'time-outline': timeOutline,
+      // Ak používate aj ID kartu z predchádzajúceho kroku:
+      // 'id-card-outline': idCardOutline 
     });
   }
-
   ngOnInit() {
     this.nacitajSklady();
   }

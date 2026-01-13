@@ -1,0 +1,53 @@
+/* Vynútenie štýlov v tomto komponente (prebijeme global.scss) */
+:host {
+    ion-input, ion-select {
+      
+      /* 1. FARBA LABELU (Názov poľa - kľudový stav) */
+      /* Musí byť !important, inak vyhrá globálna čierna */
+      --label-color: #666666 !important; 
+      
+      /* 2. FARBA LABELU A ČIARY (Keď kliknete dnu) */
+      --highlight-color-focused: var(--ion-color-primary) !important;
+      
+      /* 3. FARBA ORAZOVANIA (Rámik) */
+      --border-color: #cccccc !important;
+      
+      /* 4. FARBA TEXTU, ČO PÍŠETE */
+      --color: #000000 !important;
+      
+      /* Pozadie */
+      --background: #ffffff !important;
+      background: #ffffff !important;
+      
+      margin-bottom: 16px;
+    }
+  
+    /* Ikonky (pluská, id karta) */
+    ion-icon {
+      color: var(--ion-color-primary); /* Primárna modrá */
+      font-size: 1.4rem;
+      
+      /* Ak by ikonky boli stále čierne kvôli global css: */
+      /* color: #3880ff !important; */
+    }
+    
+    /* Špeciálne pre ID kartu ikonku vnútri inputu, aby bola šedá */
+    ion-icon[name="id-card-outline"] {
+      color: #888888 !important;
+    }
+  }
+  
+  /* Ak by to stále nešlo, tento "hack" ::ng-deep 
+     donúti prehliadač použiť tieto štýly bez ohľadu na všetko ostatné 
+  */
+  ::ng-deep app-novy-produkt-modal {
+    
+    .label-text-wrapper {
+      color: #666666 !important;
+    }
+    
+    /* Zmena farby labelu pri zameraní (focus) */
+    .item-has-focus .label-text-wrapper {
+      color: var(--ion-color-primary) !important;
+    }
+  }

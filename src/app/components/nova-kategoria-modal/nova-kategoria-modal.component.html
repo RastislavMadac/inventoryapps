@@ -1,0 +1,21 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Nová Kategória</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="zrusit()">Zavrieť</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="form-container">
+    <ion-item fill="outline" class="ion-margin-bottom">
+      <ion-label position="floating">Názov kategórie</ion-label>
+      <ion-input [(ngModel)]="nazov" placeholder="Napr. Mliečne výrobky" (keyup.enter)="ulozit()"></ion-input>
+    </ion-item>
+
+    <ion-button expand="block" (click)="ulozit()" [disabled]="!nazov">
+      Uložiť kategóriu
+    </ion-button>
+  </div>
+</ion-content>

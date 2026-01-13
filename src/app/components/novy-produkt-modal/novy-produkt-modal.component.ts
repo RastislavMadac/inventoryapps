@@ -4,12 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { IonicModule, ModalController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 // Pridaný import addCircleOutline
-import { barcodeOutline, addCircleOutline } from 'ionicons/icons';
+import { idCardOutline, addCircleOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
 
 // IMPORT MODALU PRE NOVÚ LOKÁCIU
 import { NovaLokaciaModalComponent } from '../nova-lokacia-modal/nova-lokacia-modal.component';
-
+import { NovaKategoriaModalComponent } from '../nova-kategoria-modal/nova-kategoria-modal.component';
 @Component({
   selector: 'app-novy-produkt-modal',
   templateUrl: './novy-produkt-modal.component.html',
@@ -21,9 +21,9 @@ export class NovyProduktModalComponent implements OnInit {
 
   produkt = {
     nazov: '',
-    ean: '',
+    vlastne_id: '',
     kategoria_id: null,
-    jednotka: 'ks',
+    jednotka: 'kg',
     balenie_ks: 1
   };
 
@@ -41,7 +41,7 @@ export class NovyProduktModalComponent implements OnInit {
   ) {
     // Registrácia ikon
     addIcons({
-      'barcode-outline': barcodeOutline,
+      'id-card-outline': idCardOutline,
       'add-circle-outline': addCircleOutline
     });
   }
@@ -127,5 +127,27 @@ export class NovyProduktModalComponent implements OnInit {
   async toast(msg: string, color: string) {
     const t = await this.toastCtrl.create({ message: msg, duration: 2000, color });
     t.present();
+  }
+
+  async otvoritNovuKategoriu() {
+    const modal = await this.modalCtrl.create({
+      component: NovaKategoriaModalComponent,
+      // Nastavíme menšiu výšku (iOS štýl)
+      initialBreakpoint: 0.4,
+      breakpoints: [0, 0.4, 0.6]
+    });
+
+    await modal.present();
+
+    const { data, role } = await modal.onWillDismiss();
+
+    if (role === 'confirm' && data) {
+      // 1. Obnovíme zoznam kategórií
+      const katData = await this.supabase.getKategorie();
+      this.kategorie = katData || [];
+
+      // 2. Automaticky vyberieme tú novú
+      this.produkt.kategoria_id = data.id;
+    }
   }
 }

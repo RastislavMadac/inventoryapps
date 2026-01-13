@@ -202,7 +202,7 @@ export class InventuryZoznamPage implements OnInit {
         'Sklad': item['Sklad'],
         'Regál': item['Regál'],
         'Kategória': item['Kategória'],
-        'EAN': item['EAN']
+        'Product ID': item['Product ID'],
       }));
       const ws = XLSX.utils.json_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
@@ -227,7 +227,9 @@ export class InventuryZoznamPage implements OnInit {
       doc.text(`Inventúra: ${inv.nazov}`, 14, 20);
 
       const bodyData = rawData.map((item: any) => [
-        item['Produkt'], `${item['Spočítané Množstvo']}`, item['Sklad'], item['Regál']
+        //TODO - kED BUDU PRODUCTiD DOPLNIT `${item['Product ID']} - ${item['Produkt']}`,
+        item['Produkt'],
+        `${item['Spočítané Množstvo']}`, item['Sklad'], item['Regál']
       ]);
 
       autoTable(doc, {
