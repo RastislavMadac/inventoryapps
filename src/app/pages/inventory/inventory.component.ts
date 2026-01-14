@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ViewWillEnter } from '@ionic/angular';
@@ -74,6 +74,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private toastController: ToastController,
     private alertController: AlertController,
     private modalController: ModalController,
+    private cdr: ChangeDetectorRef
   ) {
 
     addIcons({
@@ -380,7 +381,6 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     const novyStav = Number(novyStavInput);
     if (isNaN(novyStav)) return;
 
-
     const cielovyRegalId = this.jeGlobalnyPohlad ? zasoba.regal_id : this.vybranyRegalId;
 
     if (!cielovyRegalId && !this.aktivnaInventura) {
@@ -388,32 +388,57 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
+    // 1. ZAPNEME SPINNER
+    this.isLoading = true;
+
+    // Poistka: Ak by sa niečo úplne pokazilo, spinner sa sám vypne po 5 sekundách
+    const safetyTimeout = setTimeout(() => {
+      if (this.isLoading) {
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      }
+    }, 5000);
+
     try {
-      this.isLoading = true;
 
       if (this.aktivnaInventura && cielovyRegalId) {
-
+        // Zápis do inventúry
         await this.supabaseService.zapisatDoInventury(
           this.aktivnaInventura.id,
           zasoba.produkt_id,
           cielovyRegalId,
           novyStav
         );
-        zasoba.v_inventure = true;
-        await this.zobrazToast(`Zapísané do inventúry: ${novyStav}`, 'primary');
-      } else {
 
+        // Aktualizácia lokálnych dát (aby sme nemuseli čakať na refresh z DB)
+        zasoba.v_inventure = true;
+        zasoba.mnozstvo_ks = novyStav;
+
+        await this.zobrazToast(`Zapísané: ${novyStav}`, 'primary');
+
+      } else {
+        // Zápis do skladu
         await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
+        zasoba.mnozstvo_ks = novyStav;
         await this.zobrazToast(`Uložené: ${novyStav}`, 'success');
       }
 
-      zasoba.mnozstvo_ks = novyStav;
       this.aktualizovatFilter();
-    } catch (error) {
-      this.zobrazToast('Chyba ukladania', 'danger');
-      console.error(error);
+
+    } catch (error: any) {
+      console.error('Chyba:', error);
+      alert('CHYBA: ' + error.message); // Aby ste videli chybu aj na mobile
     } finally {
-      this.isLoading = false;
+      // Zrušíme poistku, lebo sme dobehli v poriadku
+      clearTimeout(safetyTimeout);
+
+      // 🛑 HLAVNÝ FIX PRE VERCEL / MOBIL:
+      // setTimeout(..., 0) posunie vykonanie na "ďalší tik" procesora,
+      // čo donúti Angular spraviť Change Detection.
+      setTimeout(() => {
+        this.isLoading = false;
+        this.cdr.detectChanges(); // Manuálne vynútenie prekreslenia
+      }, 0);
     }
   }
 
