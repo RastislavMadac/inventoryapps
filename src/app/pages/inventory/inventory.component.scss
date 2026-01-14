@@ -361,4 +361,21 @@ ion-fab-button {
 /* Štýl pre Hotové tlačidlo v segmente */
 ion-segment-button[value="v_inventure"] {
   --color-checked: #16a34a;
+
+  .action-icons {
+    display: inline-flex;
+    gap: 10px; // Medzera medzi ceruzkou a košom
+    margin-left: 8px;
+    vertical-align: middle;
+  
+    ion-icon {
+      font-size: 1.2rem;
+      padding: 4px; // Zväčšíme dotykovú plochu
+      
+      &.trash-icon {
+        opacity: 0.7;
+        &:active { opacity: 1; }
+      }
+    }
+  }
 }

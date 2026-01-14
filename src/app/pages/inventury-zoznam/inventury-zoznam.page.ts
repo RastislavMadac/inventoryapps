@@ -14,8 +14,10 @@ import { addIcons } from 'ionicons';
 import {
   add, logOutOutline, checkmarkDoneOutline,
   ellipsisVertical, documentTextOutline, gridOutline,
-  trashOutline, closeOutline
+  trashOutline, closeOutline, warningOutline, closeCircle
 } from 'ionicons/icons';
+import { DoplnitIdModalComponent } from 'src/app/components/doplnit-id-modal/doplnit-id-modal.component';
+import { ModalController } from '@ionic/angular';
 
 @Component({
   selector: 'app-inventury-zoznam',
@@ -28,13 +30,15 @@ import {
     IonButtons, IonBackButton, IonButton, IonIcon,
     IonList, IonListHeader, IonItem, IonLabel
   ],
-  providers: [ActionSheetController]
+  providers: [ActionSheetController, ModalController
+  ]
 })
 export class InventuryZoznamPage implements OnInit {
 
   zoznam: Inventura[] = [];
 
   constructor(
+    private modalCtrl: ModalController,
     private supabase: SupabaseService,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
@@ -43,14 +47,16 @@ export class InventuryZoznamPage implements OnInit {
     private actionSheetCtrl: ActionSheetController
   ) {
     addIcons({
-      'add': add,
-      'log-out-outline': logOutOutline,
-      'checkmark-done-outline': checkmarkDoneOutline,
-      'ellipsis-vertical': ellipsisVertical,
-      'document-text-outline': documentTextOutline,
-      'grid-outline': gridOutline,
-      'trash-outline': trashOutline,
-      'close-outline': closeOutline
+      add,
+      logOutOutline,
+      checkmarkDoneOutline,
+      warningOutline,
+      ellipsisVertical,
+      documentTextOutline,
+      gridOutline,
+      trashOutline,
+      closeOutline,
+      closeCircle
     });
   }
 
@@ -98,7 +104,16 @@ export class InventuryZoznamPage implements OnInit {
   async zmazat(inv: Inventura) {
     try { await this.supabase.zmazatInventuru(inv.id); this.nacitajZoznam(); } catch (e) { }
   }
-
+  // Metóda na otvorenie modálu
+  async otvoritFormularBezId(inv: Inventura) {
+    const modal = await this.modalCtrl.create({
+      component: DoplnitIdModalComponent,
+      componentProps: {
+        inventuraId: inv.id
+      }
+    });
+    await modal.present();
+  }
   // --- MENU PRE EXPORT ---
 
   async otvoritMoznosti(inv: Inventura) {
@@ -106,6 +121,13 @@ export class InventuryZoznamPage implements OnInit {
       header: `Možnosti: ${inv.nazov}`,
       buttons: [
         // --- EXCEL ---
+        {
+          text: 'Doplniť chýbajúce ID (Formulár)',
+          icon: 'create-outline', // Uistite sa, že máte importovaný tento icon
+          handler: () => {
+            this.otvoritFormularBezId(inv);
+          }
+        },
         {
           text: 'Excel (Kompletný - 2 hárky)',
           icon: 'grid-outline',
@@ -206,5 +228,19 @@ export class InventuryZoznamPage implements OnInit {
   async toast(msg: string, color: string) {
     const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'bottom' });
     t.present();
+  }
+  async spravovatNezname(inv: Inventura) {
+    const modal = await this.modalCtrl.create({
+      component: DoplnitIdModalComponent,
+      componentProps: {
+        inventuraId: inv.id
+      }
+    });
+
+    await modal.present();
+
+    // Keď sa modal zavrie, obnovíme zoznam, aby zmizlo číslo (ak sme všetko opravili)
+    await modal.onWillDismiss();
+    this.nacitajZoznam();
   }
 }

@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { SupabaseService } from 'src/app/services/supabase.service';
 
 import { clipboardOutline, cubeOutline, layersOutline } from 'ionicons/icons';
 
@@ -13,12 +14,21 @@ import { clipboardOutline, cubeOutline, layersOutline } from 'ionicons/icons';
   standalone: true,
   imports: [CommonModule, IonicModule, RouterLink], // Odstránená duplicita IonicModule
 })
-export class HomePage {
-  constructor() {
+export class HomePage implements OnInit {
+
+  currentUserEmail: string = '';
+  constructor(private supabaseService: SupabaseService) {
     addIcons({
       'clipboard-outline': clipboardOutline,
       'cube-outline': cubeOutline,
       'layers-outline': layersOutline
     });
+  }
+  async ngOnInit() {
+    // 👇 Získame prihláseného používateľa
+    const { data } = await this.supabaseService.supabase.auth.getUser();
+    if (data && data.user) {
+      this.currentUserEmail = data.user.email || '';
+    }
   }
 }

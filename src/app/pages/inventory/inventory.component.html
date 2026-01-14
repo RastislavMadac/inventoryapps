@@ -27,19 +27,33 @@
 
   <div class="filter-panel">
     
+    <div class="ion-padding-horizontal ion-margin-top" 
+         style="display: flex; justify-content: center; width: 100%;"
+         *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
+      
+      <ion-chip color="danger" mode="ios" (click)="zrusitFiltre()">
+        <ion-icon name="close-circle"></ion-icon>
+        <ion-label>Zrušiť filtre</ion-label>
+      </ion-chip>
+
+    </div>
     <div class="select-row fade-in">
       
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Sklad</span>
-          <ion-icon name="add-circle-outline" color="primary" style="font-size: 20px;" (click)="otvoritNovuLokaciu()"></ion-icon>
+          
+          <ion-icon *ngIf="rezimZobrazenia !== 'global'" 
+                    name="add-circle-outline" color="primary" style="font-size: 20px;" 
+                    (click)="otvoritNovuLokaciu()">
+          </ion-icon>
         </div>
         
-        <div class="custom-input-box">
+        <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [(ngModel)]="vybranySkladId" 
-                      (ionChange)="priZmeneSkladu()">
-            <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
+                      (ionChange)="priZmeneSkladu()"
+                      [disabled]="rezimZobrazenia === 'global'"> <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -48,20 +62,25 @@
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Regál</span>
-          <ion-icon name="add-circle-outline" color="primary" style="font-size: 20px;" (click)="otvoritNovuLokaciu()"></ion-icon>
+          
+          <ion-icon *ngIf="rezimZobrazenia !== 'global'" 
+                    name="add-circle-outline" color="primary" style="font-size: 20px;" 
+                    (click)="otvoritNovuLokaciu()">
+          </ion-icon>
         </div>
         
-        <div class="custom-input-box" [class.disabled]="!vybranySkladId">
+        <div class="custom-input-box" [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [(ngModel)]="vybranyRegalId" 
                       (ionChange)="priZmeneRegalu()"  
-                      [disabled]="!vybranySkladId">
-            <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
+                      [disabled]="!vybranySkladId || rezimZobrazenia === 'global'"> <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
       </div>
     </div>
+
+      
 
     <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
       
@@ -132,18 +151,29 @@
 
         <div class="info">
           <h3>
-             {{ z.nazov }}
-             <ion-icon 
-                name="create-outline" 
-                color="medium" 
-                style="margin-left: 8px; font-size: 1.1rem; vertical-align: middle;"
-                (click)="$event.stopPropagation(); upravitProduktDetail(z)">
-             </ion-icon>
-          </h3>
+            {{ z.nazov }}
+            
+            <span class="action-icons">
+              
+              <ion-icon 
+                 name="create-outline" 
+                 color="medium" 
+                 (click)="$event.stopPropagation(); upravitProduktDetail(z)">
+              </ion-icon>
 
+              <ion-icon 
+                *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
+                 name="trash-outline" 
+                 color="danger" 
+                 class="trash-icon"
+                 (click)="zmazatPolozku(z, $event)">
+              </ion-icon>
+
+            </span>
+         </h3>
           <div class="meta">
             <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
-            <span *ngIf="z.balenie_ks > 1" class="badge-pack">📦 {{ z.balenie_ks }}</span>
+            <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
           </div>
           
           <p *ngIf="z.v_inventure" class="done-text">

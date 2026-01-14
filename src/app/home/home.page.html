@@ -6,12 +6,18 @@
         <ion-icon name="cube-outline" color="light"></ion-icon>
       </div>
       <h1>Skladový Systém</h1>
-      <p>Vitajte späť</p>
+      
+      <p *ngIf="currentUserEmail" class="user-label">
+        <ion-icon name="person-circle-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        {{ currentUserEmail }}
+      </p>
+      
+      <p *ngIf="!currentUserEmail">Vitajte späť</p>
+      
     </div>
 
     <div class="dashboard-grid">
-
-      <ion-card routerLink="/inventury-zoznam" button="true" class="dashboard-card">
+       <ion-card routerLink="/inventury-zoznam" button="true" class="dashboard-card">
         <div class="card-content">
           <div class="icon-box blue">
             <ion-icon name="cube-outline"></ion-icon>

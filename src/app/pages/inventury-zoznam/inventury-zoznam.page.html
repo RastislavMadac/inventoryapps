@@ -25,7 +25,6 @@
     </ion-list-header>
 
     <ion-item *ngFor="let inv of zoznam">
-      
       <ion-label class="ion-text-wrap">
         <h2>{{ inv.nazov }}</h2>
         <p>Vytvorená: {{ inv.datum_vytvorenia | date:'dd.MM.yyyy' }}</p>
@@ -36,31 +35,30 @@
         <div *ngIf="!inv.datum_uzavretia" class="status-badge open">
           Otvorená
         </div>
-      </ion-label>
-
-      <div slot="end">
         
+        <div *ngIf="(inv.pocet_neznamych || 0) > 0"
+             (click)="$event.stopPropagation(); spravovatNezname(inv)"
+             style="margin-top: 8px; color: var(--ion-color-danger); font-size: 0.9em; display: flex; align-items: center; cursor: pointer;">
+          <ion-icon name="warning-outline" style="margin-right: 5px;"></ion-icon>
+          <strong>{{ inv.pocet_neznamych }} neznámych položiek</strong>
+        </div>
+      </ion-label>
+      
+      <div slot="end">
         <ion-button *ngIf="!inv.datum_uzavretia" 
-                    color="warning" 
-                    fill="outline" 
-                    size="small"
+                    color="warning" fill="outline" size="small"
                     (click)="potvrditUzavretie(inv)">
           Uzavrieť
         </ion-button>
-
-        <ion-button *ngIf="inv.datum_uzavretia" 
-                    fill="clear" 
-                    color="dark"
-                    (click)="otvoritMoznosti(inv)">
+        
+        <ion-button fill="clear" color="dark" (click)="otvoritMoznosti(inv)">
           <ion-icon name="ellipsis-vertical" slot="icon-only"></ion-icon>
         </ion-button>
-
       </div>
-
-    </ion-item>
-  </ion-list>
+    </ion-item> </ion-list>
 
   <div *ngIf="zoznam.length === 0" class="ion-text-center ion-padding" style="margin-top: 50px; opacity: 0.6;">
+    <ion-icon name="document-text-outline" style="font-size: 64px; color: var(--ion-color-medium); margin-bottom: 16px;"></ion-icon>
     <p>Zatiaľ žiadna inventúra.</p>
     <ion-button fill="outline" (click)="novaInventura()">Vytvoriť prvú</ion-button>
   </div>

@@ -1,0 +1,67 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Doplniť chýbajúce ID</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="zavriet()">
+        <ion-icon name="close-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="bg-gray">
+  
+  <div *ngIf="isLoading" class="center-content">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p>Hľadám položky bez ID...</p>
+  </div>
+
+  <div *ngIf="!isLoading && polozky.length === 0" class="center-content empty-state">
+    <div class="circle-icon">
+      <ion-icon name="checkmark-circle-outline"></ion-icon>
+    </div>
+    <h3>Žiadne chýbajúce ID</h3>
+    <p>Všetky položky v tejto inventúre majú Product ID vyplnené.</p>
+    <ion-button fill="outline" class="ion-margin-top" (click)="zavriet()">Zavrieť okno</ion-button>
+  </div>
+
+  <div *ngIf="!isLoading && polozky.length > 0">
+    <div class="header-info ion-padding">
+      <p>Nájdených: <strong>{{ polozky.length }}</strong> položiek bez ID</p>
+    </div>
+
+    <ion-list lines="none" class="item-list">
+      <ion-item *ngFor="let p of polozky" class="custom-item">
+        
+        <div class="item-content">
+          <div class="top-row">
+            <div class="icon-box">
+              <ion-icon name="cube-outline"></ion-icon>
+            </div>
+            <div class="texts">
+              <h2>{{ p.produkt.nazov }}</h2>
+              <div class="meta">
+                <span class="location">
+                  <ion-icon name="location-outline"></ion-icon> 
+                  {{ p.regal?.sklad?.nazov }} - {{ p.regal?.nazov }}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bottom-row">
+            <span class="qty-badge">
+              Množstvo: <strong>{{ p.mnozstvo }} {{ p.produkt.jednotka }}</strong>
+            </span>
+            <ion-button fill="outline" size="small" (click)="otvoritZapis(p)">
+              <ion-icon name="pencil-outline" slot="start"></ion-icon>
+              Doplniť ID
+            </ion-button>
+          </div>
+        </div>
+
+      </ion-item>
+    </ion-list>
+  </div>
+
+</ion-content>

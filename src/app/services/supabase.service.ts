@@ -26,6 +26,7 @@ export interface SkladovaZasobaView {
     regal_id?: number;
     v_inventure?: boolean;
     jednotka?: string;
+
 }
 
 export interface Inventura {
@@ -34,6 +35,7 @@ export interface Inventura {
     stav: 'otvorena' | 'uzavreta';
     datum_vytvorenia: string;
     datum_uzavretia?: string;
+    pocet_neznamych?: number;
 }
 
 @Injectable({
@@ -301,13 +303,33 @@ export class SupabaseService {
     }
 
     async getZoznamInventur() {
-        const { data, error } = await this.supabase
+        // 1. Stiahneme zoznam inventúr
+        const { data: inventury, error } = await this.supabase
             .from('inventury')
             .select('*')
             .order('datum_vytvorenia', { ascending: false });
 
         if (error) throw error;
-        return data as Inventura[];
+
+        // 2. Pre každú inventúru zistíme počet položiek bez ID
+        const zoznam: Inventura[] = [];
+
+        for (const inv of inventury) {
+            // Zrátame riadky, kde produkt nemá vlastne_id (je null)
+            const { count } = await this.supabase
+                .from('inventura_polozky')
+                .select('produkt:produkty!inner(id)', { count: 'exact', head: true })
+                .eq('inventura_id', inv.id)
+                .is('produkt.vlastne_id', null);
+
+            // Pridáme do výsledku aj s počtom
+            zoznam.push({
+                ...inv,
+                pocet_neznamych: count || 0
+            });
+        }
+
+        return zoznam;
     }
 
     async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
@@ -520,6 +542,86 @@ export class SupabaseService {
                 produkt_id: produktId,
                 regal_id: regalId
             });
+
+        if (error) throw error;
+    }
+
+    async zmazatZasobuZoSkladu(zasobaId: number) {
+        const { error } = await this.supabase
+            .from('skladove_zasoby')
+            .delete()
+            .eq('id', zasobaId);
+
+        if (error) throw error;
+    }
+
+    // Pridajte do triedy SupabaseService:
+
+    async presunutZasobu(zasobaId: number, novyRegalId: number) {
+        // 1. Skontrolujeme, či na cieľovom regáli už taký produkt nie je
+        // (Aby sme nevytvorili duplicitu)
+        const { data: existujuca } = await this.supabase
+            .from('skladove_zasoby')
+            .select('id')
+            .eq('regal_id', novyRegalId)
+        // Tu musíme vedieť produkt_id, ale v update to robíme cez ID zásoby.
+        // Pre jednoduchosť skúsime update a odchytíme chybu unikátnosti, ak máte nastavené constraints.
+        // Alebo jednoducho spravíme update:
+
+        const { error } = await this.supabase
+            .from('skladove_zasoby')
+            .update({ regal_id: novyRegalId })
+            .eq('id', zasobaId);
+
+        if (error) throw error;
+    }
+    async ziskatRoluPouzivatela(): Promise<string> {
+        const user = await this.supabase.auth.getUser();
+        if (!user.data.user) return 'viewer';
+
+        const { data } = await this.supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.data.user.id)
+            .single();
+
+        return data?.role || 'user';
+    }
+    // Priradí produkt k už existujúcemu záznamu v inventúre
+    async sparovatProdukt(polozkaId: number, produktId: number) {
+        const { error } = await this.supabase
+            .from('inventura_polozky')
+            .update({ produkt_id: produktId })
+            .eq('id', polozkaId);
+
+        if (error) throw error;
+    }
+    // Načíta položky z konkrétnej inventúry, ktoré nemajú vyplnené vlastne_id (Product ID)
+    async getPolozkyBezId(inventuraId: number) {
+        const { data, error } = await this.supabase
+            .from('inventura_polozky')
+            .select(`
+        id,
+        mnozstvo,
+        regal:regaly(nazov, sklad:sklady(nazov)),
+        produkt:produkty!inner(id, nazov, vlastne_id, jednotka)
+      `)
+            .eq('inventura_id', inventuraId)
+            .is('produkt.vlastne_id', null); // Filtrujeme len tie, čo nemajú ID (v Supabase to môže byť null alebo prázdny string, treba ošetriť)
+
+        if (error) throw error;
+
+        // Supabase .is('null') niekedy nestačí ak je tam prázdny string "", 
+        // tak to prefiltrujeme ešte v JavaScripte pre istotu.
+        return data.filter((item: any) => !item.produkt.vlastne_id || item.produkt.vlastne_id.trim() === '');
+    }
+
+    // Uloží nové ID k produktu
+    async aktualizovatProductId(produktId: number, noveId: string) {
+        const { error } = await this.supabase
+            .from('produkty')
+            .update({ vlastne_id: noveId }) // alebo 'ean', podľa toho čo používate ako Product ID
+            .eq('id', produktId);
 
         if (error) throw error;
     }

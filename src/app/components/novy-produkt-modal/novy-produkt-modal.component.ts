@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import { idCardOutline, addCircleOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
 
-// IMPORTY MODALOV
+
 import { NovaLokaciaModalComponent } from '../nova-lokacia-modal/nova-lokacia-modal.component';
 import { NovaKategoriaModalComponent } from '../nova-kategoria-modal/nova-kategoria-modal.component';
 
@@ -25,7 +25,7 @@ export class NovyProduktModalComponent implements OnInit {
     nazov: '',
     vlastne_id: '',
     kategoria_id: null,
-    jednotka: 'ks', // Zmenil som predvolenú na 'ks', ale kľudne dajte 'kg'
+    jednotka: 'kg',
     balenie_ks: 1
   };
 
@@ -41,7 +41,7 @@ export class NovyProduktModalComponent implements OnInit {
     private supabase: SupabaseService,
     private toastCtrl: ToastController
   ) {
-    // Registrácia ikon
+
     addIcons({
       'id-card-outline': idCardOutline,
       'add-circle-outline': addCircleOutline
@@ -53,7 +53,7 @@ export class NovyProduktModalComponent implements OnInit {
     this.naplnitFormular();
   }
 
-  // --- 1. NAČÍTANIE DÁT (Kategórie, Sklady) ---
+
   async nacitajData() {
     try {
       const [katData, skladyData] = await Promise.all([
@@ -69,29 +69,49 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
-  // --- 2. NAPLNENIE FORMULÁRA PRI ÚPRAVE ---
-  naplnitFormular() {
+  async naplnitFormular() {
     if (this.produktNaUpravu) {
       console.log('✏️ Režim úpravy pre:', this.produktNaUpravu.nazov);
 
+      // 1. Zistíme, či už máme ID, alebo ho musíme nájsť podľa názvu
+      let kategoriaId = this.produktNaUpravu.kategoria_id || this.produktNaUpravu.kategoria?.id;
+
+      // Ak ID nemáme (je null/undefined), ale máme názov kategórie (string)
+      if (!kategoriaId && this.produktNaUpravu.kategoria) {
+        // Skúsime nájsť kategóriu v zozname podľa názvu
+        const najdenaKategoria = this.kategorie.find(k => k.nazov === this.produktNaUpravu.kategoria);
+
+        if (najdenaKategoria) {
+          kategoriaId = najdenaKategoria.id;
+          console.log(`✅ Spároval som kategóriu "${this.produktNaUpravu.kategoria}" s ID: ${kategoriaId}`);
+        }
+      }
+
+      // 2. Naplníme formulár
       this.produkt = {
         nazov: this.produktNaUpravu.nazov,
-        // Ak v objekte 'vlastne_id' neexistuje, skúsime pozrieť 'ean', inak prázdny string
         vlastne_id: this.produktNaUpravu.vlastne_id || this.produktNaUpravu.ean || '',
 
-        // Ošetrenie: buď je kategoria objekt, alebo priamo ID
-        kategoria_id: this.produktNaUpravu.kategoria?.id || this.produktNaUpravu.kategoria_id,
+        // Použijeme zistené ID
+        kategoria_id: kategoriaId,
 
         jednotka: this.produktNaUpravu.jednotka || 'ks',
         balenie_ks: this.produktNaUpravu.balenie_ks || 1
       };
 
-      // Poznámka: Pri úprave produktu väčšinou nemeníme jeho polohu cez tento formulár,
-      // ale ak by ste chceli, museli by ste tu naplniť aj vybranySkladId a vybranyRegalId.
+      // 3. Nastavenie Skladu a Regálu (pre presun)
+      if (this.produktNaUpravu.sklad_id) {
+        this.vybranySkladId = this.produktNaUpravu.sklad_id;
+
+        // Musíme počkať, kým sa načítajú regály pre tento sklad
+        await this.onSkladChange();
+
+        this.vybranyRegalId = this.produktNaUpravu.regal_id;
+      }
     }
   }
 
-  // --- 3. ZMENA SKLADU (Načítanie regálov) ---
+
   async onSkladChange() {
     this.vybranyRegalId = null;
     this.regaly = [];
@@ -105,7 +125,7 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
-  // --- 4. ULOŽENIE (Vytvorenie alebo Úprava) ---
+
   async ulozit() {
     if (!this.produkt.nazov) {
       this.toast('Zadajte názov produktu', 'warning');
@@ -114,14 +134,21 @@ export class NovyProduktModalComponent implements OnInit {
 
     try {
       if (this.produktNaUpravu) {
-        // 🅰️ REŽIM ÚPRAVY (UPDATE)
-        // Voláme funkciu updateProdukt, ktorú sme pridali do service
+
         await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
+
         this.toast('Produkt bol úspešne upravený', 'success');
-        this.modalCtrl.dismiss(true, 'confirm'); // Vrátime true, že sa niečo zmenilo
+
+
+        const dataNaVratenie = {
+          ...this.produkt,
+          regal_id: this.vybranyRegalId
+        };
+
+        this.modalCtrl.dismiss(dataNaVratenie, 'confirm');
 
       } else {
-        // 🅱️ REŽIM VYTVÁRANIA (INSERT)
+
         const novy = await this.supabase.vytvoritProduktSLocation(
           this.produkt,
           this.vybranyRegalId
@@ -137,7 +164,7 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
-  // --- POMOCNÉ FUNKCIE ---
+
 
   zrusit() {
     this.modalCtrl.dismiss(null, 'cancel');
@@ -148,7 +175,7 @@ export class NovyProduktModalComponent implements OnInit {
     t.present();
   }
 
-  // --- MODAL: NOVÁ KATEGÓRIA ---
+
   async otvoritNovuKategoriu() {
     const modal = await this.modalCtrl.create({
       component: NovaKategoriaModalComponent,
@@ -161,16 +188,16 @@ export class NovyProduktModalComponent implements OnInit {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === 'confirm' && data) {
-      // 1. Obnovíme zoznam kategórií
+
       const katData = await this.supabase.getKategorie();
       this.kategorie = katData || [];
 
-      // 2. Automaticky vyberieme tú novú
+
       this.produkt.kategoria_id = data.id;
     }
   }
 
-  // --- MODAL: NOVÁ LOKÁCIA (SKLAD/REGÁL) ---
+
   async otvoritNovuLokaciu() {
     const modal = await this.modalCtrl.create({
       component: NovaLokaciaModalComponent,
@@ -183,10 +210,10 @@ export class NovyProduktModalComponent implements OnInit {
     const { role } = await modal.onWillDismiss();
 
     if (role === 'confirm') {
-      // Obnovíme zoznam skladov
+
       await this.nacitajData();
 
-      // Ak už bol vybraný sklad, obnovíme aj regále
+
       if (this.vybranySkladId) {
         await this.onSkladChange();
       }
