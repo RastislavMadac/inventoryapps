@@ -397,7 +397,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         this.isLoading = false;
         this.cdr.detectChanges();
       }
-    }, 5000);
+    }, 1000);
 
     try {
 
