@@ -27,7 +27,7 @@
 
   <div class="filter-panel">
     
-    <div *ngIf="rezimZobrazenia === 'regal'" class="select-row fade-in">
+    <div class="select-row fade-in">
       
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
@@ -37,7 +37,8 @@
         
         <div class="custom-input-box">
           <ion-select placeholder="Vyberte" interface="action-sheet"
-                      [value]="vybranySkladId" (ionChange)="onSkladChange($event.detail.value)">
+                      [(ngModel)]="vybranySkladId" 
+                      (ionChange)="priZmeneSkladu()">
             <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
@@ -52,26 +53,31 @@
         
         <div class="custom-input-box" [class.disabled]="!vybranySkladId">
           <ion-select placeholder="Vyberte" interface="action-sheet"
-                      [value]="vybranyRegalId" (ionChange)="onRegalChange($event.detail.value)"
+                      [(ngModel)]="vybranyRegalId" 
+                      (ionChange)="priZmeneRegalu()"  
                       [disabled]="!vybranySkladId">
-            <ion-select-option *ngFor="let r of regaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
+            <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
       </div>
     </div>
 
-    <div *ngIf="rezimZobrazenia !== 'regal' || vybranyRegalId" class="search-row fade-in">
+    <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
+      
       <div class="search-wrapper">
         <ion-icon name="search-outline" class="search-icon"></ion-icon>
         <input type="text" placeholder="Hľadať produkt..." 
-               [(ngModel)]="searchQuery" (input)="handleSearch($event)">
+               [(ngModel)]="searchQuery" 
+               (input)="handleSearch($event)">
       </div>
 
       <div class="filter-btn-wrapper">
         <div class="icon-box">
           <ion-icon name="filter-outline"></ion-icon>
-          <ion-select interface="action-sheet" [(ngModel)]="filterKategoria" (ionChange)="zmenitFilterKategorie($event)">
+          <ion-select interface="action-sheet" 
+                      [(ngModel)]="filterKategoria" 
+                      (ionChange)="zmenitFilterKategorie($event)">
              <ion-select-option value="vsetky">Všetky</ion-select-option>
              <ion-select-option *ngFor="let k of unikatneKategorie" [value]="k">{{ k }}</ion-select-option>
           </ion-select>
@@ -101,15 +107,19 @@
     <p>Hore vyberte Sklad a Regál pre zobrazenie tovaru.</p>
   </div>
 
-  <div *ngIf="rezimZobrazenia === 'v_inventure' && filtrovaneZasoby.length === 0 && !isLoading" class="center-content empty-state fade-in">
+  <div *ngIf="filtrovaneZasoby.length === 0 && !isLoading && (vybranyRegalId || rezimZobrazenia !== 'regal')" class="center-content empty-state fade-in">
     <div class="circle-icon green-icon">
-      <ion-icon name="checkmark-done-outline"></ion-icon>
+      <ion-icon [name]="rezimZobrazenia === 'v_inventure' ? 'checkmark-done-outline' : 'search-outline'"></ion-icon>
     </div>
-    <h3>Zatiaľ nič zapísané</h3>
-    <p>V tejto inventúre ste ešte nepotvrdili žiadny tovar.</p>
+    <h3 *ngIf="rezimZobrazenia === 'v_inventure'">Zatiaľ nič zapísané</h3>
+    <h3 *ngIf="rezimZobrazenia !== 'v_inventure'">Žiadne položky</h3>
+    
+    <p *ngIf="rezimZobrazenia === 'v_inventure'">V tejto inventúre ste ešte nepotvrdili žiadny tovar.</p>
+    <p *ngIf="rezimZobrazenia !== 'v_inventure'">Nenašli sa žiadne produkty zodpovedajúce filtru.</p>
   </div>
 
   <div class="cards-list" *ngIf="!isLoading">
+    
     <ion-card *ngFor="let z of filtrovaneZasoby; let i = index" 
               (click)="otvoritUpravu(z)" 
               class="product-card slide-up"
@@ -121,15 +131,25 @@
         </div>
 
         <div class="info">
-          <h3>{{ z.nazov }}</h3>
+          <h3>
+             {{ z.nazov }}
+             <ion-icon 
+                name="create-outline" 
+                color="medium" 
+                style="margin-left: 8px; font-size: 1.1rem; vertical-align: middle;"
+                (click)="$event.stopPropagation(); upravitProduktDetail(z)">
+             </ion-icon>
+          </h3>
+
           <div class="meta">
-            <span class="badge-cat">{{ z. umiestnenie || 'Bez kat.' }}</span>
+            <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
             <span *ngIf="z.balenie_ks > 1" class="badge-pack">📦 {{ z.balenie_ks }}</span>
           </div>
           
           <p *ngIf="z.v_inventure" class="done-text">
             <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
           </p>
+          
           <p *ngIf="z.umiestnenie && !z.v_inventure" class="loc">
             <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
           </p>
@@ -138,12 +158,11 @@
 
       <div class="card-right">
         <span class="qty">{{ z.mnozstvo_ks }}</span>
-        <small>{{ z.jednotka || 'kg' }}</small>
+        <small>{{ z.jednotka || 'ks' }}</small>
       </div>
     </ion-card>
   </div>
   
-
   <ion-fab vertical="bottom" horizontal="end" slot="fixed" style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
       <ion-icon name="add"></ion-icon>

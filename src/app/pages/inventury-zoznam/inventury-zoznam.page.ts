@@ -3,20 +3,19 @@ import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonTitle, IonToolbar,
   IonButtons, IonBackButton, IonButton, IonIcon,
-  IonList, IonListHeader, IonItem, IonLabel
+  IonList, IonListHeader, IonItem, IonLabel,
+  ActionSheetController
 } from '@ionic/angular/standalone';
 
 import { AlertController, ToastController, NavController } from '@ionic/angular';
 import { SupabaseService, Inventura } from '../../services/supabase.service';
+import { ExportService } from 'src/app/services/export.service';
 import { addIcons } from 'ionicons';
-import { fontRobotoRegular } from 'src/app/font';
-
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-// ZMENA: Pridaná ikona 'trash' (kôš), odstránené share ikony
-import { add, downloadOutline, printOutline, logOutOutline, trashOutline } from 'ionicons/icons';
+import {
+  add, logOutOutline, checkmarkDoneOutline,
+  ellipsisVertical, documentTextOutline, gridOutline,
+  trashOutline, closeOutline
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-inventury-zoznam',
@@ -28,7 +27,8 @@ import { add, downloadOutline, printOutline, logOutOutline, trashOutline } from 
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonButtons, IonBackButton, IonButton, IonIcon,
     IonList, IonListHeader, IonItem, IonLabel
-  ]
+  ],
+  providers: [ActionSheetController]
 })
 export class InventuryZoznamPage implements OnInit {
 
@@ -38,14 +38,19 @@ export class InventuryZoznamPage implements OnInit {
     private supabase: SupabaseService,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
-    private navCtrl: NavController
+    private navCtrl: NavController,
+    private exportService: ExportService,
+    private actionSheetCtrl: ActionSheetController
   ) {
     addIcons({
       'add': add,
-      'download-outline': downloadOutline,
-      'print-outline': printOutline,
       'log-out-outline': logOutOutline,
-      'trash-outline': trashOutline // Pridaná ikona koša
+      'checkmark-done-outline': checkmarkDoneOutline,
+      'ellipsis-vertical': ellipsisVertical,
+      'document-text-outline': documentTextOutline,
+      'grid-outline': gridOutline,
+      'trash-outline': trashOutline,
+      'close-outline': closeOutline
     });
   }
 
@@ -61,186 +66,145 @@ export class InventuryZoznamPage implements OnInit {
   async nacitajZoznam() {
     try {
       this.zoznam = await this.supabase.getZoznamInventur();
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async novaInventura() {
-    const otvorena = this.zoznam.find(i => i.stav === 'otvorena');
-    if (otvorena) {
-      this.toast('Najprv musíte uzavrieť starú inventúru!', 'warning');
-      return;
-    }
-
     const alert = await this.alertCtrl.create({
       header: 'Nová Inventúra',
       inputs: [{ name: 'nazov', type: 'text', placeholder: 'Napr. Január 2026' }],
-      buttons: [
-        { text: 'Zrušiť', role: 'cancel' },
-        {
-          text: 'Vytvoriť',
-          handler: async (data) => {
-            if (data.nazov) await this.vytvorit(data.nazov);
-          }
-        }
-      ]
+      buttons: ['Zrušiť', { text: 'Vytvoriť', handler: (d) => { if (d.nazov) this.vytvorit(d.nazov) } }]
     });
     await alert.present();
   }
 
   async vytvorit(nazov: string) {
-    try {
-      await this.supabase.vytvoritInventuru(nazov);
-      this.toast('Inventúra vytvorená', 'success');
-      this.nacitajZoznam();
-    } catch (e) {
-      this.toast('Chyba pri vytváraní', 'danger');
-    }
+    try { await this.supabase.vytvoritInventuru(nazov); this.nacitajZoznam(); } catch (e) { }
   }
 
   async potvrditUzavretie(inv: Inventura) {
     const alert = await this.alertCtrl.create({
       header: 'Uzavrieť inventúru?',
-      message: `Naozaj chcete uzavrieť "${inv.nazov}"? \n\n⚠️ Údaje v živom sklade sa prepíšu!`,
-      buttons: [
-        { text: 'Zrušiť', role: 'cancel' },
-        {
-          text: 'Áno, prepísať sklad',
-          cssClass: 'alert-danger-button',
-          handler: () => { this.vykonatUzavretie(inv.id); }
-        }
-      ]
+      message: 'Naozaj? Dáta v sklade sa prepíšu.',
+      buttons: ['Zrušiť', { text: 'Áno', handler: () => this.vykonatUzavretie(inv.id) }]
     });
     await alert.present();
   }
 
   async vykonatUzavretie(id: number) {
-    try {
-      await this.supabase.uzavrietInventuru(id);
-      this.toast('Inventúra uzavretá.', 'success');
-      this.nacitajZoznam();
-    } catch (e) {
-      this.toast('Chyba pri uzatváraní.', 'danger');
-    }
+    try { await this.supabase.uzavrietInventuru(id); this.nacitajZoznam(); } catch (e) { }
   }
 
-  // --- NOVÁ FUNKCIA: ZMAZANIE INVENTÚRY ---
   async zmazat(inv: Inventura) {
-    const alert = await this.alertCtrl.create({
-      header: 'Zmazať inventúru?',
-      message: `Naozaj chcete natrvalo odstrániť inventúru "${inv.nazov}"? Táto akcia je nevratná.`,
+    try { await this.supabase.zmazatInventuru(inv.id); this.nacitajZoznam(); } catch (e) { }
+  }
+
+  // --- MENU PRE EXPORT ---
+
+  async otvoritMoznosti(inv: Inventura) {
+    const actionSheet = await this.actionSheetCtrl.create({
+      header: `Možnosti: ${inv.nazov}`,
       buttons: [
-        { text: 'Zrušiť', role: 'cancel' },
+        // --- EXCEL ---
         {
-          text: 'Zmazať',
+          text: 'Excel (Kompletný - 2 hárky)',
+          icon: 'grid-outline',
+          handler: () => { this.spustitExport(inv, 'excel_komplet'); }
+        },
+        {
+          text: 'Excel (Len s ID)',
+          icon: 'grid-outline',
+          handler: () => { this.spustitExport(inv, 'excel_id'); }
+        },
+        {
+          text: 'Excel (Len bez ID)',
+          icon: 'grid-outline',
+          handler: () => { this.spustitExport(inv, 'excel_noid'); }
+        },
+
+        // --- PDF ---
+        {
+          text: 'PDF (Len s ID)',
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'pdf_id'); }
+        },
+        {
+          text: 'PDF (Len bez ID)',
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'pdf_noid'); }
+        },
+
+        // --- AKCIE ---
+        {
+          text: 'Zmazať inventúru',
           role: 'destructive',
-          cssClass: 'alert-danger-button',
-          handler: async () => {
-            try {
-              await this.supabase.zmazatInventuru(inv.id);
-              this.toast('Inventúra bola odstránená.', 'success');
-              this.nacitajZoznam();
-            } catch (e) {
-              console.error(e);
-              this.toast('Chyba pri mazaní.', 'danger');
-            }
-          }
+          icon: 'trash-outline',
+          handler: () => { this.zmazat(inv); }
+        },
+        {
+          text: 'Zrušiť',
+          role: 'cancel',
+          icon: 'close-outline'
         }
       ]
     });
-    await alert.present();
+
+    await actionSheet.present();
+  }
+
+  async spustitExport(inv: Inventura, typ: string) {
+    this.toast('Pripravujem súbor...', 'primary');
+
+    try {
+      // 1. Stiahneme surové dáta z databázy
+      const data = await this.supabase.getDetailInventuryPreExport(inv.id);
+
+      if (!data || data.length === 0) {
+        this.toast('Inventúra je prázdna.', 'warning');
+        return;
+      }
+
+      let uspech = true;
+
+      // 2. Rozhodovanie podľa typu
+      switch (typ) {
+        case 'excel_komplet':
+          this.exportService.generovatExcelKomplet(data, inv.nazov);
+          break;
+
+        case 'excel_id':
+          uspech = this.exportService.generovatExcelSId(data, inv.nazov);
+          if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
+          break;
+
+        case 'excel_noid':
+          uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
+          if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
+          break;
+
+        case 'pdf_id':
+          uspech = this.exportService.generovatPdfSId(data, inv.nazov);
+          if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
+          break;
+
+        case 'pdf_noid':
+          uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
+          if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
+          break;
+      }
+
+      if (uspech) {
+        this.toast('Súbor stiahnutý.', 'success');
+      }
+
+    } catch (e) {
+      console.error(e);
+      this.toast('Chyba pri exporte.', 'danger');
+    }
   }
 
   async toast(msg: string, color: string) {
-    const t = await this.toastCtrl.create({ message: msg, duration: 2500, color, position: 'top' });
+    const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'bottom' });
     t.present();
-  }
-
-  // --- SŤAHOVANIE (Export) ---
-
-  private stiahnutBlob(blob: Blob, nazovSuboru: string) {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nazovSuboru;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  }
-
-  async stiahnutExcel(inv: Inventura) {
-    const vysledok = await this.generovatExcelSubor(inv);
-    if (vysledok) {
-      const excelBuffer = XLSX.write(vysledok.wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      this.stiahnutBlob(blob, vysledok.nazovSuboru);
-      this.toast(`Excel stiahnutý.`, 'success');
-    }
-  }
-
-  async stiahnutPDF(inv: Inventura) {
-    const vysledok = await this.generovatPDFDokument(inv);
-    if (vysledok) {
-      const pdfBlob = vysledok.doc.output('blob');
-      this.stiahnutBlob(pdfBlob, vysledok.nazovSuboru);
-      this.toast('PDF stiahnuté.', 'success');
-    }
-  }
-
-  private async generovatExcelSubor(inv: Inventura) {
-    try {
-      const rawData = await this.supabase.getDetailInventuryPreExport(inv.id);
-      if (!rawData || rawData.length === 0) {
-        this.toast('Inventúra je prázdna.', 'warning');
-        return null;
-      }
-      const excelData = rawData.map((item: any) => ({
-        'Produkt': item['Produkt'],
-        'Stav': Number(item['Spočítané Množstvo']),
-        'Sklad': item['Sklad'],
-        'Regál': item['Regál'],
-        'Kategória': item['Kategória'],
-        'Product ID': item['Product ID'],
-      }));
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Inventúra');
-
-      const bezpecnyNazov = inv.nazov.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      return { wb, nazovSuboru: `Inventura_${bezpecnyNazov}.xlsx` };
-    } catch (e) { return null; }
-  }
-
-  private async generovatPDFDokument(inv: Inventura) {
-    try {
-      const rawData = await this.supabase.getDetailInventuryPreExport(inv.id);
-      if (!rawData || rawData.length === 0) {
-        this.toast('Inventúra je prázdna.', 'warning');
-        return null;
-      }
-      const doc = new jsPDF();
-      doc.addFileToVFS('Roboto-Regular.ttf', fontRobotoRegular);
-      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-      doc.setFont('Roboto');
-      doc.text(`Inventúra: ${inv.nazov}`, 14, 20);
-
-      const bodyData = rawData.map((item: any) => [
-        //TODO - kED BUDU PRODUCTiD DOPLNIT `${item['Product ID']} - ${item['Produkt']}`,
-        item['Produkt'],
-        `${item['Spočítané Množstvo']}`, item['Sklad'], item['Regál']
-      ]);
-
-      autoTable(doc, {
-        head: [['Produkt', 'Ks', 'Sklad', 'Regál']],
-        body: bodyData,
-        startY: 30,
-        styles: { font: 'Roboto', fontStyle: 'normal' }
-      });
-
-      const bezpecnyNazov = inv.nazov.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      return { doc, nazovSuboru: `Inventura_${bezpecnyNazov}.pdf` };
-    } catch (e) { return null; }
   }
 }

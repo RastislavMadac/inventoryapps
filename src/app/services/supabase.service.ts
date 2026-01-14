@@ -3,14 +3,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { Subject, Observable } from 'rxjs';
 
-
-
 export interface Sklad {
     id: number;
     nazov: string;
 }
-
-
 
 export interface Regal {
     id: number;
@@ -22,6 +18,7 @@ export interface SkladovaZasobaView {
     id: number;
     produkt_id: number;
     nazov: string;
+    ean?: string;
     kategoria: string;
     mnozstvo_ks: number;
     balenie_ks: number;
@@ -46,7 +43,6 @@ export class SupabaseService {
     public supabase: SupabaseClient;
 
     constructor() {
-
         this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey, {
             auth: {
                 persistSession: true,
@@ -79,36 +75,140 @@ export class SupabaseService {
         return data as Regal[];
     }
 
-    async getZasobyNaRegali(regalId: number) {
+    async vytvoritSklad(nazov: string) {
+        const { data, error } = await this.supabase
+            .from('sklady')
+            .insert({ nazov: nazov })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    async vytvoritRegal(nazov: string, skladId: number) {
+        const { data, error } = await this.supabase
+            .from('regaly')
+            .insert({ nazov: nazov, sklad_id: skladId })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+
+
+    async getZasobyNaRegali(regalId: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
             .from('skladove_zasoby')
             .select(`
         id,
         mnozstvo_ks,
+        regal_id,
         produkt:produkty (
           id,
           nazov,
+          ean,
           balenie_ks,
-          jednotka,
+          jednotka,       
           kategorie ( nazov )
+        ),
+        regal:regaly (
+          id,
+          nazov,
+          sklad:sklady ( nazov )
         )
       `)
             .eq('regal_id', regalId);
 
         if (error) throw error;
 
+        return data.map((item: any) => ({
+            id: item.id,
+            produkt_id: item.produkt?.id,
+            nazov: item.produkt?.nazov,
+            ean: item.produkt?.ean,
+            jednotka: item.produkt?.jednotka || 'ks',
+            balenie_ks: item.produkt?.balenie_ks,
+            mnozstvo_ks: item.mnozstvo_ks,
+            regal_id: item.regal_id,
+            kategoria: item.produkt?.kategorie?.nazov,
+            umiestnenie: `${item.regal?.sklad?.nazov} - ${item.regal?.nazov}`
+        }));
+    }
+
+    async getVsetkyZasoby() {
+
+        const { data, error } = await this.supabase
+            .from('skladove_zasoby')
+            .select(`
+        id,
+        mnozstvo_ks,
+        regal_id,
+        produkt:produkty (
+          id, nazov, ean, balenie_ks, jednotka, kategorie(nazov)
+        ),
+        regal:regaly (
+          id, nazov,
+          sklad:sklady ( nazov )
+        )
+      `);
+
+        if (error) throw error;
+
         const sformatovaneData: SkladovaZasobaView[] = data.map((item: any) => ({
             id: item.id,
             produkt_id: item.produkt?.id,
-            nazov: item.produkt?.nazov || 'Neznámy produkt',
+            nazov: item.produkt?.nazov || 'Neznámy',
+            ean: item.produkt?.ean,
             kategoria: item.produkt?.kategorie?.nazov || 'Bez kategórie',
             mnozstvo_ks: item.mnozstvo_ks,
             balenie_ks: item.produkt?.balenie_ks || 1,
+            regal_id: item.regal_id,
+            umiestnenie: `${item.regal?.sklad?.nazov} | ${item.regal?.nazov}`,
             jednotka: item.produkt?.jednotka || 'kg'
         }));
 
         return sformatovaneData.sort((a, b) => a.nazov.localeCompare(b.nazov));
     }
+
+
+
+    async getVsetkyProduktyKatalog(): Promise<SkladovaZasobaView[]> {
+        const { data, error } = await this.supabase
+            .from('produkty')
+            .select(`
+            *,
+            kategorie ( nazov )
+          `)
+            .order('nazov');
+
+        if (error) throw error;
+
+        const vysledok: SkladovaZasobaView[] = [];
+
+        // 👇 ZMENA: Už nepozeráme na 'skladove_zasoby', ale vytvárame
+        // len jednu čistú kartu pre každý produkt.
+        data.forEach((prod: any) => {
+            vysledok.push({
+                id: 0, // 0 signalizuje, že ide o položku z katalógu (nie konkrétnu zásobu)
+                produkt_id: prod.id,
+                nazov: prod.nazov,
+                ean: prod.ean,
+                jednotka: prod.jednotka,
+                balenie_ks: prod.balenie_ks,
+                mnozstvo_ks: 0, // Vždy začíname od nuly
+                regal_id: undefined, // Nemá regál, kým ho neurčíte vo filtri
+                kategoria: prod.kategorie?.nazov,
+                umiestnenie: '📦 Katalóg' // Informácia pre užívateľa
+            });
+        });
+
+        return vysledok;
+    }
+
+
 
     async updateZasobu(zasobaId: number, produktId: number, novyStav: number, staryStav: number) {
         const { error: updateError } = await this.supabase
@@ -123,6 +223,7 @@ export class SupabaseService {
             throw new Error('Chyba pri aktualizácii: ' + updateError.message);
         }
 
+
         const { error: insertError } = await this.supabase
             .from('zaznamy_inventury')
             .insert({
@@ -135,9 +236,21 @@ export class SupabaseService {
         if (insertError) {
             console.error('História zlyhala', insertError);
         }
-
         return true;
     }
+
+    async insertZasobu(produktId: number, regalId: number, mnozstvo: number) {
+        const { error } = await this.supabase
+            .from('skladove_zasoby')
+            .insert({
+                produkt_id: produktId,
+                regal_id: regalId,
+                mnozstvo_ks: mnozstvo
+            });
+
+        if (error) throw error;
+    }
+
 
 
     async signIn(email: string, heslo: string) {
@@ -145,22 +258,24 @@ export class SupabaseService {
             email: email,
             password: heslo,
         });
-
         if (error) throw error;
         return data;
     }
-
 
     async signOut() {
         const { error } = await this.supabase.auth.signOut();
         if (error) throw error;
     }
 
-
     async getCurrentUser() {
         const { data } = await this.supabase.auth.getUser();
         return data.user;
     }
+
+    async odhlasit() {
+        return this.signOut();
+    }
+
 
 
     async vytvoritInventuru(nazov: string) {
@@ -174,7 +289,6 @@ export class SupabaseService {
         return data as Inventura;
     }
 
-
     async getOtvorenaInventura() {
         const { data, error } = await this.supabase
             .from('inventury')
@@ -185,7 +299,6 @@ export class SupabaseService {
         if (error) throw error;
         return data as Inventura | null;
     }
-
 
     async getZoznamInventur() {
         const { data, error } = await this.supabase
@@ -212,49 +325,75 @@ export class SupabaseService {
         return true;
     }
 
-    async getVsetkyZasoby() {
+    async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
-            .from('skladove_zasoby')
+            .from('inventura_polozky')
             .select(`
         id,
-        mnozstvo_ks,
+        mnozstvo,
+        produkt_id,
         regal_id,
-        produkt:produkty (
-          id, nazov, balenie_ks, kategorie(nazov)
-        ),
-        regal:regaly (
-          id, nazov,
-          sklad:sklady ( nazov ),
-          jednotka
-        )
-      `);
+        regaly:regal_id ( nazov ),
+        produkty:produkt_id ( nazov, balenie_ks, ean, jednotka )
+      `)
+            .eq('inventura_id', inventuraId);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Chyba pri načítaní inventúry:', error);
+            throw error;
+        }
 
-        const sformatovaneData: SkladovaZasobaView[] = data.map((item: any) => ({
-            id: item.id,
-            produkt_id: item.produkt?.id,
-            nazov: item.produkt?.nazov || 'Neznámy',
-            kategoria: item.produkt?.kategorie?.nazov || 'Bez kategórie',
-            mnozstvo_ks: item.mnozstvo_ks,
-            balenie_ks: item.produkt?.balenie_ks || 1,
-            regal_id: item.regal_id,
-            umiestnenie: `${item.regal?.sklad?.nazov} | ${item.regal?.nazov}`,
-            jednotka: item.produkt?.jednotka || 'kg'
+        return (data as any[]).map(d => ({
+            id: d.id,
+            produkt_id: d.produkt_id,
+            regal_id: d.regal_id,
+            mnozstvo_ks: d.mnozstvo,
+            nazov: d.produkty?.nazov || 'Neznámy produkt',
+            ean: d.produkty?.ean,
+            balenie_ks: d.produkty?.balenie_ks || 1,
+            jednotka: d.produkty?.jednotka || 'ks',
+            kategoria: 'Sklad',
+            v_inventure: true,
+            umiestnenie: d.regaly?.nazov || `Regál č. ${d.regal_id}`
         }));
-
-        return sformatovaneData.sort((a, b) => a.nazov.localeCompare(b.nazov));
     }
-
 
     async uzavrietInventuru(inventuraId: number) {
         const { error } = await this.supabase.rpc('uzavriet_inventuru', {
             p_inventura_id: inventuraId
         });
-
         if (error) throw error;
     }
 
+    async zmazatInventuru(id: number) {
+        await this.supabase.from('inventura_polozky').delete().eq('inventura_id', id);
+        const { error } = await this.supabase
+            .from('inventury')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    }
+
+    async getInventuraStavNaRegali(inventuraId: number, regalId: number) {
+        const { data, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('produkt_id, mnozstvo')
+            .eq('inventura_id', inventuraId)
+            .eq('regal_id', regalId);
+
+        if (error) throw error;
+        return data as { produkt_id: number, mnozstvo: number }[];
+    }
+
+    async getRawInventuraData(inventuraId: number) {
+        const { data, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('produkt_id, regal_id, mnozstvo')
+            .eq('inventura_id', inventuraId);
+
+        if (error) throw error;
+        return data as { produkt_id: number, regal_id: number, mnozstvo: number }[];
+    }
 
     async getDetailInventuryPreExport(inventuraId: number) {
         const { data, error } = await this.supabase
@@ -290,6 +429,26 @@ export class SupabaseService {
     }
 
 
+
+    listenToInventuraChanges(): Observable<any> {
+        const changes = new Subject<any>();
+
+        this.supabase
+            .channel('public:inventura_polozky')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'inventura_polozky' },
+                (payload) => {
+                    changes.next(payload);
+                }
+            )
+            .subscribe();
+
+        return changes.asObservable();
+    }
+
+
+
     async getKategorie() {
         const { data, error } = await this.supabase
             .from('kategorie')
@@ -299,6 +458,15 @@ export class SupabaseService {
         return data;
     }
 
+    async vytvoritKategoriu(nazov: string) {
+        const { data, error } = await this.supabase
+            .from('kategorie')
+            .insert({ nazov: nazov })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
 
     async vytvoritProdukt(novyProdukt: any) {
         const { data, error } = await this.supabase
@@ -311,8 +479,16 @@ export class SupabaseService {
         return data;
     }
 
-    async vytvoritProduktSLocation(novyProdukt: any, regalId: number | null) {
+    async updateProdukt(id: number, data: any) {
+        const { error } = await this.supabase
+            .from('produkty')
+            .update(data)
+            .eq('id', id);
 
+        if (error) throw error;
+    }
+
+    async vytvoritProduktSLocation(novyProdukt: any, regalId: number | null) {
         const { data: produkt, error: errProd } = await this.supabase
             .from('produkty')
             .insert(novyProdukt)
@@ -320,7 +496,6 @@ export class SupabaseService {
             .single();
 
         if (errProd) throw errProd;
-
 
         if (regalId && produkt) {
             const { error: errStock } = await this.supabase
@@ -333,137 +508,19 @@ export class SupabaseService {
 
             if (errStock) console.error('Chyba pri vytváraní zásoby:', errStock);
         }
-
         return produkt;
     }
 
-
-
-    async odhlasit() {
-        const { error } = await this.supabase.auth.signOut();
-        if (error) throw error;
-    }
-
-    async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
-        const { data, error } = await this.supabase
-            .from('inventura_polozky')
-            .select(`
-            id,
-            mnozstvo,
-            produkt_id,
-            regal_id,
-            regaly:regal_id ( nazov ),
-            produkty:produkt_id ( nazov, balenie_ks )
-          `)
-            .eq('inventura_id', inventuraId);
-
-        if (error) {
-            console.error('Chyba pri načítaní inventúry:', error);
-            throw error;
-        }
-
-        return (data as any[]).map(d => ({
-            id: d.id,
-            produkt_id: d.produkt_id,
-            regal_id: d.regal_id,
-            mnozstvo_ks: d.mnozstvo,
-            nazov: d.produkty?.nazov || 'Neznámy produkt',
-            balenie_ks: d.produkty?.balenie_ks || 1,
-            kategoria: 'Sklad',
-            v_inventure: true,
-            umiestnenie: d.regaly?.nazov || `Regál č. ${d.regal_id}`
-        }));
-    }
-
-    async zmazatInventuru(id: number) {
-        // Najprv zmažeme položky inventúry (ak nemáte v databáze nastavené ON DELETE CASCADE)
-        await this.supabase.from('inventura_polozky').delete().eq('inventura_id', id);
-
-        // Potom zmažeme samotnú inventúru
+    async zmazatZaznamZInventury(inventuraId: number, produktId: number, regalId: number) {
         const { error } = await this.supabase
-            .from('inventury')
+            .from('inventura_polozky')
             .delete()
-            .eq('id', id);
+            .match({
+                inventura_id: inventuraId,
+                produkt_id: produktId,
+                regal_id: regalId
+            });
 
         if (error) throw error;
-    }
-    // ... existujúci kód ...
-
-    // 1. Vytvorenie Skladu
-    async vytvoritSklad(nazov: string) {
-        const { data, error } = await this.supabase
-            .from('sklady')
-            .insert({ nazov: nazov })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
-
-    // 2. Vytvorenie Regálu (musí byť priradený k skladu)
-    async vytvoritRegal(nazov: string, skladId: number) {
-        const { data, error } = await this.supabase
-            .from('regaly')
-            .insert({ nazov: nazov, sklad_id: skladId })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
-
-    async getInventuraStavNaRegali(inventuraId: number, regalId: number) {
-        const { data, error } = await this.supabase
-            .from('inventura_polozky')
-
-            .select('produkt_id, mnozstvo')
-            .eq('inventura_id', inventuraId)
-            .eq('regal_id', regalId);
-
-        if (error) throw error;
-        return data as { produkt_id: number, mnozstvo: number }[];
-    }
-
-    async getRawInventuraData(inventuraId: number) {
-        const { data, error } = await this.supabase
-            .from('inventura_polozky')
-            .select('produkt_id, regal_id, mnozstvo')
-            .eq('inventura_id', inventuraId);
-
-        if (error) throw error;
-        return data as { produkt_id: number, regal_id: number, mnozstvo: number }[];
-    }
-    async vytvoritKategoriu(nazov: string) {
-        const { data, error } = await this.supabase
-            .from('kategorie')
-            .insert({ nazov: nazov })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
-
-    listenToInventuraChanges(): Observable<any> {
-        const changes = new Subject<any>();
-
-        this.supabase
-            .channel('public:inventura_polozky')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'inventura_polozky' },
-                (payload) => {
-                    // Keď príde zmena, pošleme ju cez Subject do komponentu
-                    changes.next(payload);
-                }
-            )
-            .subscribe();
-
-        // Vrátime to ako Observable, aby sa komponent mohol prihlásiť
-        return changes.asObservable();
     }
 }
-
-
-

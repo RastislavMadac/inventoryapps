@@ -1,34 +1,82 @@
-// Šedý text pre dátum uzavretia
-.text-uzavreta {
-    color: var(--ion-color-medium); // Používa Ionic tému (lepšie ako 'gray')
+// Úprava položiek v zozname pre lepšiu čitateľnosť
+ion-item {
+  --padding-start: 16px;
+  --inner-padding-end: 8px;
+  --min-height: 80px; // Vyššie riadky pre ľahšie klikanie
+  margin-bottom: 1px;
+
+  h2 {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+    color: var(--ion-text-color);
+  }
+
+  p {
     font-size: 0.9rem;
+    color: var(--ion-color-medium);
   }
+}
+
+// Štýl pre odznaky (Otvorená / Uzavretá)
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px; // Medzera medzi ikonkou a textom
   
-  // Hlavný kontajner pre ikonky vpravo (stĺpec)
-  .export-panel {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px; // Medzera medzi riadkami Excel a PDF
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  
+  padding: 4px 10px;
+  border-radius: 12px; // Zaoblené rohy (pilulka)
+  margin-top: 8px;
+
+  // Zelený odznak (Uzavretá)
+  &.closed {
+    background-color: rgba(var(--ion-color-success-rgb), 0.15); // Jemné zelené pozadie
+    color: var(--ion-color-success-shade); // Tmavšia zelená pre text
+    border: 1px solid rgba(var(--ion-color-success-rgb), 0.2);
   }
-  
-  // Jeden riadok (napr. Excel + Share)
-  .export-row {
-    display: flex;
-    align-items: center;
+
+  // Oranžový odznak (Otvorená)
+  &.open {
+    background-color: rgba(var(--ion-color-warning-rgb), 0.15); // Jemné oranžové pozadie
+    color: var(--ion-color-warning-shade); // Tmavšia oranžová pre text
+    border: 1px solid rgba(var(--ion-color-warning-rgb), 0.2);
   }
-  
-  // Štýl pre malé tlačidlá
-  .btn-icon {
-    height: 32px;
-    margin: 0;
-    
-    // Trochu zmenšíme vnútorné odsadenie, aby boli tlačidlá bližšie k sebe
-    --padding-start: 4px;
-    --padding-end: 4px;
-  
-    // Štýl pre samotnú ikonku vo vnútri tlačidla
-    ion-icon {
-      font-size: 24px;
-    }
+
+  ion-icon {
+    font-size: 14px;
   }
+}
+
+// Prázdny stav (keď nie sú žiadne inventúry)
+.ion-text-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh; // Vycentrovanie na stred obrazovky
+  opacity: 0.6;
+
+  ion-icon {
+    font-size: 64px;
+    color: var(--ion-color-medium);
+    margin-bottom: 16px;
+  }
+
+  p {
+    font-size: 1.1rem;
+    color: var(--ion-color-medium);
+    margin-bottom: 24px;
+  }
+}
+
+// Tlačidlo s tromi bodkami (aby bolo lepšie vidieť)
+ion-button[slot="end"] {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin-inline-start: 8px;
+}

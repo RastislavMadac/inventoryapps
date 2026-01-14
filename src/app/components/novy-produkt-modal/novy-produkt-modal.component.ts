@@ -1,15 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ModalController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-// Pridaný import addCircleOutline
 import { idCardOutline, addCircleOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
 
-// IMPORT MODALU PRE NOVÚ LOKÁCIU
+// IMPORTY MODALOV
 import { NovaLokaciaModalComponent } from '../nova-lokacia-modal/nova-lokacia-modal.component';
 import { NovaKategoriaModalComponent } from '../nova-kategoria-modal/nova-kategoria-modal.component';
+
 @Component({
   selector: 'app-novy-produkt-modal',
   templateUrl: './novy-produkt-modal.component.html',
@@ -19,11 +19,13 @@ import { NovaKategoriaModalComponent } from '../nova-kategoria-modal/nova-katego
 })
 export class NovyProduktModalComponent implements OnInit {
 
+  @Input() produktNaUpravu: any = null;
+
   produkt = {
     nazov: '',
     vlastne_id: '',
     kategoria_id: null,
-    jednotka: 'kg',
+    jednotka: 'ks', // Zmenil som predvolenú na 'ks', ale kľudne dajte 'kg'
     balenie_ks: 1
   };
 
@@ -48,8 +50,10 @@ export class NovyProduktModalComponent implements OnInit {
 
   async ngOnInit() {
     await this.nacitajData();
+    this.naplnitFormular();
   }
 
+  // --- 1. NAČÍTANIE DÁT (Kategórie, Sklady) ---
   async nacitajData() {
     try {
       const [katData, skladyData] = await Promise.all([
@@ -65,6 +69,29 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
+  // --- 2. NAPLNENIE FORMULÁRA PRI ÚPRAVE ---
+  naplnitFormular() {
+    if (this.produktNaUpravu) {
+      console.log('✏️ Režim úpravy pre:', this.produktNaUpravu.nazov);
+
+      this.produkt = {
+        nazov: this.produktNaUpravu.nazov,
+        // Ak v objekte 'vlastne_id' neexistuje, skúsime pozrieť 'ean', inak prázdny string
+        vlastne_id: this.produktNaUpravu.vlastne_id || this.produktNaUpravu.ean || '',
+
+        // Ošetrenie: buď je kategoria objekt, alebo priamo ID
+        kategoria_id: this.produktNaUpravu.kategoria?.id || this.produktNaUpravu.kategoria_id,
+
+        jednotka: this.produktNaUpravu.jednotka || 'ks',
+        balenie_ks: this.produktNaUpravu.balenie_ks || 1
+      };
+
+      // Poznámka: Pri úprave produktu väčšinou nemeníme jeho polohu cez tento formulár,
+      // ale ak by ste chceli, museli by ste tu naplniť aj vybranySkladId a vybranyRegalId.
+    }
+  }
+
+  // --- 3. ZMENA SKLADU (Načítanie regálov) ---
   async onSkladChange() {
     this.vybranyRegalId = null;
     this.regaly = [];
@@ -78,50 +105,42 @@ export class NovyProduktModalComponent implements OnInit {
     }
   }
 
-  // --- NOVÁ FUNKCIA NA OTVORENIE MODALU LOKÁCIE ---
-  async otvoritNovuLokaciu() {
-    const modal = await this.modalCtrl.create({
-      component: NovaLokaciaModalComponent,
-      initialBreakpoint: 0.6,
-      breakpoints: [0, 0.6, 0.9]
-    });
-
-    await modal.present();
-
-    const { role } = await modal.onWillDismiss();
-
-    if (role === 'confirm') {
-      // Obnovíme zoznam skladov
-      await this.nacitajData();
-
-      // Ak už bol vybraný sklad, obnovíme aj regále (pre prípad, že pribudol regál)
-      if (this.vybranySkladId) {
-        await this.onSkladChange();
-      }
-    }
-  }
-  // -----------------------------------------------
-
-  zrusit() {
-    this.modalCtrl.dismiss(null, 'cancel');
-  }
-
+  // --- 4. ULOŽENIE (Vytvorenie alebo Úprava) ---
   async ulozit() {
-    if (!this.produkt.nazov) return;
+    if (!this.produkt.nazov) {
+      this.toast('Zadajte názov produktu', 'warning');
+      return;
+    }
 
     try {
-      const novy = await this.supabase.vytvoritProduktSLocation(
-        this.produkt,
-        this.vybranyRegalId
-      );
+      if (this.produktNaUpravu) {
+        // 🅰️ REŽIM ÚPRAVY (UPDATE)
+        // Voláme funkciu updateProdukt, ktorú sme pridali do service
+        await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
+        this.toast('Produkt bol úspešne upravený', 'success');
+        this.modalCtrl.dismiss(true, 'confirm'); // Vrátime true, že sa niečo zmenilo
 
-      this.toast('Produkt vytvorený a priradený.', 'success');
-      this.modalCtrl.dismiss({ ...novy, regal_id: this.vybranyRegalId }, 'confirm');
+      } else {
+        // 🅱️ REŽIM VYTVÁRANIA (INSERT)
+        const novy = await this.supabase.vytvoritProduktSLocation(
+          this.produkt,
+          this.vybranyRegalId
+        );
+
+        this.toast('Produkt vytvorený a priradený.', 'success');
+        this.modalCtrl.dismiss({ ...novy, regal_id: this.vybranyRegalId }, 'confirm');
+      }
 
     } catch (e) {
       console.error(e);
-      this.toast('Chyba pri vytváraní produktu.', 'danger');
+      this.toast('Chyba pri ukladaní.', 'danger');
     }
+  }
+
+  // --- POMOCNÉ FUNKCIE ---
+
+  zrusit() {
+    this.modalCtrl.dismiss(null, 'cancel');
   }
 
   async toast(msg: string, color: string) {
@@ -129,10 +148,10 @@ export class NovyProduktModalComponent implements OnInit {
     t.present();
   }
 
+  // --- MODAL: NOVÁ KATEGÓRIA ---
   async otvoritNovuKategoriu() {
     const modal = await this.modalCtrl.create({
       component: NovaKategoriaModalComponent,
-      // Nastavíme menšiu výšku (iOS štýl)
       initialBreakpoint: 0.4,
       breakpoints: [0, 0.4, 0.6]
     });
@@ -148,6 +167,29 @@ export class NovyProduktModalComponent implements OnInit {
 
       // 2. Automaticky vyberieme tú novú
       this.produkt.kategoria_id = data.id;
+    }
+  }
+
+  // --- MODAL: NOVÁ LOKÁCIA (SKLAD/REGÁL) ---
+  async otvoritNovuLokaciu() {
+    const modal = await this.modalCtrl.create({
+      component: NovaLokaciaModalComponent,
+      initialBreakpoint: 0.6,
+      breakpoints: [0, 0.6, 0.9]
+    });
+
+    await modal.present();
+
+    const { role } = await modal.onWillDismiss();
+
+    if (role === 'confirm') {
+      // Obnovíme zoznam skladov
+      await this.nacitajData();
+
+      // Ak už bol vybraný sklad, obnovíme aj regále
+      if (this.vybranySkladId) {
+        await this.onSkladChange();
+      }
     }
   }
 }
