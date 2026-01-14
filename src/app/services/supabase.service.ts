@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
+import { Subject, Observable } from 'rxjs';
 
 
 
@@ -42,7 +43,7 @@ export interface Inventura {
     providedIn: 'root'
 })
 export class SupabaseService {
-    private supabase: SupabaseClient;
+    public supabase: SupabaseClient;
 
     constructor() {
 
@@ -442,6 +443,25 @@ export class SupabaseService {
 
         if (error) throw error;
         return data;
+    }
+
+    listenToInventuraChanges(): Observable<any> {
+        const changes = new Subject<any>();
+
+        this.supabase
+            .channel('public:inventura_polozky')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'inventura_polozky' },
+                (payload) => {
+                    // Keď príde zmena, pošleme ju cez Subject do komponentu
+                    changes.next(payload);
+                }
+            )
+            .subscribe();
+
+        // Vrátime to ako Observable, aby sa komponent mohol prihlásiť
+        return changes.asObservable();
     }
 }
 
