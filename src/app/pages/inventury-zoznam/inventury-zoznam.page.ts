@@ -4,7 +4,7 @@ import {
   IonContent, IonHeader, IonTitle, IonToolbar,
   IonButtons, IonBackButton, IonButton, IonIcon,
   IonList, IonListHeader, IonItem, IonLabel,
-  ActionSheetController
+  ActionSheetController, IonSpinner // 👈 Pridaný import
 } from '@ionic/angular/standalone';
 
 import { AlertController, ToastController, NavController } from '@ionic/angular';
@@ -28,14 +28,15 @@ import { ModalController } from '@ionic/angular';
     CommonModule,
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonButtons, IonBackButton, IonButton, IonIcon,
-    IonList, IonListHeader, IonItem, IonLabel
+    IonList, IonListHeader, IonItem, IonLabel,
+    IonSpinner // 👈 Pridané do imports
   ],
-  providers: [ActionSheetController, ModalController
-  ]
+  providers: [ActionSheetController, ModalController]
 })
 export class InventuryZoznamPage implements OnInit {
 
   zoznam: Inventura[] = [];
+  isLoading = false; // 👈 Pridaná premenná pre spinner
 
   constructor(
     private modalCtrl: ModalController,
@@ -70,9 +71,15 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async nacitajZoznam() {
+    this.isLoading = true; // 👈 Zapneme spinner
     try {
       this.zoznam = await this.supabase.getZoznamInventur();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      this.toast('Nepodarilo sa načítať zoznam.', 'danger');
+    } finally {
+      this.isLoading = false; // 👈 Vypneme spinner (aj pri chybe)
+    }
   }
 
   async novaInventura() {
@@ -85,7 +92,14 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async vytvorit(nazov: string) {
-    try { await this.supabase.vytvoritInventuru(nazov); this.nacitajZoznam(); } catch (e) { }
+    try {
+      // Aj tu môžeme zapnúť loading, ak chceme
+      this.isLoading = true;
+      await this.supabase.vytvoritInventuru(nazov);
+      await this.nacitajZoznam(); // Toto už rieši loading vnútri
+    } catch (e) {
+      this.isLoading = false;
+    }
   }
 
   async potvrditUzavretie(inv: Inventura) {
@@ -98,13 +112,25 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async vykonatUzavretie(id: number) {
-    try { await this.supabase.uzavrietInventuru(id); this.nacitajZoznam(); } catch (e) { }
+    try {
+      this.isLoading = true;
+      await this.supabase.uzavrietInventuru(id);
+      await this.nacitajZoznam();
+    } catch (e) {
+      this.isLoading = false;
+    }
   }
 
   async zmazat(inv: Inventura) {
-    try { await this.supabase.zmazatInventuru(inv.id); this.nacitajZoznam(); } catch (e) { }
+    try {
+      this.isLoading = true;
+      await this.supabase.zmazatInventuru(inv.id);
+      await this.nacitajZoznam();
+    } catch (e) {
+      this.isLoading = false;
+    }
   }
-  // Metóda na otvorenie modálu
+
   async otvoritFormularBezId(inv: Inventura) {
     const modal = await this.modalCtrl.create({
       component: DoplnitIdModalComponent,
@@ -114,16 +140,14 @@ export class InventuryZoznamPage implements OnInit {
     });
     await modal.present();
   }
-  // --- MENU PRE EXPORT ---
 
   async otvoritMoznosti(inv: Inventura) {
     const actionSheet = await this.actionSheetCtrl.create({
       header: `Možnosti: ${inv.nazov}`,
       buttons: [
-        // --- EXCEL ---
         {
           text: 'Doplniť chýbajúce ID (Formulár)',
-          icon: 'create-outline', // Uistite sa, že máte importovaný tento icon
+          icon: 'create-outline',
           handler: () => {
             this.otvoritFormularBezId(inv);
           }
@@ -143,8 +167,6 @@ export class InventuryZoznamPage implements OnInit {
           icon: 'grid-outline',
           handler: () => { this.spustitExport(inv, 'excel_noid'); }
         },
-
-        // --- PDF ---
         {
           text: 'PDF (Len s ID)',
           icon: 'document-text-outline',
@@ -155,8 +177,6 @@ export class InventuryZoznamPage implements OnInit {
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'pdf_noid'); }
         },
-
-        // --- AKCIE ---
         {
           text: 'Zmazať inventúru',
           role: 'destructive',
@@ -178,7 +198,6 @@ export class InventuryZoznamPage implements OnInit {
     this.toast('Pripravujem súbor...', 'primary');
 
     try {
-      // 1. Stiahneme surové dáta z databázy
       const data = await this.supabase.getDetailInventuryPreExport(inv.id);
 
       if (!data || data.length === 0) {
@@ -188,7 +207,6 @@ export class InventuryZoznamPage implements OnInit {
 
       let uspech = true;
 
-      // 2. Rozhodovanie podľa typu
       switch (typ) {
         case 'excel_komplet':
           this.exportService.generovatExcelKomplet(data, inv.nazov);
@@ -229,6 +247,7 @@ export class InventuryZoznamPage implements OnInit {
     const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'bottom' });
     t.present();
   }
+
   async spravovatNezname(inv: Inventura) {
     const modal = await this.modalCtrl.create({
       component: DoplnitIdModalComponent,
@@ -238,8 +257,6 @@ export class InventuryZoznamPage implements OnInit {
     });
 
     await modal.present();
-
-    // Keď sa modal zavrie, obnovíme zoznam, aby zmizlo číslo (ak sme všetko opravili)
     await modal.onWillDismiss();
     this.nacitajZoznam();
   }
