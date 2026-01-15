@@ -63,7 +63,7 @@ ion-toolbar {
   background: white;
   border-bottom-left-radius: 24px;
   border-bottom-right-radius: 24px;
-  padding: 20px 16px;
+  padding: 10px 16px 20px 16px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.06);
   margin-bottom: 10px;
   position: relative;
@@ -264,47 +264,40 @@ ion-toolbar {
       }
     }
 
-    .info {
-      h3 {
-        margin: 0 0 4px 0;
-        font-size: 15px;
-        font-weight: 700;
-        color: #1e293b;
-      }
-
-      .meta {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 4px;
-        flex-wrap: wrap;
-
-        span {
-          font-size: 10px;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .badge-cat {
-          background: #f1f5f9;
-          color: #64748b;
-        }
-
-        .badge-pack {
-          background: #fff7ed;
-          color: #f97316;
-        }
-      }
-
-      .loc {
-        font-size: 11px;
-        color: var(--ion-color-secondary);
+    .action-icons {
+      display: flex;
+      gap: 12px; // Medzera medzi ceruzkou a košom
+      
+      .icon-btn {
+        width: 40px;  // Zväčšenie dotykovej plochy
+        height: 40px;
+        border-radius: 12px; // Jemne zaoblené rohy
         display: flex;
         align-items: center;
-        gap: 2px;
-        margin: 0;
-        font-weight: 500;
+        justify-content: center;
+        transition: transform 0.1s;
+
+        ion-icon {
+          font-size: 22px; // Veľká ikonka
+        }
+
+        &:active {
+          transform: scale(0.9); // Efekt stlačenia
+        }
+
+        // Štýl pre EDIT (Modrá)
+        &.edit-btn {
+          background-color: #eff6ff; // Svetlomodré pozadie
+          color: var(--ion-color-primary);
+          border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+        }
+
+        // Štýl pre KÔŠ (Červená)
+        &.delete-btn {
+          background-color: #fef2f2; // Svetločervené pozadie
+          color: var(--ion-color-danger);
+          border: 1px solid rgba(var(--ion-color-danger-rgb), 0.1);
+        }
       }
     }
   }

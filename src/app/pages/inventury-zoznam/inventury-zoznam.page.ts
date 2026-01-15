@@ -153,6 +153,11 @@ export class InventuryZoznamPage implements OnInit {
           }
         },
         {
+          text: 'PDF Kompaktné (2 stĺpce)',
+          icon: 'print-outline', // alebo document-text-outline
+          handler: () => { this.spustitExport(inv, 'pdf_2col'); }
+        },
+        {
           text: 'Excel (Kompletný - 2 hárky)',
           icon: 'grid-outline',
           handler: () => { this.spustitExport(inv, 'excel_komplet'); }
@@ -216,6 +221,9 @@ export class InventuryZoznamPage implements OnInit {
           uspech = this.exportService.generovatExcelSId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
           break;
+        case 'pdf_2col':
+          uspech = this.exportService.generovatPdfDvaStlpce(data, inv.nazov);
+          break;
 
         case 'excel_noid':
           uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
@@ -260,4 +268,6 @@ export class InventuryZoznamPage implements OnInit {
     await modal.onWillDismiss();
     this.nacitajZoznam();
   }
+
+
 }

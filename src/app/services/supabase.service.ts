@@ -190,20 +190,20 @@ export class SupabaseService {
 
         const vysledok: SkladovaZasobaView[] = [];
 
-        // 👇 ZMENA: Už nepozeráme na 'skladove_zasoby', ale vytvárame
-        // len jednu čistú kartu pre každý produkt.
+
+
         data.forEach((prod: any) => {
             vysledok.push({
-                id: 0, // 0 signalizuje, že ide o položku z katalógu (nie konkrétnu zásobu)
+                id: 0,
                 produkt_id: prod.id,
                 nazov: prod.nazov,
                 ean: prod.ean,
                 jednotka: prod.jednotka,
                 balenie_ks: prod.balenie_ks,
-                mnozstvo_ks: 0, // Vždy začíname od nuly
-                regal_id: undefined, // Nemá regál, kým ho neurčíte vo filtri
+                mnozstvo_ks: 0,
+                regal_id: undefined,
                 kategoria: prod.kategorie?.nazov,
-                umiestnenie: '📦 Katalóg' // Informácia pre užívateľa
+                umiestnenie: '📦 Katalóg'
             });
         });
 
@@ -303,7 +303,7 @@ export class SupabaseService {
     }
 
     async getZoznamInventur() {
-        // 1. Stiahneme zoznam inventúr
+
         const { data: inventury, error } = await this.supabase
             .from('inventury')
             .select('*')
@@ -311,18 +311,18 @@ export class SupabaseService {
 
         if (error) throw error;
 
-        // 2. Pre každú inventúru zistíme počet položiek bez ID
+
         const zoznam: Inventura[] = [];
 
         for (const inv of inventury) {
-            // Zrátame riadky, kde produkt nemá vlastne_id (je null)
+
             const { count } = await this.supabase
                 .from('inventura_polozky')
                 .select('produkt:produkty!inner(id)', { count: 'exact', head: true })
                 .eq('inventura_id', inv.id)
                 .is('produkt.vlastne_id', null);
 
-            // Pridáme do výsledku aj s počtom
+
             zoznam.push({
                 ...inv,
                 pocet_neznamych: count || 0
@@ -555,18 +555,18 @@ export class SupabaseService {
         if (error) throw error;
     }
 
-    // Pridajte do triedy SupabaseService:
+
 
     async presunutZasobu(zasobaId: number, novyRegalId: number) {
-        // 1. Skontrolujeme, či na cieľovom regáli už taký produkt nie je
-        // (Aby sme nevytvorili duplicitu)
+
+
         const { data: existujuca } = await this.supabase
             .from('skladove_zasoby')
             .select('id')
             .eq('regal_id', novyRegalId)
-        // Tu musíme vedieť produkt_id, ale v update to robíme cez ID zásoby.
-        // Pre jednoduchosť skúsime update a odchytíme chybu unikátnosti, ak máte nastavené constraints.
-        // Alebo jednoducho spravíme update:
+
+
+
 
         const { error } = await this.supabase
             .from('skladove_zasoby')
@@ -587,7 +587,7 @@ export class SupabaseService {
 
         return data?.role || 'user';
     }
-    // Priradí produkt k už existujúcemu záznamu v inventúre
+
     async sparovatProdukt(polozkaId: number, produktId: number) {
         const { error } = await this.supabase
             .from('inventura_polozky')
@@ -596,31 +596,53 @@ export class SupabaseService {
 
         if (error) throw error;
     }
-    // Načíta položky z konkrétnej inventúry, ktoré nemajú vyplnené vlastne_id (Product ID)
+
+
     async getPolozkyBezId(inventuraId: number) {
+        // 1. Stiahneme VŠETKY položky z inventúry (bez filtrovania ID v databáze)
+        // Tým zaručíme, že nám neujdú tie, čo majú prázdny string namiesto NULL
         const { data, error } = await this.supabase
             .from('inventura_polozky')
             .select(`
-        id,
-        mnozstvo,
-        regal:regaly(nazov, sklad:sklady(nazov)),
-        produkt:produkty!inner(id, nazov, vlastne_id, jednotka)
-      `)
-            .eq('inventura_id', inventuraId)
-            .is('produkt.vlastne_id', null); // Filtrujeme len tie, čo nemajú ID (v Supabase to môže byť null alebo prázdny string, treba ošetriť)
+            id,
+            mnozstvo,
+            regal:regaly(nazov, sklad:sklady(nazov)),
+            produkt:produkty!inner(id, nazov, vlastne_id, jednotka)
+          `)
+            .eq('inventura_id', inventuraId);
 
         if (error) throw error;
 
-        // Supabase .is('null') niekedy nestačí ak je tam prázdny string "", 
-        // tak to prefiltrujeme ešte v JavaScripte pre istotu.
-        return data.filter((item: any) => !item.produkt.vlastne_id || item.produkt.vlastne_id.trim() === '');
+        // 2. Filtrujeme v JavaScripte (Zachytí NULL aj prázdny string "")
+        const filtrovaneData = data.filter((item: any) =>
+            !item.produkt || // Poistka ak by produkt chýbal
+            !item.produkt.vlastne_id || // Null alebo Undefined
+            String(item.produkt.vlastne_id).trim() === '' // Prázdny string
+        );
+
+        // 3. Zoradíme ich presne ako v PDF (Sklad -> Regál -> Názov)
+        filtrovaneData.sort((a: any, b: any) => {
+            const skladA = (a.regal?.sklad?.nazov || '').toLowerCase();
+            const skladB = (b.regal?.sklad?.nazov || '').toLowerCase();
+            if (skladA !== skladB) return skladA.localeCompare(skladB);
+
+            const regalA = (a.regal?.nazov || '').toLowerCase();
+            const regalB = (b.regal?.nazov || '').toLowerCase();
+            const regalDiff = regalA.localeCompare(regalB, undefined, { numeric: true });
+            if (regalDiff !== 0) return regalDiff;
+
+            const prodA = (a.produkt?.nazov || '').toLowerCase();
+            const prodB = (b.produkt?.nazov || '').toLowerCase();
+            return prodA.localeCompare(prodB);
+        });
+
+        return filtrovaneData;
     }
 
-    // Uloží nové ID k produktu
     async aktualizovatProductId(produktId: number, noveId: string) {
         const { error } = await this.supabase
             .from('produkty')
-            .update({ vlastne_id: noveId }) // alebo 'ean', podľa toho čo používate ako Product ID
+            .update({ vlastne_id: noveId })
             .eq('id', produktId);
 
         if (error) throw error;

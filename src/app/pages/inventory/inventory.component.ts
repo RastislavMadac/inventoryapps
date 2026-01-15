@@ -300,7 +300,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async zmenitRezim(event: any) {
     const novyRezim = event.detail.value;
 
-    // Uložíme stav pred zmenou
+    // 1. Ak sme boli doteraz v režime 'regal', ULOŽÍME si aktuálny stav
     if (this.rezimZobrazenia === 'regal') {
       this.ulozenyStavRegal = {
         skladId: this.vybranySkladId,
@@ -312,24 +312,53 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     this.rezimZobrazenia = novyRezim;
 
+    // 2. Ak prepíname NA 'regal', OBNOVÍME uložený stav
     if (this.rezimZobrazenia === 'regal') {
       this.jeGlobalnyPohlad = false;
+
+      // Obnovíme hodnoty z pamäte
       this.vybranySkladId = this.ulozenyStavRegal.skladId;
       this.vybranyRegalId = this.ulozenyStavRegal.regalId;
-      this.searchQuery = this.ulozenyStavRegal.search;
-      this.filterKategoria = this.ulozenyStavRegal.kategoria;
+      this.searchQuery = this.ulozenyStavRegal.search || '';
+      this.filterKategoria = this.ulozenyStavRegal.kategoria || 'vsetky';
 
+      // DÔLEŽITÉ: Ak máme vybraný sklad, musíme znova načítať zoznam regálov,
+      // inak by dropdown regálu ukazoval len ID alebo nič, lebo by nemal zoznam možností.
       if (this.vybranySkladId) {
-        // Ak sme sa vrátili a máme vybraný sklad, obnovíme regály
-        this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId);
+        this.isLoading = true;
+        try {
+          this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId);
+          this.regaly = this.filtrovaneRegaly;
+        } catch (e) {
+          console.error(e);
+        } finally {
+          this.isLoading = false;
+        }
       }
-    } else {
-      this.jeGlobalnyPohlad = true;
-      this.searchQuery = '';
-      this.filterKategoria = 'vsetky';
-      // this.vybranyRegalId = null;
     }
 
+    // 3. Ak prepíname NA 'global' (Všetky), VYNULUJEME filtre
+    else if (this.rezimZobrazenia === 'global') {
+      this.jeGlobalnyPohlad = true;
+
+      // Toto zabezpečí, že sa filter podľa skladu/regálu neaplikuje
+      this.vybranySkladId = null;
+      this.vybranyRegalId = null;
+
+      this.searchQuery = '';
+      this.filterKategoria = 'vsetky';
+    }
+
+    // 4. Ak prepíname na 'v_inventure' (Hotové)
+    else {
+      this.jeGlobalnyPohlad = false;
+      // Tiež vynulujeme, aby sme videli všetky hotové položky (nie len z jedného regálu)
+      this.vybranySkladId = null;
+      this.vybranyRegalId = null;
+      this.searchQuery = '';
+    }
+
+    // Nakoniec načítame dáta pre nový režim
     await this.obnovitZoznamPodlaRezimu();
   }
 
