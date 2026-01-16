@@ -439,7 +439,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     await modal.present();
     const { data, role } = await modal.onWillDismiss();
-
+    console.log('📦 KOMPLETNÉ DÁTA Z MODALU:', JSON.stringify(data, null, 2));
     if (role === 'confirm' && data) {
       this.zobrazToast('Produkt úspešne pridaný', 'success');
 
