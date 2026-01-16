@@ -456,7 +456,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         // Toto dá prehliadaču čas, aby reálne vytvoril <ion-card> v HTML
         setTimeout(() => {
           this.skrolovatNaZapamatanuPolozku();
-        }, 150);
+        }, 500);
       }
     }
   }
@@ -888,61 +888,56 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   async skrolovatNaZapamatanuPolozku() {
-    // Poistka: Ak nie je ID
-    if (!this.idPolozkyPreScroll) {
-      console.warn('❌ Nemám ID pre scroll.');
-      return;
-    }
+    if (!this.idPolozkyPreScroll) return;
 
-    // Poistka: Ak nie je pripojený ion-content
-    if (!this.content) {
-      console.error('❌ Premenná "content" je undefined. Skontrolujte #content v HTML.');
-      return;
-    }
+    const targetId = 'polozka-' + this.idPolozkyPreScroll;
+    console.log('🏁 Štart scroll engine pre:', targetId);
 
-    const hladaneId = 'polozka-' + this.idPolozkyPreScroll;
-    console.log('🔍 Začínam hľadať element s ID:', hladaneId);
-
+    // Skúsime to nájsť viackrát (max 10x po 200ms = 2 sekundy)
     let pokusy = 0;
-
-    // Budeme hľadať každých 100ms po dobu 3 sekúnd
     const interval = setInterval(async () => {
-      const element = document.getElementById(hladaneId);
+      const element = document.getElementById(targetId);
 
       if (element) {
-        // --- A) ELEMENT SA NAŠIEL ---
         clearInterval(interval);
-        console.log('✅ Element nájdený v HTML!');
+        console.log('✅ Element existuje. Idem na to.');
 
         try {
-          // Zistíme jeho pozíciu od vrchu stránky
-          const y = element.offsetTop;
-          console.log(`📍 Pozícia elementu (offsetTop): ${y}px`);
+          // SPÔSOB A: Natívny JavaScript (často spoľahlivejší pri zložitom DOM)
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          // Scrollneme tak, aby bol kúsok pod vrchom (-100px rezerva)
-          // Používame Math.max, aby sme nešli do mínusu
-          await this.content.scrollToPoint(0, Math.max(0, y - 100), 600);
+          // SPÔSOB B: Ionic Scroll (poistka, ak by natívny nefungoval v ion-content)
+          if (this.content) {
+            const scrollEl = await this.content.getScrollElement();
+            // Vypočítame pozíciu prvku voči scrollovaciemu kontajneru
+            const offset = element.offsetTop;
+            // Posunieme o kúsok vyššie (-150px), aby bol v strede
+            const finalY = Math.max(0, offset - 150);
 
-          // Vizuálny efekt
+            // Pustíme aj tento príkaz (jeden z nich vyhrá)
+            this.content.scrollToPoint(0, finalY, 600);
+          }
+
+          // Efekt
           element.classList.add('highlight-anim');
           setTimeout(() => element.classList.remove('highlight-anim'), 2000);
 
-          // Vyčistíme pamäť
           this.idPolozkyPreScroll = null;
 
-        } catch (err) {
-          console.error('❌ Chyba pri vykonávaní scrollu:', err);
+        } catch (e) {
+          console.error('Scroll error:', e);
         }
-
       } else {
-        // --- B) EŠTE SA NENAŠIEL ---
         pokusy++;
-        if (pokusy >= 30) { // 30 * 100ms = 3 sekundy
-          console.warn(`⚠️ Timeout: Element ${hladaneId} sa v HTML neobjavil ani po 3s.`);
+        console.log(`⏳ Čakám na element... ${pokusy}`);
+        if (pokusy > 10) {
           clearInterval(interval);
-          this.idPolozkyPreScroll = null;
+          console.warn('❌ Element sa nenašiel. Skontrolujte či sedí ID:', targetId);
         }
       }
-    }, 100);
+    }, 200);
+  }
+  trackByZasoby(index: number, item: SkladovaZasobaView): number {
+    return item.id;
   }
 }

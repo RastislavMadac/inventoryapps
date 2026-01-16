@@ -141,9 +141,9 @@
 
   <div class="cards-list" *ngIf="!isLoading">
     
-    <ion-card *ngFor="let z of filtrovaneZasoby" 
-              [id]="'polozka-' + z.id"
-              class="product-card">
+    <ion-card *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
+    [id]="'polozka-' + z.id"
+    class="product-card">
               
       <ion-card-content>
         
