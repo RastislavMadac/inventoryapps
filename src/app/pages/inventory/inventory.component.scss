@@ -57,6 +57,7 @@ ion-card.product-card {
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow: visible; // Aby tieň nebol odrezaný
+  scroll-margin-top: 250px;
 }
 
 // Odstránime defaultný padding Ionicu, aby sme mali plnú kontrolu
