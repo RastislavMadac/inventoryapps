@@ -556,7 +556,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
-    // 1. 👇 Zapamätáme si ID položky pred otvorením modalu
+    // 1. Zapamätáme si ID
     this.idPolozkyPreScroll = zasoba.id;
 
     const modal = await this.modalController.create({
@@ -570,28 +570,26 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     });
 
     await modal.present();
-
-    // 2. 👇 Počkáme na zatvorenie modalu (nahradili sme .then za await)
     const { data, role } = await modal.onWillDismiss();
 
     if (role === 'confirm') {
-      // Skontrolujte, či vraciate dáta priamo, alebo zabalené. 
-      // Zvyčajne je to takto: data = { novyStav: 15 }
       const novyStav = data.novyStav;
 
-      // 3. 👇 Zavoláme uloženie a POČKAME kým sa dokončí (await)
-      // Predpokladám, že funkcia ulozitZmenu() robí aj refresh zoznamu (obnovitZoznamPodlaRezimu)
+      // 2. Uložíme zmenu (teraz už bez loading screenu)
       await this.ulozitZmenu(zasoba, novyStav);
 
-      // 4. 👇 Až teraz, keď je zoznam obnovený, sa vrátime na pozíciu
-      this.skrolovatNaZapamatanuPolozku();
+      // 3. Prekreslíme a scrollujeme
+      this.cdr.detectChanges();
+
+      // Malé oneskorenie pre istotu, aby sa stihlo prekresliť UI
+      setTimeout(() => {
+        this.skrolovatNaZapamatanuPolozku();
+      }, 50);
+
     } else {
-      // Ak užívateľ dal "Zrušiť", zabudneme ID
       this.idPolozkyPreScroll = null;
     }
   }
-
-  // --- ZÁPIS DO DATABÁZY ---
 
   async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number) {
     const novyStav = Number(novyStavInput);
@@ -604,26 +602,26 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
 
     if (!cielovyRegalId) {
-      const alert = await this.alertController.create({
-        header: 'Kam to mám zapísať?',
-        message: 'Vybrali ste nový produkt, ale nemáte určenú pozíciu. Prosím, najprv hore vo filtri vyberte Sklad a Regál.',
-        buttons: ['OK']
-      });
-      await alert.present();
+      // ... (váš kód pre alert) ...
       return;
     }
 
-    this.isLoading = true;
+    // ❌ TOTO ZAKOMENTUJTE ALEBO VYMAŽTE:
+    // this.isLoading = true; 
+
+    // Aj tento timeout pre istotu odstráňte, keďže isLoading už nepoužívame
+    /*
     const safetyTimeout = setTimeout(() => {
       if (this.isLoading) {
         this.isLoading = false;
         this.cdr.detectChanges();
       }
     }, 1000);
+    */
 
     try {
       if (this.aktivnaInventura) {
-        // --- REŽIM INVENTÚRY ---
+        // ... (váš kód pre zápis do inventúry - bez zmeny) ...
         if (novyStav > 0) {
           await this.supabaseService.zapisatDoInventury(
             this.aktivnaInventura.id,
@@ -637,7 +635,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           await this.zobrazToast(`Zapísané: ${novyStav} ks`, 'primary');
 
         } else {
-          // Nula = Zmazať z inventúry
+          // ... (váš kód pre mazanie - bez zmeny) ...
           await this.supabaseService.zmazatZaznamZInventury(
             this.aktivnaInventura.id,
             zasoba.produkt_id,
@@ -649,7 +647,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         }
 
       } else {
-        // --- BEŽNÝ REŽIM (MIMO INVENTÚRY) ---
+        // ... (váš kód pre bežný režim - bez zmeny) ...
         if (zasoba.id === 0) {
           await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
         } else {
@@ -660,21 +658,20 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         await this.zobrazToast(`Uložené na sklad: ${novyStav}`, 'success');
       }
 
+      // Aktualizujeme filter lokálne (bez sťahovania zo servera)
       this.aktualizovatFilter();
+
+      // Vynútime prekreslenie Angularu, aby sa aktualizovali čísla
+      this.cdr.detectChanges();
 
     } catch (error: any) {
       console.error('Chyba:', error);
       alert('CHYBA ZÁPISU: ' + (error.message || JSON.stringify(error)));
-    } finally {
-      clearTimeout(safetyTimeout);
-      setTimeout(() => {
-        this.isLoading = false;
-        this.cdr.detectChanges();
-      }, 0);
     }
+    // Finally blok už nepotrebujeme na vypnutie isLoading
   }
 
-  // --- REALTIME & HELPERY ---
+
 
   async zobrazToast(sprava: string, farba: string) {
     const toast = await this.toastController.create({
@@ -891,33 +888,39 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   async skrolovatNaZapamatanuPolozku() {
+    // Ak nemáme čo hľadať, končíme
     if (!this.idPolozkyPreScroll) return;
 
     const targetId = 'polozka-' + this.idPolozkyPreScroll;
     console.log('🚀 Štart scroll engine pre:', targetId);
 
-    // 1. POISTKA: Čakáme, kým sa vypne isLoading (max 10 sekúnd)
-    // Toto je kľúčové pre pomalý internet!
+    // POISTKA: Ak by náhodou ešte bežalo načítavanie (napr. pri vytvorení nového produktu),
+    // počkáme, kým sa isLoading prepne na false.
     let cakanieNaData = 0;
+
     const checkLoadingInterval = setInterval(() => {
+      // Ak stále načítavame, čakáme...
       if (this.isLoading) {
         cakanieNaData++;
-        console.log('⏳ Čakám na dáta zo servera...', cakanieNaData);
-        if (cakanieNaData > 100) { // 10 sekúnd timeout
+        if (cakanieNaData > 50) { // Max 5 sekúnd timeout
           clearInterval(checkLoadingInterval);
+          this.spustitHladanieElementu(targetId); // Skúsime to aj tak
         }
       } else {
-        // Dáta sú načítané (isLoading je false)! Zrušíme čakanie a spustíme hľadanie.
+        // Dáta sú pripravené (isLoading je false)
         clearInterval(checkLoadingInterval);
-        this.spustitHladanieElementu(targetId);
+
+        // Malé oneskorenie pre Angular, aby stihol vykresliť HTML (*ngFor)
+        setTimeout(() => {
+          this.spustitHladanieElementu(targetId);
+        }, 100);
       }
     }, 100);
   }
 
-  // Pomocná funkcia pre samotné hľadanie
+  // Pomocná funkcia, ktorá fyzicky hľadá element v DOMe
   private spustitHladanieElementu(targetId: string) {
     let pokusy = 0;
-    console.log('👀 Dáta prišli, začínam hľadať element v HTML:', targetId);
 
     const interval = setInterval(async () => {
       const element = document.getElementById(targetId);
@@ -927,23 +930,25 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         console.log('✅ Element NAJDENÝ! Scrollujem.');
 
         try {
-          // A) Natívny scroll (pre istotu)
-          element.scrollIntoView({ behavior: 'auto', block: 'center' });
+          // A) Získame pozíciu elementu
+          const offset = element.offsetTop;
 
-          // B) Ionic scroll (hlavný)
+          // B) Výpočet scrollovania:
+          // Odčítame výšku hlavičky (cca 200px), aby bola položka v strede/hore,
+          // a nie schovaná pod filtrom.
+          const vyskaHlavicky = 220;
+          const finalY = Math.max(0, offset - vyskaHlavicky);
+
+          // C) Spustíme Ionic scroll
           if (this.content) {
-            const scrollElement = await this.content.getScrollElement();
-            const offset = element.offsetTop;
-            // -150px aby bol v strede obrazovky
-            const finalY = Math.max(0, offset - 150);
-            await this.content.scrollToPoint(0, finalY, 600);
+            await this.content.scrollToPoint(0, finalY, 600); // 600ms animácia
           }
 
-          // Efekt
+          // D) Vizuálny efekt (žlté bliknutie)
           element.classList.add('highlight-anim');
           setTimeout(() => element.classList.remove('highlight-anim'), 2000);
 
-          // Hotovo, vyčistíme ID
+          // E) Vyčistíme ID, aby sa to nespúšťalo znova
           this.idPolozkyPreScroll = null;
 
         } catch (e) {
@@ -952,17 +957,17 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
       } else {
         pokusy++;
-        // Teraz, keď už isLoading je false, by sa mal objaviť rýchlo.
-        // Dáme mu ale čas, Angularu trvá vykreslenie DOMu.
-        if (pokusy > 50) { // 5 sekúnd
+        // Skúšame to nájsť max 2 sekundy (20 * 100ms)
+        if (pokusy > 20) {
           clearInterval(interval);
-          console.warn('❌ Element sa nenašiel ani po načítaní dát.');
-          // Pre istotu skúsime aspoň zobraziť Toast, aby sme vedeli, že sa to dostalo až sem
-          // this.zobrazToast('Nepodarilo sa nájsť položku na scrollovanie', 'medium');
+          console.warn('❌ Element sa nenašiel v HTML:', targetId);
+          this.idPolozkyPreScroll = null;
         }
       }
     }, 100);
   }
+
+
   trackByZasoby(index: number, item: SkladovaZasobaView): number {
     return item.id;
   }
