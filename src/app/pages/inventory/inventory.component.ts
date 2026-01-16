@@ -909,7 +909,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
         // Jemné bliknutie (voliteľné)
         element.classList.add('highlight-anim');
-        setTimeout(() => element.classList.remove('highlight-anim'), 2000);
+        setTimeout(() => element.classList.remove('highlight-anim'), 3000);
 
         // Vymažeme ID z pamäte
         this.idPolozkyPreScroll = null;
