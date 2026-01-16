@@ -438,19 +438,25 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     if (role === 'confirm' && data) {
       this.zobrazToast('Produkt úspešne pridaný', 'success');
-      this.cdr.detectChanges();
-      // 1. Obnovíme zoznam
+
+      // 1. Stiahneme dáta (isLoading sa prepne na true -> false)
       await this.obnovitZoznamPodlaRezimu();
 
-      // 2. 👇 ZÍSKAME ID NOVÉHO PRODUKTU Z MODALU
-      // (Predpokladám, že modal vracia objekt, kde je napr. data.id alebo data.produkt_id)
+      // 2. Získame ID
       const noveId = data.id || data.produkt_id || data.newItemId;
 
       if (noveId) {
+        console.log('🎯 Mám ID nového produktu:', noveId);
         this.idPolozkyPreScroll = Number(noveId);
 
-        // 3. 👇 ZAVOLÁME SCROLLOVANIE
-        this.skrolovatNaZapamatanuPolozku();
+        // 3. Vynútime zmenu detekcie
+        this.cdr.detectChanges();
+
+        // 4. 👇 KĽÚČOVÁ ZMENA: Malé oneskorenie 100ms
+        // Toto dá prehliadaču čas, aby reálne vytvoril <ion-card> v HTML
+        setTimeout(() => {
+          this.skrolovatNaZapamatanuPolozku();
+        }, 150);
       }
     }
   }
@@ -882,65 +888,57 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   async skrolovatNaZapamatanuPolozku() {
-    if (!this.idPolozkyPreScroll) return;
-
-    console.log('🚀 Začínam proces hľadania ID:', this.idPolozkyPreScroll);
-
-    // Poistka: Ak content ešte nie je načítaný
-    if (!this.content) {
-      console.error('❌ CHYBA: Premenná "content" je undefined! Skrolovanie nemôže fungovať.');
+    // Poistka: Ak nie je ID
+    if (!this.idPolozkyPreScroll) {
+      console.warn('❌ Nemám ID pre scroll.');
       return;
     }
 
-    let pokusy = 0;
-    const maxPokusov = 40; // 4 sekundy
+    // Poistka: Ak nie je pripojený ion-content
+    if (!this.content) {
+      console.error('❌ Premenná "content" je undefined. Skontrolujte #content v HTML.');
+      return;
+    }
 
+    const hladaneId = 'polozka-' + this.idPolozkyPreScroll;
+    console.log('🔍 Začínam hľadať element s ID:', hladaneId);
+
+    let pokusy = 0;
+
+    // Budeme hľadať každých 100ms po dobu 3 sekúnd
     const interval = setInterval(async () => {
-      const elementId = 'polozka-' + this.idPolozkyPreScroll;
-      const element = document.getElementById(elementId);
+      const element = document.getElementById(hladaneId);
 
       if (element) {
+        // --- A) ELEMENT SA NAŠIEL ---
         clearInterval(interval);
         console.log('✅ Element nájdený v HTML!');
 
         try {
-          // 1. Získame samotný skrolovací element z Ionicu
-          const scrollElement = await this.content.getScrollElement();
+          // Zistíme jeho pozíciu od vrchu stránky
+          const y = element.offsetTop;
+          console.log(`📍 Pozícia elementu (offsetTop): ${y}px`);
 
-          // 2. Zistíme, kde sa element nachádza relatívne k oknu
-          const rect = element.getBoundingClientRect();
+          // Scrollneme tak, aby bol kúsok pod vrchom (-100px rezerva)
+          // Používame Math.max, aby sme nešli do mínusu
+          await this.content.scrollToPoint(0, Math.max(0, y - 100), 600);
 
-          // 3. Zistíme, kde sme teraz odscrollovaní
-          const currentScrollTop = scrollElement.scrollTop;
-
-          // 4. Vypočítame PRESNÚ pozíciu:
-          // (Kde je element na obrazovke) + (Koľko sme už odscrollovali) - (Rezerva zhora)
-          // rect.top môže byť záporné, ak je element hore mimo obrazovky, preto pripočítavame scrollTop
-          // -150 je rezerva, aby bol element v strede obrazovky, nie nalepený hore pod headerom
-          const y = rect.top + currentScrollTop - 150;
-
-          console.log(`🧮 Výpočet: rect.top(${Math.round(rect.top)}) + scrollTop(${Math.round(currentScrollTop)}) = ${Math.round(y)}`);
-
-          // 5. Vykonáme scroll
-          await this.content.scrollToPoint(0, y, 600);
-
-          // 6. Animácia
+          // Vizuálny efekt
           element.classList.add('highlight-anim');
           setTimeout(() => element.classList.remove('highlight-anim'), 2000);
 
-          console.log('🏁 Scroll príkaz odoslaný.');
+          // Vyčistíme pamäť
           this.idPolozkyPreScroll = null;
 
         } catch (err) {
-          console.error('❌ Chyba pri výpočte súradníc:', err);
+          console.error('❌ Chyba pri vykonávaní scrollu:', err);
         }
 
       } else {
+        // --- B) EŠTE SA NENAŠIEL ---
         pokusy++;
-        // console.log(`⏳ Čakám... (${pokusy}/${maxPokusov})`);
-
-        if (pokusy >= maxPokusov) {
-          console.warn(`⚠️ Timeout: Element s ID ${elementId} sa nenašiel.`);
+        if (pokusy >= 30) { // 30 * 100ms = 3 sekundy
+          console.warn(`⚠️ Timeout: Element ${hladaneId} sa v HTML neobjavil ani po 3s.`);
           clearInterval(interval);
           this.idPolozkyPreScroll = null;
         }
