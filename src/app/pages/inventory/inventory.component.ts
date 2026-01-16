@@ -430,7 +430,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async otvoritNovyProdukt() {
     const modal = await this.modalController.create({
-      component: NovyProduktModalComponent
+      component: NovyProduktModalComponent,
+      componentProps: {
+        predvolenySkladId: this.vybranySkladId,
+        predvolenyRegalId: this.vybranyRegalId
+      }
     });
 
     await modal.present();
@@ -439,24 +443,33 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     if (role === 'confirm' && data) {
       this.zobrazToast('Produkt úspešne pridaný', 'success');
 
-      // 1. Stiahneme dáta (isLoading sa prepne na true -> false)
+      // 1. Nastavenie Skladu a Regálu
+      if (data.sklad_id) {
+        this.vybranySkladId = data.sklad_id;
+
+        // 👇👇👇 OPRAVA TU (pridaný výkričník) 👇👇👇
+        // Výkričník ! hovorí TypeScriptu: "Neboj sa, tu to určite nie je null"
+        this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId!);
+      }
+
+      if (data.regal_id) {
+        this.vybranyRegalId = data.regal_id;
+      }
+
+      // 2. Stiahnutie dát
       await this.obnovitZoznamPodlaRezimu();
 
-      // 2. Získame ID
+      this.cdr.detectChanges();
+
+      // 3. Získanie ID a scroll
       const noveId = data.id || data.produkt_id || data.newItemId;
 
       if (noveId) {
         console.log('🎯 Mám ID nového produktu:', noveId);
         this.idPolozkyPreScroll = Number(noveId);
 
-        // 3. Vynútime zmenu detekcie
-        this.cdr.detectChanges();
-
-        // 4. 👇 KĽÚČOVÁ ZMENA: Malé oneskorenie 100ms
-        // Toto dá prehliadaču čas, aby reálne vytvoril <ion-card> v HTML
-        setTimeout(() => {
-          this.skrolovatNaZapamatanuPolozku();
-        }, 500);
+        // 4. Spustenie skrolovania (funkcia, ktorá čaká na isLoading)
+        this.skrolovatNaZapamatanuPolozku();
       }
     }
   }
