@@ -891,51 +891,74 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     if (!this.idPolozkyPreScroll) return;
 
     const targetId = 'polozka-' + this.idPolozkyPreScroll;
-    console.log('🏁 Štart scroll engine pre:', targetId);
+    console.log('🚀 Štart scroll engine pre:', targetId);
 
-    // Skúsime to nájsť viackrát (max 10x po 200ms = 2 sekundy)
+    // 1. POISTKA: Čakáme, kým sa vypne isLoading (max 10 sekúnd)
+    // Toto je kľúčové pre pomalý internet!
+    let cakanieNaData = 0;
+    const checkLoadingInterval = setInterval(() => {
+      if (this.isLoading) {
+        cakanieNaData++;
+        console.log('⏳ Čakám na dáta zo servera...', cakanieNaData);
+        if (cakanieNaData > 100) { // 10 sekúnd timeout
+          clearInterval(checkLoadingInterval);
+        }
+      } else {
+        // Dáta sú načítané (isLoading je false)! Zrušíme čakanie a spustíme hľadanie.
+        clearInterval(checkLoadingInterval);
+        this.spustitHladanieElementu(targetId);
+      }
+    }, 100);
+  }
+
+  // Pomocná funkcia pre samotné hľadanie
+  private spustitHladanieElementu(targetId: string) {
     let pokusy = 0;
+    console.log('👀 Dáta prišli, začínam hľadať element v HTML:', targetId);
+
     const interval = setInterval(async () => {
       const element = document.getElementById(targetId);
 
       if (element) {
         clearInterval(interval);
-        console.log('✅ Element existuje. Idem na to.');
+        console.log('✅ Element NAJDENÝ! Scrollujem.');
 
         try {
-          // SPÔSOB A: Natívny JavaScript (často spoľahlivejší pri zložitom DOM)
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // A) Natívny scroll (pre istotu)
+          element.scrollIntoView({ behavior: 'auto', block: 'center' });
 
-          // SPÔSOB B: Ionic Scroll (poistka, ak by natívny nefungoval v ion-content)
+          // B) Ionic scroll (hlavný)
           if (this.content) {
-            const scrollEl = await this.content.getScrollElement();
-            // Vypočítame pozíciu prvku voči scrollovaciemu kontajneru
+            const scrollElement = await this.content.getScrollElement();
             const offset = element.offsetTop;
-            // Posunieme o kúsok vyššie (-150px), aby bol v strede
+            // -150px aby bol v strede obrazovky
             const finalY = Math.max(0, offset - 150);
-
-            // Pustíme aj tento príkaz (jeden z nich vyhrá)
-            this.content.scrollToPoint(0, finalY, 600);
+            await this.content.scrollToPoint(0, finalY, 600);
           }
 
           // Efekt
           element.classList.add('highlight-anim');
           setTimeout(() => element.classList.remove('highlight-anim'), 2000);
 
+          // Hotovo, vyčistíme ID
           this.idPolozkyPreScroll = null;
 
         } catch (e) {
           console.error('Scroll error:', e);
         }
+
       } else {
         pokusy++;
-        console.log(`⏳ Čakám na element... ${pokusy}`);
-        if (pokusy > 10) {
+        // Teraz, keď už isLoading je false, by sa mal objaviť rýchlo.
+        // Dáme mu ale čas, Angularu trvá vykreslenie DOMu.
+        if (pokusy > 50) { // 5 sekúnd
           clearInterval(interval);
-          console.warn('❌ Element sa nenašiel. Skontrolujte či sedí ID:', targetId);
+          console.warn('❌ Element sa nenašiel ani po načítaní dát.');
+          // Pre istotu skúsime aspoň zobraziť Toast, aby sme vedeli, že sa to dostalo až sem
+          // this.zobrazToast('Nepodarilo sa nájsť položku na scrollovanie', 'medium');
         }
       }
-    }, 200);
+    }, 100);
   }
   trackByZasoby(index: number, item: SkladovaZasobaView): number {
     return item.id;
