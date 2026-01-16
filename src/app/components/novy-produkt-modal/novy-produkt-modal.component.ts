@@ -133,43 +133,52 @@ export class NovyProduktModalComponent implements OnInit {
     }
 
     try {
-      if (this.produktNaUpravu) {
-        // --- 1. ÚPRAVA EXISTUJÚCEHO ---
-        await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
-        this.toast('Produkt bol úspešne upravený', 'success');
+      let dataPreRodica = null;
 
-        const dataNaVratenie = {
+      if (this.produktNaUpravu) {
+        // --- A) ÚPRAVA ---
+        await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
+        this.toast('Produkt upravený', 'success');
+
+        // Vrátime pôvodné ID a nové dáta
+        dataPreRodica = {
           ...this.produkt,
-          regal_id: this.vybranyRegalId,
-          // Pri úprave vraciame pôvodné ID produktu
-          id: this.produktNaUpravu.id
+          id: this.produktNaUpravu.id,
+          regal_id: this.vybranyRegalId
         };
 
-        this.modalCtrl.dismiss(dataNaVratenie, 'confirm');
-
       } else {
-        // --- 2. VYTVORENIE NOVÉHO ---
+        // --- B) NOVÝ PRODUKT ---
         const vysledok = await this.supabase.vytvoritProduktSLocation(
           this.produkt,
           this.vybranyRegalId
         );
 
-        // 👇 POISTKA: Supabase niekedy vráti pole [objekt], niekedy len objekt
-        // Ak je to pole, vezmeme prvý prvok.
-        const novyProdukt = Array.isArray(vysledok) ? vysledok[0] : vysledok;
+        // 👇👇👇 KRITICKÁ OPRAVA: Ošetrenie poľa vs objektu 👇👇👇
+        // Ak Supabase vráti pole [ {id: 1} ], vezmeme prvý prvok.
+        // Ak vráti objekt { id: 1 }, necháme ho tak.
+        const novyZaznam = Array.isArray(vysledok) ? vysledok[0] : vysledok;
 
-        this.toast('Produkt vytvorený a priradený.', 'success');
+        dataPreRodica = {
+          ...novyZaznam,
+          // Pre istotu explicitne vytiahneme ID, ak je v objekte
+          id: novyZaznam.id || novyZaznam.produkt_id,
+          regal_id: this.vybranyRegalId
+        };
 
-        // 👇 Vraciame čistý objekt. Dôležité je, aby tam bolo 'id'.
-        this.modalCtrl.dismiss(novyProdukt, 'confirm');
+        this.toast('Produkt vytvorený', 'success');
       }
+
+      console.log('📤 MODAL ODOSIELA DÁTA:', dataPreRodica); // Debug
+
+      // Zatvoríme modal a pošleme opravené dáta
+      this.modalCtrl.dismiss(dataPreRodica, 'confirm');
 
     } catch (e) {
       console.error(e);
       this.toast('Chyba pri ukladaní.', 'danger');
     }
   }
-
 
 
   zrusit() {

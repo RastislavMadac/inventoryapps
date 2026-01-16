@@ -437,40 +437,29 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === 'confirm' && data) {
-      console.log('📦 DÁTA VRÁTENÉ Z MODALU:', data); // 👇 Toto musíme vidieť v konzole
+      console.log('📦 RODIČ PRIJAL DÁTA:', data);
 
-      // 1. Získanie ID (ošetrenie pre objekt aj pole)
-      // Supabase niekedy vráti { id: 1 } a niekedy [{ id: 1 }]
-      let noveId = null;
-
-      if (data.id) {
-        noveId = data.id;
-      } else if (data.produkt_id) {
-        noveId = data.produkt_id; // Niekedy sa to volá produkt_id
-      } else if (Array.isArray(data) && data.length > 0 && data[0].id) {
-        noveId = data[0].id;
-      }
-
-      console.log('🆔 Extrahované ID:', noveId);
+      // 1. Získanie ID (bezpečné pretypovanie)
+      // Hľadáme 'id' alebo 'produkt_id'
+      const suroveId = data.id || data.produkt_id;
+      const noveId = suroveId ? Number(suroveId) : null;
 
       if (noveId) {
-        // 2. Zapamätáme si ID
-        this.idPolozkyPreScroll = Number(noveId);
+        console.log('✅ Mám ID nového produktu:', noveId);
 
-        this.zobrazToast('Produkt úspešne pridaný', 'success');
+        // 2. Zapamätáme si ID pre scroll
+        this.idPolozkyPreScroll = noveId;
 
         // 3. Obnovíme zoznam
-        console.log('🔄 Volám obnovitZoznamPodlaRezimu...');
         await this.obnovitZoznamPodlaRezimu();
 
-        // 4. Povieme Angularu, nech prekreslí HTML (dôležité pre produkciu!)
+        // 4. Prikážeme Angularu prekresliť obrazovku (aby sa objavila nová karta)
         this.cdr.detectChanges();
 
         // 5. Spustíme scrollovanie
-        console.log('🚀 Volám skrolovatNaZapamatanuPolozku...');
         this.skrolovatNaZapamatanuPolozku();
       } else {
-        console.error('❌ CHYBA: Nepodarilo sa zistiť ID nového produktu z dát:', data);
+        console.error('❌ CHYBA: V dátach z modalu chýba ID!', data);
       }
     }
   }
