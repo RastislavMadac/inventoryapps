@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ViewWillEnter } from '@ionic/angular';
@@ -53,7 +53,7 @@ import { Subscription } from 'rxjs';
 })
 export class InventoryComponent implements OnInit, ViewWillEnter {
   private realtimeSubscription: Subscription | null = null;
-
+  @ViewChild('content', { static: false }) content!: IonContent;
   rezimZobrazenia: 'regal' | 'global' | 'v_inventure' = 'regal';
   jeGlobalnyPohlad = false;
 
@@ -882,49 +882,45 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   skrolovatNaZapamatanuPolozku() {
-    // 1. Ak nemáme čo hľadať, končíme
     if (!this.idPolozkyPreScroll) return;
 
-    console.log('👀 Hľadám položku na scrollovanie:', this.idPolozkyPreScroll);
+    console.log('👀 Hľadám ID:', this.idPolozkyPreScroll);
 
     let pokusy = 0;
-    const maxPokusov = 50; // Skúsime to max 50-krát (cca 5 sekúnd)
-
-    // 2. Spustíme interval, ktorý sa opakuje každých 100ms
-    const interval = setInterval(() => {
+    // Skúšame každých 100ms, maximálne 20-krát (2 sekundy)
+    const interval = setInterval(async () => {
       const elementId = 'polozka-' + this.idPolozkyPreScroll;
       const element = document.getElementById(elementId);
 
-      // A) ELEMENT SA NAŠIEL
       if (element) {
-        console.log('✅ Položka nájdená, scrollujem!');
-
-        // Zastavíme hľadanie
         clearInterval(interval);
+        console.log('✅ Element nájdený! Počítam pozíciu...');
 
-        element.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
+        // 1. Zistíme Y súradnicu prvku (ako ďaleko je od vrchu)
+        const yPosition = element.offsetTop;
 
-        // Jemné bliknutie (voliteľné)
-        element.classList.add('highlight-anim');
-        setTimeout(() => element.classList.remove('highlight-anim'), 3000);
+        // 2. Prikážeme ion-contentu, aby tam preskroloval
+        // Parametre: (x, y, trvanie_animacie)
+        if (this.content) {
+          // Odpočítame trochu (napr. 100px), aby bola položka v strede, nie nalepená hore
+          // Alebo použijeme yPosition priamo.
+          await this.content.scrollToPoint(0, yPosition - 100, 600);
 
-        // Vymažeme ID z pamäte
+          // Efekt zvýraznenia (voliteľné)
+          element.classList.add('highlight-anim');
+          setTimeout(() => element.classList.remove('highlight-anim'), 2000);
+        }
+
         this.idPolozkyPreScroll = null;
-      }
 
-      // B) EŠTE SA NENAŠIEL (Dáta sa stále sťahujú alebo vykresľujú)
-      else {
+      } else {
         pokusy++;
-        if (pokusy >= maxPokusov) {
-          console.warn('⚠️ Položka sa nenašla ani po 5 sekundách (timeout).');
+        console.log(`⏳ Čakám na vykreslenie... pokus ${pokusy}`);
+        if (pokusy >= 20) {
+          console.warn('❌ Timeout: Element sa v HTML neobjavil.');
           clearInterval(interval);
-          this.idPolozkyPreScroll = null;
         }
       }
-
-    }, 100); // Kontrola každých 100 milisekúnd
+    }, 100);
   }
 }

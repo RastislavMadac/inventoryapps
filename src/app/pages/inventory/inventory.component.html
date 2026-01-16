@@ -109,7 +109,8 @@
   </div>
 </ion-header>
 
-<ion-content [fullscreen]="true" class="bg-gray">
+<ion-content #content [fullscreen]="true" class="bg-gray">
+</ion-content>
 
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content></ion-refresher-content>

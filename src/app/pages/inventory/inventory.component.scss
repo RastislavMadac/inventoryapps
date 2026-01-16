@@ -330,4 +330,14 @@ padding-top: 5px;
       opacity: 0; // Skrytý select, klikáme na ikonu
     }
   }
+  // Pridajte na koniec súboru inventory.component.scss
+
+.highlight-anim {
+  animation: highlightPulse 1.5s ease-out;
+}
+
+@keyframes highlightPulse {
+  0% { background-color: #ffe082; transform: scale(1.02); }
+  100% { background-color: #ffffff; transform: scale(1); }
+}
 }
