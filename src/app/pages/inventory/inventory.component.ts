@@ -447,7 +447,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       const noveId = data.id || data.produkt_id || data.newItemId;
 
       if (noveId) {
-        this.idPolozkyPreScroll = noveId;
+        this.idPolozkyPreScroll = Number(noveId);
 
         // 3. 👇 ZAVOLÁME SCROLLOVANIE
         this.skrolovatNaZapamatanuPolozku();
@@ -881,44 +881,68 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.zobrazToast('Lokácia bola úspešne pridaná', 'success');
     }
   }
-  skrolovatNaZapamatanuPolozku() {
+  async skrolovatNaZapamatanuPolozku() {
     if (!this.idPolozkyPreScroll) return;
 
-    console.log('👀 Hľadám ID:', this.idPolozkyPreScroll);
+    console.log('🚀 Začínam proces hľadania ID:', this.idPolozkyPreScroll);
+
+    // Poistka: Ak content ešte nie je načítaný
+    if (!this.content) {
+      console.error('❌ CHYBA: Premenná "content" je undefined! Skrolovanie nemôže fungovať.');
+      return;
+    }
 
     let pokusy = 0;
-    // Skúšame každých 100ms, maximálne 20-krát (2 sekundy)
+    const maxPokusov = 40; // 4 sekundy
+
     const interval = setInterval(async () => {
       const elementId = 'polozka-' + this.idPolozkyPreScroll;
       const element = document.getElementById(elementId);
 
       if (element) {
         clearInterval(interval);
-        console.log('✅ Element nájdený! Počítam pozíciu...');
+        console.log('✅ Element nájdený v HTML!');
 
-        // 1. Zistíme Y súradnicu prvku (ako ďaleko je od vrchu)
-        const yPosition = element.offsetTop;
+        try {
+          // 1. Získame samotný skrolovací element z Ionicu
+          const scrollElement = await this.content.getScrollElement();
 
-        // 2. Prikážeme ion-contentu, aby tam preskroloval
-        // Parametre: (x, y, trvanie_animacie)
-        if (this.content) {
-          // Odpočítame trochu (napr. 100px), aby bola položka v strede, nie nalepená hore
-          // Alebo použijeme yPosition priamo.
-          await this.content.scrollToPoint(0, yPosition - 100, 600);
+          // 2. Zistíme, kde sa element nachádza relatívne k oknu
+          const rect = element.getBoundingClientRect();
 
-          // Efekt zvýraznenia (voliteľné)
+          // 3. Zistíme, kde sme teraz odscrollovaní
+          const currentScrollTop = scrollElement.scrollTop;
+
+          // 4. Vypočítame PRESNÚ pozíciu:
+          // (Kde je element na obrazovke) + (Koľko sme už odscrollovali) - (Rezerva zhora)
+          // rect.top môže byť záporné, ak je element hore mimo obrazovky, preto pripočítavame scrollTop
+          // -150 je rezerva, aby bol element v strede obrazovky, nie nalepený hore pod headerom
+          const y = rect.top + currentScrollTop - 150;
+
+          console.log(`🧮 Výpočet: rect.top(${Math.round(rect.top)}) + scrollTop(${Math.round(currentScrollTop)}) = ${Math.round(y)}`);
+
+          // 5. Vykonáme scroll
+          await this.content.scrollToPoint(0, y, 600);
+
+          // 6. Animácia
           element.classList.add('highlight-anim');
           setTimeout(() => element.classList.remove('highlight-anim'), 2000);
-        }
 
-        this.idPolozkyPreScroll = null;
+          console.log('🏁 Scroll príkaz odoslaný.');
+          this.idPolozkyPreScroll = null;
+
+        } catch (err) {
+          console.error('❌ Chyba pri výpočte súradníc:', err);
+        }
 
       } else {
         pokusy++;
-        console.log(`⏳ Čakám na vykreslenie... pokus ${pokusy}`);
-        if (pokusy >= 20) {
-          console.warn('❌ Timeout: Element sa v HTML neobjavil.');
+        // console.log(`⏳ Čakám... (${pokusy}/${maxPokusov})`);
+
+        if (pokusy >= maxPokusov) {
+          console.warn(`⚠️ Timeout: Element s ID ${elementId} sa nenašiel.`);
           clearInterval(interval);
+          this.idPolozkyPreScroll = null;
         }
       }
     }, 100);
