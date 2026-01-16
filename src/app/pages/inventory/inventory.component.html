@@ -37,6 +37,7 @@
       </ion-chip>
 
     </div>
+
     <div class="select-row fade-in">
       
       <div class="select-wrapper">
@@ -53,7 +54,8 @@
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [(ngModel)]="vybranySkladId" 
                       (ionChange)="priZmeneSkladu()"
-                      [disabled]="rezimZobrazenia === 'global'"> <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
+                      [disabled]="rezimZobrazenia === 'global'">
+             <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -73,7 +75,8 @@
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [(ngModel)]="vybranyRegalId" 
                       (ionChange)="priZmeneRegalu()"  
-                      [disabled]="!vybranySkladId || rezimZobrazenia === 'global'"> <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
+                      [disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
+             <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -81,7 +84,6 @@
     </div>
 
       
-
     <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
       
       <div class="search-wrapper">
@@ -139,58 +141,62 @@
 
   <div class="cards-list" *ngIf="!isLoading">
     
-    <ion-card *ngFor="let z of filtrovaneZasoby; let i = index" 
-              (click)="otvoritUpravu(z)" 
-              class="product-card slide-up"
-              [style.animation-delay]="i * 0.05 + 's'">
-      
-      <div class="card-left">
-        <div class="icon-placeholder" [class.done]="z.v_inventure">
-          <ion-icon [name]="z.v_inventure ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
-        </div>
-
-        <div class="info">
-          <h3>
-            {{ z.nazov }}
-            
-            <span class="action-icons">
+    <ion-card *ngFor="let z of filtrovaneZasoby" 
+              [id]="'polozka-' + z.id"
+              class="product-card">
               
-              <ion-icon 
-                 name="create-outline" 
-                 color="medium" 
-                 (click)="$event.stopPropagation(); upravitProduktDetail(z)">
-              </ion-icon>
+      <ion-card-content>
+        
+        <div class="card-container">
 
-              <ion-icon 
-                *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
-                 name="trash-outline" 
-                 color="danger" 
-                 class="trash-icon"
-                 (click)="zmazatPolozku(z, $event)">
-              </ion-icon>
+          <div class="card-left">
+             <div class="icon-placeholder" [class.done]="z.v_inventure">
+               <ion-icon [name]="z.v_inventure ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
+             </div>
+             
+             <div class="info">
+               <div (click)="otvoritUpravu(z)">
+                 <h3>
+                   {{ z.nazov }}
+                   <span class="action-icons">
+                     <ion-icon 
+                       *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
+                        name="trash-outline" color="danger" class="trash-icon"
+                        (click)="zmazatPolozku(z, $event)">
+                     </ion-icon>
+                   </span>
+                 </h3>
+               </div>
 
-            </span>
-         </h3>
-          <div class="meta">
-            <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
-            <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
+               <div class="meta">
+                  <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
+                  <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
+               </div>
+               
+               <p *ngIf="z.v_inventure" class="done-text">
+                 <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
+               </p>
+               
+               <p *ngIf="z.umiestnenie && !z.v_inventure" class="loc">
+                 <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
+               </p>
+             </div>
           </div>
-          
-          <p *ngIf="z.v_inventure" class="done-text">
-            <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
-          </p>
-          
-          <p *ngIf="z.umiestnenie && !z.v_inventure" class="loc">
-            <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
-          </p>
-        </div>
-      </div>
 
-      <div class="card-right">
-        <span class="qty">{{ z.mnozstvo_ks }}</span>
-        <small>{{ z.jednotka || 'ks' }}</small>
-      </div>
+          <div class="card-right">
+            <div (click)="otvoritUpravu(z)">
+               <span class="qty">{{ z.mnozstvo_ks }}</span>
+               <small>{{ z.jednotka || 'ks' }}</small>
+            </div>
+            
+            <ion-button fill="clear" (click)="upravitProduktDetail(z); $event.stopPropagation()">
+              <ion-icon name="create-outline"></ion-icon>
+            </ion-button>
+          </div>
+
+        </div> </ion-card-content>
     </ion-card>
+
   </div>
   
   <ion-fab vertical="bottom" horizontal="end" slot="fixed" style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">

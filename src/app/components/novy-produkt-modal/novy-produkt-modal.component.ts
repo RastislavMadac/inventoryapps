@@ -134,28 +134,34 @@ export class NovyProduktModalComponent implements OnInit {
 
     try {
       if (this.produktNaUpravu) {
-
+        // --- 1. ÚPRAVA EXISTUJÚCEHO ---
         await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
-
         this.toast('Produkt bol úspešne upravený', 'success');
-
 
         const dataNaVratenie = {
           ...this.produkt,
-          regal_id: this.vybranyRegalId
+          regal_id: this.vybranyRegalId,
+          // Pri úprave vraciame pôvodné ID produktu
+          id: this.produktNaUpravu.id
         };
 
         this.modalCtrl.dismiss(dataNaVratenie, 'confirm');
 
       } else {
-
-        const novy = await this.supabase.vytvoritProduktSLocation(
+        // --- 2. VYTVORENIE NOVÉHO ---
+        const vysledok = await this.supabase.vytvoritProduktSLocation(
           this.produkt,
           this.vybranyRegalId
         );
 
+        // 👇 POISTKA: Supabase niekedy vráti pole [objekt], niekedy len objekt
+        // Ak je to pole, vezmeme prvý prvok.
+        const novyProdukt = Array.isArray(vysledok) ? vysledok[0] : vysledok;
+
         this.toast('Produkt vytvorený a priradený.', 'success');
-        this.modalCtrl.dismiss({ ...novy, regal_id: this.vybranyRegalId }, 'confirm');
+
+        // 👇 Vraciame čistý objekt. Dôležité je, aby tam bolo 'id'.
+        this.modalCtrl.dismiss(novyProdukt, 'confirm');
       }
 
     } catch (e) {

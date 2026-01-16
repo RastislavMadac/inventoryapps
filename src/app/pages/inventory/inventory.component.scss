@@ -1,374 +1,333 @@
-/* --- ZÁKLAD --- */
-ion-content {
-  --background: #f4f6f8; /* Jemná šedá */
+// Pozadie celej stránky
+.bg-gray {
+  --background: #f4f5f8;
 }
 
-/* --- ANIMÁCIE --- */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in { animation: fadeIn 0.3s ease-out forwards; }
-.slide-up { opacity: 0; animation: slideUp 0.4s ease-out forwards; }
-
-/* --- HLAVIČKA --- */
-ion-toolbar {
-  --background: var(--ion-color-primary);
-  --color: white;
-  --min-height: 50px;
-}
-
-.inv-chip {
-  --background: rgba(255, 255, 255, 0.2);
-  --color: white;
-  height: 28px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  
-  ion-icon { font-size: 14px; margin-right: 4px; }
-}
-
-/* Segment */
-.toolbar-segment {
-  padding-bottom: 15px;
-  
-  ion-segment {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    width: 92%;
-    margin: 0 auto;
-    padding: 3px;
-
-    ion-segment-button {
-      --color: rgba(255, 255, 255, 0.8);
-      --color-checked: var(--ion-color-primary);
-      --background-checked: white;
-      --border-radius: 10px;
-      min-height: 36px;
-      font-weight: 600;
-      font-size: 13px;
-    }
-  }
-}
-
-/* --- FILTER PANEL --- */
-.filter-panel {
-  background: white;
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 24px;
-  padding: 10px 16px 20px 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  margin-bottom: 10px;
-  position: relative;
-  z-index: 10;
-}
-
-/* Select Row */
-.select-row {
-  display: flex;
-  gap: 12px;
-}
-
-.select-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-
-  .input-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    color: #94a3b8;
-    font-weight: 700;
-    margin-bottom: 6px;
-    margin-left: 4px;
-    letter-spacing: 0.5px;
-  }
-
-  .custom-input-box {
-    background: #f1f5f9;
-    border-radius: 12px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    position: relative;
-    border: 1px solid transparent;
-    transition: all 0.2s;
-
-    &:active { background: #e2e8f0; }
-    &.disabled { opacity: 0.5; pointer-events: none; }
-
-    ion-select {
-      width: 100%;
-      font-weight: 600;
-      color: #334155;
-      font-size: 14px;
-    }
-
-    ion-icon {
-      color: #94a3b8;
-      pointer-events: none;
-    }
-  }
-}
-
-/* Search Row */
-.search-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 5px;
-}
-
-.search-wrapper {
-  flex: 1;
-  background: #f1f5f9;
-  border-radius: 12px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-
-  .search-icon {
-    color: #94a3b8;
-    font-size: 20px;
-    margin-right: 8px;
-  }
-
-  input {
-    border: none;
-    background: transparent;
-    width: 100%;
-    height: 100%;
-    outline: none;
-    font-size: 14px;
-    color: #334155;
-    font-weight: 500;
-
-    &::placeholder { color: #94a3b8; }
-  }
-}
-
-.filter-btn-wrapper {
-  .icon-box {
-    width: 48px;
-    height: 48px;
-    background: #f1f5f9;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    color: #334155;
-    font-size: 20px;
-
-    &:active { background: #e2e8f0; }
-
-    ion-select {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-    }
-  }
-}
-
-/* --- EMPTY STATE --- */
+// Centrovanie načítavania a prázdnych stavov
 .center-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  height: 60vh; /* Centruje na stred obrazovky */
+  align-items: center;
+  height: 60vh;
   text-align: center;
-  padding: 20px;
+  color: var(--ion-color-medium);
+  
+  h3 {
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+  }
+  
+  p {
+    font-size: 0.9rem;
+    max-width: 80%;
+  }
 }
 
+// Štýl pre prázdny stav (veľká ikona v kruhu)
 .empty-state {
   .circle-icon {
     width: 80px;
     height: 80px;
-    background: white;
+    background: #e0e6ed;
     border-radius: 50%;
     display: flex;
-    align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    align-items: center;
     margin-bottom: 20px;
     
     ion-icon {
-      font-size: 32px;
-      color: var(--ion-color-primary);
+      font-size: 40px;
+      color: var(--ion-color-medium);
+    }
+    
+    &.green-icon {
+      background: #e0f2f1;
+      ion-icon { color: var(--ion-color-success); }
     }
   }
-
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    color: #1e293b;
-    font-weight: 700;
-  }
-
-  p {
-    margin-top: 8px;
-    color: #64748b;
-    font-size: 14px;
-    max-width: 250px;
-    line-height: 1.5;
-  }
 }
 
-/* --- ZOZNAM PRODUKTOV --- */
-.cards-list {
-  padding: 10px 16px 80px 16px;
+// --- KARTA PRODUKTU (HLAVNÁ ČASŤ) ---
+
+ion-card.product-card {
+  margin: 10px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: visible; // Aby tieň nebol odrezaný
 }
 
-.product-card {
-  margin: 0 0 12px 0;
-  width: 100%;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  padding: 16px;
+// Odstránime defaultný padding Ionicu, aby sme mali plnú kontrolu
+ion-card-content {
+  padding: 0 !important;
+}
+
+// Toto je kontajner, ktorý drží ĽAVÚ a PRAVÚ stranu vedľa seba
+.card-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: transform 0.1s;
-
-  &:active { transform: scale(0.98); }
-
-  .card-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex: 1;
-
-    .icon-placeholder {
-      width: 44px;
-      height: 44px;
-      background: #eff6ff; /* Svetlomodrá */
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      
-      ion-icon {
-        color: var(--ion-color-primary);
-        font-size: 22px;
-      }
-    }
-
-    .action-icons {
-      display: flex;
-      gap: 12px; // Medzera medzi ceruzkou a košom
-      
-      .icon-btn {
-        width: 40px;  // Zväčšenie dotykovej plochy
-        height: 40px;
-        border-radius: 12px; // Jemne zaoblené rohy
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.1s;
-
-        ion-icon {
-          font-size: 22px; // Veľká ikonka
-        }
-
-        &:active {
-          transform: scale(0.9); // Efekt stlačenia
-        }
-
-        // Štýl pre EDIT (Modrá)
-        &.edit-btn {
-          background-color: #eff6ff; // Svetlomodré pozadie
-          color: var(--ion-color-primary);
-          border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
-        }
-
-        // Štýl pre KÔŠ (Červená)
-        &.delete-btn {
-          background-color: #fef2f2; // Svetločervené pozadie
-          color: var(--ion-color-danger);
-          border: 1px solid rgba(var(--ion-color-danger-rgb), 0.1);
-        }
-      }
-    }
-  }
-
-  .card-right {
-    text-align: right;
-    
-    .qty {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--ion-color-primary);
-      display: block;
-      line-height: 1;
-    }
-    
-    small {
-      font-size: 10px;
-      color: #94a3b8;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-  }
-}
-ion-fab {
-
-  margin-bottom: 20px; 
-  
-  z-index: 10; 
+  padding: 12px;
+  width: 100%;
 }
 
-/* FAB */
-ion-fab-button {
-  --box-shadow: 0 8px 20px rgba(var(--ion-color-primary-rgb), 0.4);
-}
-
-/* Zelená ikonka pre hotové položky */
-.icon-placeholder.done {
-  background: #dcfce7 !important; /* Svetlo zelená */
-  ion-icon {
-    color: #16a34a !important; /* Tmavšie zelená */
-  }
-}
-
-.done-text {
-  font-size: 11px;
-  color: #16a34a;
-  font-weight: 600;
+// --- ĽAVÁ STRANA (Ikona + Text) ---
+.card-left {
   display: flex;
   align-items: center;
-  gap: 3px;
-  margin: 4px 0 0 0;
+  flex: 1; // Zaber čo najviac miesta
+  min-width: 0; // Dôležité pre orezanie dlhého textu
+  gap: 12px;
+
+  // Ikonka v štvorci
+  .icon-placeholder {
+    width: 48px;
+    height: 48px;
+    background: #f0f2f5;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0; // Aby sa nezmenšovala
+
+    ion-icon {
+      font-size: 24px;
+      color: var(--ion-color-medium);
+    }
+
+    // Ak je hotovo (zelená)
+    &.done {
+      background: var(--ion-color-success);
+      ion-icon { color: white; }
+    }
+  }
+
+  // Textová časť
+  .info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden; // Pre dlhé názvy
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ion-color-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    
+    // Malé texty (lokácia, zapísané)
+    p {
+      margin: 4px 0 0 0;
+      font-size: 0.8rem;
+      color: var(--ion-color-medium);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      &.done-text {
+        color: var(--ion-color-success);
+        font-weight: 500;
+      }
+      
+      &.loc {
+        color: var(--ion-color-primary);
+      }
+    }
+  }
 }
 
-/* Štýl pre Hotové tlačidlo v segmente */
-ion-segment-button[value="v_inventure"] {
-  --color-checked: #16a34a;
+// --- PRAVÁ STRANA (Množstvo + Tlačidlo) ---
+.card-right {
+  display: flex;
+  flex-direction: column; // Množstvo hore, tlačidlo dole
+  align-items: flex-end;  // Zarovnať doprava
+  justify-content: center;
+  margin-left: 10px;
+  min-width: 70px; // Aby malo vždy dosť miesta
 
-  .action-icons {
-    display: inline-flex;
-    gap: 10px; // Medzera medzi ceruzkou a košom
-    margin-left: 8px;
-    vertical-align: middle;
+  // Veľké číslo množstva
+  .qty {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--ion-color-dark);
+    line-height: 1;
+  }
+
+  // Jednotka (ks/kg)
+  small {
+    font-size: 0.75rem;
+    color: var(--ion-color-medium);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  // Tlačidlo s ceruzkou
+  ion-button {
+    margin: 0;
+    margin-right: -10px; // Kompenzácia paddingu tlačidla
+    height: 32px;
+    --padding-start: 8px;
+    --padding-end: 8px;
+    color: var(--ion-color-primary);
+  }
+}
+
+// --- BADGES (Štítky) ---
+.badge-cat {
+  background: #eef2ff;
+  color: var(--ion-color-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-pack {
+  background: #fff3e0;
+  color: #f57c00;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+// Ikona koša
+.trash-icon {
+  font-size: 1.1rem;
+  margin-left: 8px;
+}
+
+// Animácia pre načítanie (fade in)
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+// --- HEADER FILTER PANEL ---
+.filter-panel {
+  background: #eeeff1;
+  padding-bottom: 10px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.7);
+  margin-bottom: 15px;
+padding-top: 5px;
+  // Čip pre zrušenie filtra
+  .reset-container {
+    margin-bottom: 10px;
+    color: white
+  }
+
+  // Riadky s inputmi
+  .select-row, .search-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px;
+    margin-bottom: 10px;
+  }
+
+  .select-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    .input-label {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 4px;
+    }
+  }
   
-    ion-icon {
+  // Vlastný input box (biely)
+  .custom-input-box {
+    background: white;
+    border-radius: 10px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    position: relative;
+    
+    &.disabled {
+      opacity: 0.6;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    ion-select {
+      flex: 1;
+      --padding-start: 0;
+    }
+    
+    input {
+      border: none;
+      outline: none;
+      width: 100%;
+      height: 100%;
+      font-size: 0.95rem;
+    }
+  }
+
+  .search-wrapper {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    
+    .search-icon {
+      color: var(--ion-color-medium);
       font-size: 1.2rem;
-      padding: 4px; // Zväčšíme dotykovú plochu
-      
-      &.trash-icon {
-        opacity: 0.7;
-        &:active { opacity: 1; }
-      }
+      margin-right: 8px;
+    }
+    
+    input {
+      border: none;
+      outline: none;
+      width: 100%;
+      font-size: 0.95rem;
+    }
+  }
+
+  .icon-box {
+    background: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    color: var(--ion-color-primary);
+    
+    ion-select {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0; // Skrytý select, klikáme na ikonu
     }
   }
 }
