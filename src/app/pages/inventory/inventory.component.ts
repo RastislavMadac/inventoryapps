@@ -438,7 +438,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     if (role === 'confirm' && data) {
       this.zobrazToast('Produkt úspešne pridaný', 'success');
-
+      this.cdr.detectChanges();
       // 1. Obnovíme zoznam
       await this.obnovitZoznamPodlaRezimu();
 
@@ -882,33 +882,49 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   skrolovatNaZapamatanuPolozku() {
-    // 1. Kontrola, či vôbec máme zapamätané nejaké ID. Ak nie, končíme.
+    // 1. Ak nemáme čo hľadať, končíme
     if (!this.idPolozkyPreScroll) return;
 
-    // 2. Časovač (setTimeout)
-    // Toto je veľmi dôležité. Keď sa dáta obnovia, Angularu trvá pár milisekúnd,
-    // kým reálne vykreslí HTML (zoznam kariet).
-    // Keby sme skrolovali hneď, element by ešte neexistoval a funkcia by zlyhala.
-    setTimeout(() => {
+    console.log('👀 Hľadám položku na scrollovanie:', this.idPolozkyPreScroll);
 
-      // 3. Hľadáme element v HTML
-      // Hľadáme element, ktorý má ID napr. "polozka-158"
+    let pokusy = 0;
+    const maxPokusov = 50; // Skúsime to max 50-krát (cca 5 sekúnd)
+
+    // 2. Spustíme interval, ktorý sa opakuje každých 100ms
+    const interval = setInterval(() => {
       const elementId = 'polozka-' + this.idPolozkyPreScroll;
       const element = document.getElementById(elementId);
 
-      // 4. Ak sme element našli, vykonáme posun
+      // A) ELEMENT SA NAŠIEL
       if (element) {
+        console.log('✅ Položka nájdená, scrollujem!');
+
+        // Zastavíme hľadanie
+        clearInterval(interval);
+
         element.scrollIntoView({
-          behavior: 'smooth', // Plynulý posun (animácia), nie skok
-          block: 'center'     // Položka sa umiestni do STREDU obrazovky
+          behavior: 'smooth',
+          block: 'center'
         });
 
-        // (Voliteľné) Ešte sme tam mali kód na bliknutie farbou, aby si to všimol
+        // Jemné bliknutie (voliteľné)
+        element.classList.add('highlight-anim');
+        setTimeout(() => element.classList.remove('highlight-anim'), 2000);
+
+        // Vymažeme ID z pamäte
+        this.idPolozkyPreScroll = null;
       }
 
-      // 5. Vyčistíme pamäť, aby sa to nespúšťalo zbytočne inokedy
-      this.idPolozkyPreScroll = null;
+      // B) EŠTE SA NENAŠIEL (Dáta sa stále sťahujú alebo vykresľujú)
+      else {
+        pokusy++;
+        if (pokusy >= maxPokusov) {
+          console.warn('⚠️ Položka sa nenašla ani po 5 sekundách (timeout).');
+          clearInterval(interval);
+          this.idPolozkyPreScroll = null;
+        }
+      }
 
-    }, 300); // Čakáme 300 milisekúnd
+    }, 100); // Kontrola každých 100 milisekúnd
   }
 }
