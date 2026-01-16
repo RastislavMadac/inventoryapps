@@ -430,46 +430,47 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async otvoritNovyProdukt() {
     const modal = await this.modalController.create({
-      component: NovyProduktModalComponent,
-      componentProps: {
-        predvolenySkladId: this.vybranySkladId,
-        predvolenyRegalId: this.vybranyRegalId
-      }
+      component: NovyProduktModalComponent
     });
 
     await modal.present();
     const { data, role } = await modal.onWillDismiss();
-    console.log('📦 KOMPLETNÉ DÁTA Z MODALU:', JSON.stringify(data, null, 2));
+
     if (role === 'confirm' && data) {
-      this.zobrazToast('Produkt úspešne pridaný', 'success');
+      console.log('📦 DÁTA VRÁTENÉ Z MODALU:', data); // 👇 Toto musíme vidieť v konzole
 
-      // 1. Nastavenie Skladu a Regálu
-      if (data.sklad_id) {
-        this.vybranySkladId = data.sklad_id;
+      // 1. Získanie ID (ošetrenie pre objekt aj pole)
+      // Supabase niekedy vráti { id: 1 } a niekedy [{ id: 1 }]
+      let noveId = null;
 
-        // 👇👇👇 OPRAVA TU (pridaný výkričník) 👇👇👇
-        // Výkričník ! hovorí TypeScriptu: "Neboj sa, tu to určite nie je null"
-        this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId!);
+      if (data.id) {
+        noveId = data.id;
+      } else if (data.produkt_id) {
+        noveId = data.produkt_id; // Niekedy sa to volá produkt_id
+      } else if (Array.isArray(data) && data.length > 0 && data[0].id) {
+        noveId = data[0].id;
       }
 
-      if (data.regal_id) {
-        this.vybranyRegalId = data.regal_id;
-      }
-
-      // 2. Stiahnutie dát
-      await this.obnovitZoznamPodlaRezimu();
-
-      this.cdr.detectChanges();
-
-      // 3. Získanie ID a scroll
-      const noveId = data.id || data.produkt_id || data.newItemId;
+      console.log('🆔 Extrahované ID:', noveId);
 
       if (noveId) {
-        console.log('🎯 Mám ID nového produktu:', noveId);
+        // 2. Zapamätáme si ID
         this.idPolozkyPreScroll = Number(noveId);
 
-        // 4. Spustenie skrolovania (funkcia, ktorá čaká na isLoading)
+        this.zobrazToast('Produkt úspešne pridaný', 'success');
+
+        // 3. Obnovíme zoznam
+        console.log('🔄 Volám obnovitZoznamPodlaRezimu...');
+        await this.obnovitZoznamPodlaRezimu();
+
+        // 4. Povieme Angularu, nech prekreslí HTML (dôležité pre produkciu!)
+        this.cdr.detectChanges();
+
+        // 5. Spustíme scrollovanie
+        console.log('🚀 Volám skrolovatNaZapamatanuPolozku...');
         this.skrolovatNaZapamatanuPolozku();
+      } else {
+        console.error('❌ CHYBA: Nepodarilo sa zistiť ID nového produktu z dát:', data);
       }
     }
   }
