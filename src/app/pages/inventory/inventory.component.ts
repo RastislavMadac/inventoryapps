@@ -7,7 +7,7 @@ import {
 } from '@ionic/angular';
 
 import {
-  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton,
+  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonChip,
   IonItem, IonSelect, IonSelectOption, IonSearchbar, IonSpinner,
   IonList, IonCard, IonFab, IonFabButton,
@@ -76,7 +76,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private toastController: ToastController,
     private alertController: AlertController,
     private modalController: ModalController,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private modalCtrl: ModalController
   ) {
     addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, searchOutline, filterOutline, arrowUpOutline, createOutline, trashOutline, checkmarkDoneOutline, locationOutline, add, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
   }
@@ -361,14 +362,17 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     // Nakoniec načítame dáta pre nový režim
     await this.obnovitZoznamPodlaRezimu();
   }
-
   async priZmeneSkladu() {
     console.log('🏭 Zmena skladu na ID:', this.vybranySkladId);
 
-    // 1. Resetujeme výber regálu (lebo meníme sklad)
+    // 1. Resetujeme výber regálu
     this.vybranyRegalId = null;
 
-    // 2. Načítame regály pre nový sklad (aby fungoval druhý dropdown)
+    // 👇👇👇 TOTO TU CHÝBALO - Reset kategórie na "Všetky" 👇👇👇
+    // Bez tohto by ste po zmene skladu nevideli produkty, ak bol predtým zapnutý filter
+    this.filterKategoria = 'vsetky';
+
+    // 2. Načítame regály pre nový sklad
     this.isLoading = true;
     try {
       if (this.vybranySkladId) {
@@ -383,55 +387,35 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.isLoading = false;
     }
 
-    // 3. LOGIKA PRE DÁTA (Tu bola chyba)
+    // 3. LOGIKA PRE DÁTA
 
     // A) Ak sme v režime "Po Regáloch", musíme vymazať dáta, lebo čakáme na výber regálu
     if (this.rezimZobrazenia === 'regal') {
       this.zasoby = [];
       this.filtrovaneZasoby = [];
     }
-
     // B) Ak sme v režime "Hotové" alebo "Všetky", dáta NEVYMAZÁVAME!
-    //    Len spustíme filter nad tým, čo už máme stiahnuté.
     else {
-      // Poistka: Ak by náhodou boli dáta prázdne (napr. prvý load), stiahneme ich
+      // Poistka: Ak by náhodou boli dáta prázdne
       if (this.zasoby.length === 0) {
         await this.obnovitZoznamPodlaRezimu();
       } else {
-        // Inak len prefiltrujeme existujúce dáta podľa nového skladu
+        // Inak len prefiltrujeme existujúce dáta (teraz už s resetovanou kategóriou)
         this.aktualizovatFilter();
       }
     }
   }
-
-  // ✅ Opravená funkcia pre zmenu regálu
   async priZmeneRegalu() {
     console.log('Zmena regálu na ID:', this.vybranyRegalId);
+
+    // 👇👇👇 PRIDANÉ: Reset kategórie na "Všetky" 👇👇👇
+    this.filterKategoria = 'vsetky';
+    // (Voliteľné: this.searchQuery = '';)
+
     if (this.rezimZobrazenia === 'regal') {
       await this.obnovitZoznamPodlaRezimu();
     } else {
       this.aktualizovatFilter();
-    }
-  }
-
-  // --- MODALY (Nová Lokácia, Nový Produkt, Úprava) ---
-
-  async otvoritNovuLokaciu() {
-    const modal = await this.modalController.create({
-      component: NovaLokaciaModalComponent,
-      initialBreakpoint: 0.6,
-      breakpoints: [0, 0.6, 0.9]
-    });
-
-    await modal.present();
-    const { role } = await modal.onWillDismiss();
-
-    if (role === 'confirm') {
-      await this.nacitajSklady();
-      if (this.vybranySkladId) {
-        // ✅ Voláme správnu funkciu
-        await this.priZmeneSkladu();
-      }
     }
   }
 
@@ -834,5 +818,29 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       .normalize("NFD")                 // Rozdelí znaky (napr. "č" na "c" + "ˇ")
       .replace(/[\u0300-\u036f]/g, "")  // Odstráni tie oddelené značky
       .toLowerCase();                   // Zmení na malé písmená
+  }
+
+  async otvoritNovuLokaciu() {
+    const modal = await this.modalCtrl.create({
+      component: NovaLokaciaModalComponent,
+      initialBreakpoint: 0.6,
+      breakpoints: [0, 0.6, 0.9]
+    });
+
+    await modal.present();
+
+    const { role } = await modal.onWillDismiss();
+
+    if (role === 'confirm') {
+      // 1. Obnovíme zoznam všetkých skladov (ak pribudol nový sklad)
+      this.sklady = await this.supabaseService.getSklady();
+
+      // 2. Ak máme práve vybratý nejaký sklad, obnovíme aj jeho regály (ak pribudol regál)
+      if (this.vybranySkladId) {
+        await this.priZmeneSkladu(); // Použijeme vašu existujúcu metódu
+      }
+
+      this.zobrazToast('Lokácia bola úspešne pridaná', 'success');
+    }
   }
 }
