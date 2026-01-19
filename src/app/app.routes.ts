@@ -23,6 +23,10 @@ export const routes: Routes = [
     path: 'inventory',
     loadComponent: () => import('./pages/inventory/inventory.component').then(m => m.InventoryComponent)
   },
+  {
+    path: 'dashboard',
+    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent)
+  },
 
   // Tu sme vymazali duplicitné riadky, ktoré tam boli navyše
 ];

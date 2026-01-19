@@ -31,13 +31,16 @@
     </div>
 
     <ion-list lines="none" class="item-list">
-      <ion-item *ngFor="let p of polozky" class="custom-item">
+      
+      <ion-item *ngFor="let p of polozky" class="custom-item" [class.hotovo]="p.sparovane">
         
         <div class="item-content">
           <div class="top-row">
-            <div class="icon-box">
-              <ion-icon name="cube-outline"></ion-icon>
+            
+            <div class="icon-box" [class.success-bg]="p.sparovane">
+              <ion-icon [name]="p.sparovane ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
             </div>
+            
             <div class="texts">
               <h2>{{ p.produkt.nazov }}</h2>
               <div class="meta">
@@ -53,10 +56,16 @@
             <span class="qty-badge">
               Množstvo: <strong>{{ p.mnozstvo }} {{ p.produkt.jednotka }}</strong>
             </span>
-            <ion-button fill="outline" size="small" (click)="otvoritZapis(p)">
+            
+            <ion-button *ngIf="!p.sparovane" fill="outline" size="small" (click)="otvoritZapis(p)">
               <ion-icon name="pencil-outline" slot="start"></ion-icon>
               Doplniť ID
             </ion-button>
+
+            <span *ngIf="p.sparovane" class="hotovo-text">
+              <ion-icon name="checkmark-done-outline"></ion-icon> ID Doplnené
+            </span>
+
           </div>
         </div>
 

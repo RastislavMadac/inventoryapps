@@ -7,6 +7,29 @@
   height: 100%;            /* Roztiahne sa na celú výšku */
   width: 100%;
 }
+.product-header {
+  /* Typografia */
+  font-size: 1.2rem;          /* Trochu menšie, aby sa zmestili dlhé názvy */
+  font-weight: 600;           /* Polotučné je čitateľnejšie než extra tučné */
+  color: var(--ion-color-dark);
+  text-align: center;
+  line-height: 1.4;           /* Lepšie medzery medzi riadkami pri dlhom texte */
+  letter-spacing: 0.5px;      /* Jemný rozostup znakov */
+
+  /* Vzhľad "Karty" */
+  background: var(--ion-color-light); /* Jemné pozadie (podľa témy) */
+  border-radius: 12px;        /* Zaoblené rohy */
+  padding: 12px 16px;         /* Vnútorné odsadenie textu */
+  
+  /* Rozloženie */
+  width: 100%;
+  margin-bottom: 15px;        /* Medzera pod boxom */
+  
+  /* Ošetrenie dlhého textu */
+  word-wrap: break-word;      
+  overflow-wrap: break-word;  /* Modernejšia verzia word-wrap */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Veľmi jemný tieň */
+}
 
 /* 2. DISPLEJ */
 .display-container {

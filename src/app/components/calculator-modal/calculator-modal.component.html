@@ -1,5 +1,11 @@
 <ion-content class="ion-padding" scroll-y="false">
   <div class="centered-content">
+  
+  <div class="product-header" *ngIf="nazovProduktu">
+    {{ nazovProduktu }}
+  </div>
+
+  
   <div class="display-container">
     <div class="calculation-text">{{ display }}</div>
   </div>

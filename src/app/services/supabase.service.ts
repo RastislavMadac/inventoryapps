@@ -304,6 +304,7 @@ export class SupabaseService {
 
     async getZoznamInventur() {
 
+        // 1. Stiahneme zoznam inventúr zoradený podľa dátumu
         const { data: inventury, error } = await this.supabase
             .from('inventury')
             .select('*')
@@ -311,27 +312,31 @@ export class SupabaseService {
 
         if (error) throw error;
 
-
         const zoznam: Inventura[] = [];
 
+        // 2. Prejdeme každú inventúru a spočítame položky bez 'vlastne_id'
         for (const inv of inventury) {
 
-            const { count } = await this.supabase
-                .from('inventura_polozky')
-                .select('produkt:produkty!inner(id)', { count: 'exact', head: true })
-                .eq('inventura_id', inv.id)
-                .is('produkt.vlastne_id', null);
+            let pocetChyb = 0;
 
+            // Počítame chyby iba ak inventúra nie je uzavretá (šetríme výkon)
+            if (!inv.datum_uzavretia) {
+
+                // 👇 VOLÁME VAŠU EXISTUJÚCU FUNKCIU getPolozkyBezId
+                // Táto funkcia už správne filtruje podľa 'vlastne_id' (NULL aj prázdne "")
+                const chybnePolozky = await this.getPolozkyBezId(inv.id);
+
+                pocetChyb = chybnePolozky.length;
+            }
 
             zoznam.push({
                 ...inv,
-                pocet_neznamych: count || 0
+                pocet_neznamych: pocetChyb
             });
         }
 
         return zoznam;
     }
-
     async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
         const { error } = await this.supabase
             .from('inventura_polozky')
@@ -646,5 +651,29 @@ export class SupabaseService {
             .eq('id', produktId);
 
         if (error) throw error;
+    }
+
+    // Pridajte do triedy SupabaseService
+
+    async getStatistikyKatalogu() {
+        // 1. Celkový počet produktov
+        const { count: celkovo, error: err1 } = await this.supabase
+            .from('produkty')
+            .select('*', { count: 'exact', head: true });
+
+        if (err1) throw err1;
+
+        // 2. Počet produktov bez vlastného ID (NULL alebo prázdny string)
+        const { count: bezId, error: err2 } = await this.supabase
+            .from('produkty')
+            .select('*', { count: 'exact', head: true })
+            .or('vlastne_id.is.null,vlastne_id.eq.""'); // Filter pre NULL aj prázdne ""
+
+        if (err2) throw err2;
+
+        return {
+            celkovo: celkovo || 0,
+            bezId: bezId || 0
+        };
     }
 }

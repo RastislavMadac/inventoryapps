@@ -1,48 +1,47 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { SupabaseService } from 'src/app/services/supabase.service';
-
-import { clipboardOutline, cubeOutline, layersOutline } from 'ionicons/icons';
-
+import { DashboardComponent } from '../components/dashboard/dashboard.component';
+import { clipboardOutline, cubeOutline, layersOutline, personCircleOutline, statsChartOutline } from 'ionicons/icons';
+;
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
   standalone: true,
-  imports: [CommonModule, IonicModule, RouterLink], // Odstránená duplicita IonicModule
+  imports: [CommonModule, IonicModule, RouterLink, DashboardComponent],
 })
 export class HomePage implements OnInit {
 
   currentUserEmail: string = '';
-  constructor(private supabaseService: SupabaseService,
-    private cdr: ChangeDetectorRef
+
+  constructor(
+    private supabaseService: SupabaseService,
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {
     addIcons({
       'clipboard-outline': clipboardOutline,
       'cube-outline': cubeOutline,
-      'layers-outline': layersOutline
+      'layers-outline': layersOutline,
+      'person-circle-outline': personCircleOutline,
+      'stats-chart-outline': statsChartOutline
     });
   }
+
   ngOnInit() {
-    // A. Skúsime načítať hneď (pre web/rýchle zariadenia)
     this.nacitajUzivatela();
 
-    // B. POČÚVAME NA ZMENY (Toto opraví problém na mobile)
-    // Supabase pošle signál hneď, ako načíta session z pamäte mobilu
     this.supabaseService.supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth zmena:', event); // Pre debugging
-
+      console.log('Auth zmena:', event);
       if (session && session.user) {
         this.currentUserEmail = session.user.email || '';
       } else {
         this.currentUserEmail = '';
       }
-
-      // C. Vynútime aktualizáciu obrazovky
-      // Angular niekedy nezistí zmenu, ktorá prišla "zvonku" (zo Supabase SDK)
       this.cdr.detectChanges();
     });
   }
@@ -51,7 +50,20 @@ export class HomePage implements OnInit {
     const { data } = await this.supabaseService.supabase.auth.getUser();
     if (data && data.user) {
       this.currentUserEmail = data.user.email || '';
-      this.cdr.detectChanges(); // Aj tu pre istotu povieme Angularu "prekresli sa"
+      this.cdr.detectChanges();
+    }
+  }
+
+
+  spracovatFilterDashboardu(typ: string) {
+    console.log('Kliknuté na dashboard:', typ);
+
+    if (typ === 'bez-id') {
+
+      this.router.navigate(['/inventory'], { queryParams: { filter: 'bez-id' } });
+    } else {
+
+      this.router.navigate(['/inventory']);
     }
   }
 }

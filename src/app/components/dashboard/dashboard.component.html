@@ -1,0 +1,30 @@
+<div class="dashboard-container">
+  
+  <ion-card class="stat-card blue" button (click)="klikNaVsetky()">
+    <ion-card-content>
+      <div class="icon-bg">
+        <ion-icon name="stats-chart-outline"></ion-icon>
+      </div>
+      <div class="stat-info">
+        <h2 *ngIf="!isLoading">{{ stats.celkovo }}</h2>
+        <ion-spinner *ngIf="isLoading" name="dots"></ion-spinner>
+        <p>Všetky položky</p>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card class="stat-card orange" button (click)="klikNaBezId()">
+    <div class="pulse-indicator" *ngIf="stats.bezId > 0"></div>
+    <ion-card-content>
+      <div class="icon-bg warning">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+      </div>
+      <div class="stat-info">
+        <h2 *ngIf="!isLoading">{{ stats.bezId }}</h2>
+        <ion-spinner *ngIf="isLoading" name="dots"></ion-spinner>
+        <p>Bez vlastného ID</p>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+</div>

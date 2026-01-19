@@ -13,14 +13,24 @@
       </p>
       
       <p *ngIf="!currentUserEmail">Vitajte späť</p>
-      
     </div>
 
     <div class="dashboard-grid">
-       <ion-card routerLink="/inventury-zoznam" button="true" class="dashboard-card">
+      
+      <ion-card routerLink="/dashboard" button="true" class="dashboard-card">
+        <div class="card-content">
+          <div class="icon-box purple">
+            <ion-icon name="stats-chart-outline"></ion-icon>
+          </div>
+          <ion-card-title>Dashboard</ion-card-title>
+          <ion-note>Prehľad & Štatistiky</ion-note>
+        </div>
+      </ion-card>
+      
+      <ion-card routerLink="/inventury-zoznam" button="true" class="dashboard-card">
         <div class="card-content">
           <div class="icon-box blue">
-            <ion-icon name="cube-outline"></ion-icon>
+            <ion-icon name="clipboard-outline"></ion-icon>
           </div>
           <ion-card-title>Inventúry</ion-card-title>
           <ion-note>História & Nové</ion-note>

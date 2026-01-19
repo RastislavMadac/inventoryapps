@@ -1,0 +1,81 @@
+.dashboard-container {
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px;
+    justify-content: space-between;
+  }
+  
+  .stat-card {
+    margin: 0;
+    flex: 1;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: visible;
+  
+    ion-card-content {
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+    }
+  
+    /* Modrá karta */
+    &.blue {
+      background: #f0f9ff;
+      .icon-bg { background: #bae6fd; color: #0284c7; }
+      h2 { color: #0c4a6e; }
+    }
+  
+    /* Oranžová karta */
+    &.orange {
+      background: #fff7ed;
+      .icon-bg { background: #fed7aa; color: #ea580c; }
+      h2 { color: #7c2d12; }
+    }
+  
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0;
+      line-height: 1;
+    }
+  
+    p {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      opacity: 0.7;
+      color: var(--ion-color-dark);
+    }
+  }
+  
+  .icon-bg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  
+  /* Pulzujúca bodka ak sú chyby */
+  .pulse-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  }
