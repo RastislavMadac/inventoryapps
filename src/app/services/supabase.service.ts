@@ -908,4 +908,14 @@ export class SupabaseService {
         if (error) throw error;
         return data;
     }
+    // V súbore: supabase.service.ts
+
+    async aktualizovatVlastneId(produktId: number, noveId: string) {
+        const { error } = await this.supabase
+            .from('produkty')
+            .update({ vlastne_id: noveId })
+            .eq('id', produktId);
+
+        if (error) throw error;
+    }
 }

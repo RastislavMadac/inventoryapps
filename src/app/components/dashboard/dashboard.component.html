@@ -29,7 +29,7 @@
 
 </div>
 
-<div *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
+<div #zoznamRef *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
   
   <div class="list-header">
     <h3>{{ nadpisZoznamu }}</h3>
@@ -50,13 +50,18 @@
         <p>Kat: {{ p.kategoria || '-' }}</p>
       </ion-label>
       
-      <ion-badge color="warning" *ngIf="!p.vlastne_id">Chýba ID</ion-badge>
-      <ion-badge color="medium" *ngIf="p.vlastne_id">{{ p.vlastne_id }}</ion-badge>
+      <ion-badge color="warning" *ngIf="!p.vlastne_id" style="margin-right: 10px;">Chýba ID</ion-badge>
+      <ion-badge color="medium" *ngIf="p.vlastne_id" style="margin-right: 10px;">{{ p.vlastne_id }}</ion-badge>
+
+      <ion-button fill="clear" slot="end" (click)="zmenitId(p)">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+      </ion-button>
+
     </ion-item>
 
     <div *ngIf="zobrazeneProdukty.length === 0" class="empty-msg">
       Žiadne položky.
     </div>
-
   </ion-list>
+
 </div>

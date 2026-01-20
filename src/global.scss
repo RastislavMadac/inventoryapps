@@ -109,3 +109,7 @@ ion-toast {
   --z-index: 10000;
   margin-top: 50px; // Aby nebol úplne nalepený na vrchu pod status barom
 }
+.ion-page {
+  /* Prepíšeme 'space-between' na 'flex-start' (všetko začína hore) */
+  justify-content: flex-start !important;
+}
