@@ -1,28 +1,45 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule } from '@ionic/angular';
 import { SupabaseService } from 'src/app/services/supabase.service';
 import { addIcons } from 'ionicons';
-import { statsChartOutline, alertCircleOutline, refreshOutline } from 'ionicons/icons';
+import {
+  statsChartOutline, alertCircleOutline, refreshOutline,
+  closeCircleOutline, alertCircle, checkmarkCircleOutline
+} from 'ionicons/icons';
+
+// Importujeme všetky potrebné Ionic komponenty pre Standalone
+import {
+  IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
+  IonItem, IonLabel, IonBadge, IonButton, IonNote
+} from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, IonicModule],
+  // Pridali sme komponenty pre zoznam
+  imports: [
+    CommonModule,
+    IonCard, IonCardContent, IonIcon, IonSpinner,
+    IonList, IonItem, IonLabel, IonBadge, IonButton, IonNote
+  ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
 })
 export class DashboardComponent implements OnInit {
-  @Output() filterClick = new EventEmitter<string>(); // Emituje udalosť kliknutia
 
-  stats = {
-    celkovo: 0,
-    bezId: 0
-  };
-  isLoading = true;
+  stats = { celkovo: 0, bezId: 0 };
+  isLoadingStats = true;
+
+  // Premenné pre vnútorný zoznam
+  zobrazeneProdukty: any[] = [];
+  nadpisZoznamu: string = '';
+  isLoadingZoznam = false;
 
   constructor(private supabase: SupabaseService) {
-    addIcons({ statsChartOutline, alertCircleOutline, refreshOutline });
+    addIcons({
+      statsChartOutline, alertCircleOutline, refreshOutline,
+      closeCircleOutline, alertCircle, checkmarkCircleOutline
+    });
   }
 
   async ngOnInit() {
@@ -30,22 +47,50 @@ export class DashboardComponent implements OnInit {
   }
 
   async obnovitStatistiky() {
-    this.isLoading = true;
+    this.isLoadingStats = true;
     try {
       this.stats = await this.supabase.getStatistikyKatalogu();
     } catch (e) {
-      console.error('Chyba dashboardu:', e);
+      console.error(e);
     } finally {
-      this.isLoading = false;
+      this.isLoadingStats = false;
     }
   }
 
-  klikNaBezId() {
-    // Pošleme rodičovi signál, že chceme filtrovať "bez-id"
-    this.filterClick.emit('bez-id');
+  // --- LOGIKA ZOBRAZENIA ZOZNAMU PRIAMO V DASHBOARDE ---
+
+  async zobrazitBezId() {
+    if (this.stats.bezId === 0) return; // Ak nie sú chyby, nič neotváraj
+
+    this.nadpisZoznamu = 'Produkty bez vlastného ID';
+    this.isLoadingZoznam = true;
+    this.zobrazeneProdukty = []; // Reset
+
+    try {
+      this.zobrazeneProdukty = await this.supabase.getProduktyBezIdZoznam();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.isLoadingZoznam = false;
+    }
   }
 
-  klikNaVsetky() {
-    this.filterClick.emit('vsetky');
+  async zobrazitVsetky() {
+    this.nadpisZoznamu = 'Všetky produkty v katalógu';
+    this.isLoadingZoznam = true;
+    this.zobrazeneProdukty = [];
+
+    try {
+      this.zobrazeneProdukty = await this.supabase.getVsetkyProduktyZoznam();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.isLoadingZoznam = false;
+    }
+  }
+
+  zavrietZoznam() {
+    this.nadpisZoznamu = '';
+    this.zobrazeneProdukty = [];
   }
 }

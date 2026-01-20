@@ -1,30 +1,62 @@
 <div class="dashboard-container">
   
-  <ion-card class="stat-card blue" button (click)="klikNaVsetky()">
+  <ion-card class="stat-card blue" button (click)="zobrazitVsetky()">
     <ion-card-content>
       <div class="icon-bg">
         <ion-icon name="stats-chart-outline"></ion-icon>
       </div>
       <div class="stat-info">
-        <h2 *ngIf="!isLoading">{{ stats.celkovo }}</h2>
-        <ion-spinner *ngIf="isLoading" name="dots"></ion-spinner>
+        <h2 *ngIf="!isLoadingStats">{{ stats.celkovo }}</h2>
+        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
         <p>Všetky položky</p>
       </div>
     </ion-card-content>
   </ion-card>
 
-  <ion-card class="stat-card orange" button (click)="klikNaBezId()">
+  <ion-card class="stat-card orange" button (click)="zobrazitBezId()">
     <div class="pulse-indicator" *ngIf="stats.bezId > 0"></div>
     <ion-card-content>
       <div class="icon-bg warning">
         <ion-icon name="alert-circle-outline"></ion-icon>
       </div>
       <div class="stat-info">
-        <h2 *ngIf="!isLoading">{{ stats.bezId }}</h2>
-        <ion-spinner *ngIf="isLoading" name="dots"></ion-spinner>
+        <h2 *ngIf="!isLoadingStats">{{ stats.bezId }}</h2>
+        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
         <p>Bez vlastného ID</p>
       </div>
     </ion-card-content>
   </ion-card>
 
+</div>
+
+<div *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
+  
+  <div class="list-header">
+    <h3>{{ nadpisZoznamu }}</h3>
+    <ion-button fill="clear" size="small" color="medium" (click)="zavrietZoznam()">
+      <ion-icon slot="icon-only" name="close-circle-outline"></ion-icon>
+    </ion-button>
+  </div>
+
+  <div *ngIf="isLoadingZoznam" class="spinner-center">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
+
+  <ion-list *ngIf="!isLoadingZoznam" lines="full">
+    
+    <ion-item *ngFor="let p of zobrazeneProdukty">
+      <ion-label>
+        <h2>{{ p.nazov }}</h2>
+        <p>Kat: {{ p.kategoria || '-' }}</p>
+      </ion-label>
+      
+      <ion-badge color="warning" *ngIf="!p.vlastne_id">Chýba ID</ion-badge>
+      <ion-badge color="medium" *ngIf="p.vlastne_id">{{ p.vlastne_id }}</ion-badge>
+    </ion-item>
+
+    <div *ngIf="zobrazeneProdukty.length === 0" class="empty-msg">
+      Žiadne položky.
+    </div>
+
+  </ion-list>
 </div>

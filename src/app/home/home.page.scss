@@ -51,11 +51,12 @@ ion-content {
   }
 }
 
-/* --- GRID (Dve karty vedľa seba) --- */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Dva rovnaké stĺpce */
+ 
+  grid-template-columns: 1fr; 
   gap: 15px;
+  padding: 10px;
 }
 
 /* --- KARTY --- */

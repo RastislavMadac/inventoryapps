@@ -882,5 +882,30 @@ export class SupabaseService {
         search: '',
         kategoria: 'vsetky'
     };
+    // Vráti len produkty, ktoré nemajú vyplnené vlastné ID
+    async getProduktyBezIdZoznam() {
+        const { data, error } = await this.supabase
+            .from('produkty')
+            .select('*')
+            // Filtrujeme produkty, kde je ID buď NULL alebo prázdny reťazec
+            .or('vlastne_id.is.null,vlastne_id.eq.""')
+            .order('nazov');
 
+        if (error) {
+            console.error('Chyba pri sťahovaní produktov bez ID:', error);
+            throw error;
+        }
+        return data || [];
+    }
+
+    // Vráti úplne všetky produkty
+    async getVsetkyProduktyZoznam() {
+        const { data, error } = await this.supabase
+            .from('produkty')
+            .select('*')
+            .order('nazov');
+
+        if (error) throw error;
+        return data;
+    }
 }
