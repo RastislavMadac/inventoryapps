@@ -1,58 +1,69 @@
 <ion-content class="ion-padding" scroll-y="false">
   <div class="centered-content">
   
-  <div class="product-header" *ngIf="nazovProduktu">
-    {{ nazovProduktu }}
-  </div>
+    <div class="product-header" *ngIf="nazovProduktu">
+      {{ nazovProduktu }}
+    </div>
 
-  
-  <div class="display-container">
-    <div class="calculation-text">{{ display }}</div>
-  </div>
+    <div class="detail-toggle" (click)="toggleDetail()">
+      <ion-icon [name]="zobrazitDetail ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+      <span>{{ zobrazitDetail ? 'Skryť detail' : 'Zobraziť detail' }}</span>
+    </div>
 
-  <div class="balenie-btn-container" *ngIf="balenie > 1">
-    <ion-button expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()">
-      <ion-icon name="cube-outline" slot="start"></ion-icon>
-      <strong>Balenie (x{{ balenie }})</strong>
-    </ion-button>
-  </div>
+    <div class="display-container">
+      
+      <div class="formula-text" *ngIf="zobrazitDetail">
+        {{ fullFormula }}
+      </div>
 
-  <div class="keypad">
+      <div class="calculation-text" [class.has-detail]="zobrazitDetail">
+        {{ mainDisplay }}
+      </div>
     
-    <div class="row">
-      <ion-button color="danger" (click)="vymazat()">C</ion-button>
-      <ion-button color="medium" (click)="zmazatJeden()">⌫</ion-button>
-      <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
-      <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
     </div>
 
-    <div class="row">
-      <ion-button color="light" (click)="stlacene('7')">7</ion-button>
-      <ion-button color="light" (click)="stlacene('8')">8</ion-button>
-      <ion-button color="light" (click)="stlacene('9')">9</ion-button>
-      <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
+    <div class="balenie-btn-container" *ngIf="balenie > 1">
+      <ion-button expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()">
+        <ion-icon name="cube-outline" slot="start"></ion-icon>
+        <strong>Balenie (x{{ balenie }})</strong>
+      </ion-button>
     </div>
 
-    <div class="row">
-      <ion-button color="light" (click)="stlacene('4')">4</ion-button>
-      <ion-button color="light" (click)="stlacene('5')">5</ion-button>
-      <ion-button color="light" (click)="stlacene('6')">6</ion-button>
-      <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
-    </div>
-
-    <div class="row">
-      <ion-button color="light" (click)="stlacene('1')">1</ion-button>
-      <ion-button color="light" (click)="stlacene('2')">2</ion-button>
-      <ion-button color="light" (click)="stlacene('3')">3</ion-button>
-      <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
-    </div>
-
-    <div class="row bottom-row">
-      <ion-button color="light" (click)="stlacene('0')">0</ion-button>
-      <ion-button color="light" (click)="stlacene('.')">.</ion-button>
-      <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
+    <div class="keypad">
+      <div class="row">
+        <ion-button color="danger" (click)="vymazat()">C</ion-button>
+        <ion-button color="medium" (click)="zmazatJeden()">⌫</ion-button>
+        <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
+        <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
+      </div>
+  
+      <div class="row">
+        <ion-button color="light" (click)="stlacene('7')">7</ion-button>
+        <ion-button color="light" (click)="stlacene('8')">8</ion-button>
+        <ion-button color="light" (click)="stlacene('9')">9</ion-button>
+        <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
+      </div>
+  
+      <div class="row">
+        <ion-button color="light" (click)="stlacene('4')">4</ion-button>
+        <ion-button color="light" (click)="stlacene('5')">5</ion-button>
+        <ion-button color="light" (click)="stlacene('6')">6</ion-button>
+        <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
+      </div>
+  
+      <div class="row">
+        <ion-button color="light" (click)="stlacene('1')">1</ion-button>
+        <ion-button color="light" (click)="stlacene('2')">2</ion-button>
+        <ion-button color="light" (click)="stlacene('3')">3</ion-button>
+        <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
+      </div>
+  
+      <div class="row bottom-row">
+        <ion-button color="light" (click)="stlacene('0')">0</ion-button>
+        <ion-button color="light" (click)="stlacene('.')">.</ion-button>
+        <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
+      </div>
     </div>
 
   </div>
-</div>
 </ion-content>
