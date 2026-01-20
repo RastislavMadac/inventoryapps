@@ -676,4 +676,30 @@ export class SupabaseService {
             bezId: bezId || 0
         };
     }
+    // Pridaj do SupabaseService triedy:
+
+    async getZasobyFiltrovaneServer(
+        skladId: number | null,
+        regalId: number | null,
+        kategoria: string,
+        search: string,
+        limit: number = 100 // Stiahne max 100 položiek (okamžitá rýchlosť)
+    ) {
+        // Volanie RPC funkcie z databázy
+        const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', {
+            p_sklad_id: skladId,
+            p_regal_id: regalId,
+            p_kategoria: kategoria === 'vsetky' ? null : kategoria,
+            p_search: search,
+            p_limit: limit,
+            p_offset: 0
+        });
+
+        if (error) {
+            console.error('Chyba RPC:', error);
+            throw error;
+        }
+
+        return data || [];
+    }
 }

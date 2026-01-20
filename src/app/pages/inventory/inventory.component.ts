@@ -137,79 +137,124 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
 
-
   async obnovitZoznamPodlaRezimu() {
     this.isLoading = true;
     try {
-      console.log('🔄 Sťahujem dáta. Režim:', this.rezimZobrazenia, 'Regál:', this.vybranyRegalId);
+      console.log('🚀 Sťahujem dáta... Režim:', this.rezimZobrazenia, 'Regál ID:', this.vybranyRegalId);
 
-
-      if (this.vybranyRegalId && this.rezimZobrazenia !== 'v_inventure') {
-        this.zasoby = await this.supabaseService.getZasobyNaRegali(this.vybranyRegalId);
-      }
-      else if (this.rezimZobrazenia === 'regal' && !this.vybranyRegalId) {
-        this.zasoby = [];
-      }
-      else if (this.rezimZobrazenia === 'global') {
-        this.zasoby = await this.supabaseService.getVsetkyProduktyKatalog();
-      }
-      else if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
+      // =========================================================
+      // 1. REŽIM: POLOŽKY V INVENTÚRE (Tu chceme vidieť všetko spočítané)
+      // =========================================================
+      if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
         const hotove = await this.supabaseService.getPolozkyVInventure(this.aktivnaInventura.id);
+
+        // Uložíme do pomocnej premennej pre lokálne filtrovanie
         this.zasoby = hotove.map(z => ({ ...z, v_inventure: true }));
+
+        // Lokálne filtrovanie (pri inventúre je dát menej, nevadí to)
+        if (this.searchQuery) {
+          const q = this.odstranitDiakritiku(this.searchQuery);
+          this.filtrovaneZasoby = this.zasoby.filter(z => {
+            const nazov = this.odstranitDiakritiku(z.nazov || '');
+            const ean = (z.ean || '').toLowerCase();
+            return nazov.includes(q) || ean.includes(q);
+          });
+        } else {
+          this.filtrovaneZasoby = this.zasoby;
+        }
       }
+
+      // =========================================================
+      // 2. REŽIM: GLOBAL alebo REGÁL (RÝCHLE SERVEROVÉ NAČÍTANIE)
+      // =========================================================
       else {
-        this.zasoby = [];
-      }
+        let hladatSkladId = null;
+        let hladatRegalId = null;
 
-
-
-      if (this.aktivnaInventura && this.rezimZobrazenia !== 'v_inventure') {
-        const rawInventura = await this.supabaseService.getRawInventuraData(this.aktivnaInventura.id);
-        const mapa = new Map<string, number>();
-
-        rawInventura.forEach(item => {
-          const kluc = `${item.produkt_id}-${item.regal_id}`;
-          mapa.set(kluc, item.mnozstvo);
-        });
-
-        this.zasoby.forEach(z => {
-          const regalId = z.regal_id || this.vybranyRegalId;
-
-          if (regalId) {
-            const kluc = `${z.produkt_id}-${regalId}`;
-
-            if (mapa.has(kluc)) {
-
-              z.v_inventure = true;
-              z.mnozstvo_ks = mapa.get(kluc) || 0;
-            } else {
-
-              z.v_inventure = false;
-              z.mnozstvo_ks = 0;
-            }
+        // 🛑 POISTKA: Ak sme v režime "regal", MUSÍME mať vybraný regál
+        if (this.rezimZobrazenia === 'regal') {
+          if (!this.vybranyRegalId) {
+            console.log('⛔ Režim regál, ale žiadny nie je vybraný -> Čistím zoznam.');
+            this.filtrovaneZasoby = []; // Vyčistíme zoznam
+            this.isLoading = false;     // Vypneme spinner
+            return;                     // UKONČÍME FUNKCIU (neposielame požiadavku)
           }
-        });
+
+          // Ak máme regál, nastavíme parametre pre hľadanie
+          hladatSkladId = this.vybranySkladId;
+          hladatRegalId = this.vybranyRegalId;
+        }
+
+        // Poznámka: V režime 'global' ostávajú premenné null, čo pre server znamená "hľadaj všade"
+
+        // 🔥 Voláme RÝCHLU funkciu zo servera
+        const vysledky = await this.supabaseService.getZasobyFiltrovaneServer(
+          hladatSkladId,
+          hladatRegalId,
+          this.filterKategoria,
+          this.searchQuery,
+          100 // Limit položiek
+        );
+
+        this.filtrovaneZasoby = vysledky;
+
+        // -------------------------------------------------------
+        // 3. MAPOVANIE STAVU Z INVENTÚRY
+        // (Aby sme videli zelené fajky aj v tomto zozname)
+        // -------------------------------------------------------
+        if (this.aktivnaInventura) {
+          // Stiahneme len "ľahké" dáta o inventúre (IDčka a množstvá)
+          const rawInventura = await this.supabaseService.getRawInventuraData(this.aktivnaInventura.id);
+          const mapa = new Map<string, number>();
+
+          // Vytvoríme rýchlu mapu: "produktID-regalID" -> množstvo
+          rawInventura.forEach(item => {
+            const kluc = `${item.produkt_id}-${item.regal_id}`;
+            mapa.set(kluc, item.mnozstvo);
+          });
+
+          // Prejdeme stiahnuté položky a priradíme im stav
+          this.filtrovaneZasoby.forEach(z => {
+            // Zistíme, na akom regáli sa položka nachádza (buď z dát alebo z vybraného filtra)
+            const aktualnyRegal = z.regal_id || this.vybranyRegalId;
+
+            if (aktualnyRegal) {
+              const kluc = `${z.produkt_id}-${aktualnyRegal}`;
+
+              if (mapa.has(kluc)) {
+                // Položka je už spočítaná
+                z.v_inventure = true;
+                z.mnozstvo_ks = mapa.get(kluc) || 0;
+              } else {
+                // Položka ešte nie je v inventúre
+                z.v_inventure = false;
+                // Ak sme v režime 'regal', chceme vidieť 0, kým to nespočítame? 
+                // To záleží od preferencií. Tu nechávame pôvodné dáta zo skladu, 
+                // ale označíme, že v inventúre nie je.
+              }
+            }
+          });
+        }
       }
-
-
-      this.aktualizovatFilter();
 
     } catch (e) {
       console.error('❌ Chyba pri sťahovaní:', e);
+      this.zobrazToast('Nepodarilo sa načítať dáta.', 'danger');
     } finally {
       this.isLoading = false;
     }
   }
 
-
   handleSearch(event: any) {
     this.searchQuery = event.target.value;
-    this.aktualizovatFilter();
+    // Už nevoláme aktualizovatFilter(), ale rovno ťaháme zo servera
+    this.obnovitZoznamPodlaRezimu();
   }
 
   zmenitFilterKategorie(event: any) {
     this.filterKategoria = event.detail.value;
-    this.aktualizovatFilter();
+    // Už nevoláme aktualizovatFilter(), ale rovno ťaháme zo servera
+    this.obnovitZoznamPodlaRezimu();
   }
 
   aktualizovatFilter() {

@@ -4,7 +4,7 @@ import {
   IonContent, IonHeader, IonTitle, IonToolbar,
   IonButtons, IonBackButton, IonButton, IonIcon,
   IonList, IonListHeader, IonItem, IonLabel,
-  ActionSheetController, IonSpinner // 👈 Pridaný import
+  ActionSheetController, IonSpinner
 } from '@ionic/angular/standalone';
 
 import { AlertController, ToastController, NavController } from '@ionic/angular';
@@ -29,14 +29,14 @@ import { ModalController } from '@ionic/angular';
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonButtons, IonBackButton, IonButton, IonIcon,
     IonList, IonListHeader, IonItem, IonLabel,
-    IonSpinner // 👈 Pridané do imports
+    IonSpinner
   ],
   providers: [ActionSheetController, ModalController]
 })
 export class InventuryZoznamPage implements OnInit {
 
   zoznam: Inventura[] = [];
-  isLoading = false; // 👈 Pridaná premenná pre spinner
+  isLoading = false;
 
   constructor(
     private modalCtrl: ModalController,
@@ -71,14 +71,14 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async nacitajZoznam() {
-    this.isLoading = true; // 👈 Zapneme spinner
+    this.isLoading = true;
     try {
       this.zoznam = await this.supabase.getZoznamInventur();
     } catch (e) {
       console.error(e);
       this.toast('Nepodarilo sa načítať zoznam.', 'danger');
     } finally {
-      this.isLoading = false; // 👈 Vypneme spinner (aj pri chybe)
+      this.isLoading = false;
     }
   }
 
@@ -93,10 +93,10 @@ export class InventuryZoznamPage implements OnInit {
 
   async vytvorit(nazov: string) {
     try {
-      // Aj tu môžeme zapnúť loading, ak chceme
+
       this.isLoading = true;
       await this.supabase.vytvoritInventuru(nazov);
-      await this.nacitajZoznam(); // Toto už rieši loading vnútri
+      await this.nacitajZoznam();
     } catch (e) {
       this.isLoading = false;
     }
@@ -154,7 +154,7 @@ export class InventuryZoznamPage implements OnInit {
         },
         {
           text: 'PDF Kompaktné (2 stĺpce)',
-          icon: 'print-outline', // alebo document-text-outline
+          icon: 'print-outline',
           handler: () => { this.spustitExport(inv, 'pdf_2col'); }
         },
         {
