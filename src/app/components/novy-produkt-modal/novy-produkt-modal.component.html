@@ -1,144 +1,137 @@
-<ion-header>
-  <ion-toolbar color="primary">
+<ion-header class="ion-no-border">
+  <ion-toolbar>
     <ion-title>Nový Produkt</ion-title>
+    
     <ion-buttons slot="end">
-      <ion-button (click)="zrusit()">Zavrieť</ion-button>
+      <ion-button (click)="zrusit()" color="primary">
+        Zavrieť
+      </ion-button>
     </ion-buttons>
+
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="bg-light">
   
-  <form (ngSubmit)="ulozit()">
+  <form (ngSubmit)="ulozit()" class="ion-padding">
     
-    <h3 style="font-size: 0.9rem; color: gray; margin-bottom: 10px;">Informácie o produkte</h3>
+    <div class="form-section">
+      <h3 class="section-title">📦 Základné údaje</h3>
 
-    <ion-input
-      class="ion-margin-bottom"
-      fill="outline"
-      label="Názov produktu *"
-      label-placement="floating"
-      [(ngModel)]="produkt.nazov"
-      name="nazov"
-      required
-    ></ion-input>
+      <ion-item lines="none" class="custom-input">
+        <ion-label position="stacked">Názov produktu <span class="required">*</span></ion-label>
+        <ion-input
+          placeholder="Napr. Skrutka M6x20"
+          [(ngModel)]="produkt.nazov"
+          name="nazov"
+          required
+        ></ion-input>
+      </ion-item>
 
-    <ion-input
-      class="ion-margin-bottom"
-      fill="outline"
-      label="Product ID (Vlastné)"
-      label-placement="floating"
-      [(ngModel)]="produkt.vlastne_id"
-      name="vlastne_id"
-    >
-      <div slot="end" style="margin-right: 5px;">
-         <ion-icon name="id-card-outline" style="color: gray; font-size: 1.4rem;"></ion-icon>
+      <ion-item lines="none" class="custom-input ion-margin-top">
+        <ion-label position="stacked">Vlastné ID / EAN</ion-label>
+        <ion-input
+          placeholder="Napr. 123456"
+          [(ngModel)]="produkt.vlastne_id"
+          name="vlastne_id"
+        >
+           <ion-icon slot="end" name="barcode-outline" color="medium"></ion-icon>
+        </ion-input>
+      </ion-item>
+
+      <div class="ion-margin-top">
+        <ion-item lines="none" class="custom-select">
+          <ion-label position="stacked">Kategória</ion-label>
+          <ion-select
+            placeholder="Vyberte kategóriu"
+            interface="action-sheet"
+            [(ngModel)]="produkt.kategoria_id"
+            name="kategoria_id"
+          >
+            <ion-select-option *ngFor="let kat of kategorie" [value]="kat.id">
+              {{ kat.nazov }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+        
+        <ion-button fill="clear" size="small" (click)="otvoritNovuKategoriu()" class="add-btn">
+          <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+          Vytvoriť novú kategóriu
+        </ion-button>
       </div>
-    </ion-input>
-
-    <ion-select
-      class="ion-margin-bottom"
-      fill="outline"
-      label="Kategória"
-      label-placement="floating"
-      [(ngModel)]="produkt.kategoria_id"
-      name="kategoria_id"
-      interface="popover"
-    >
-      <div slot="end" style="padding-right: 5px; z-index: 100;">
-         <ion-icon 
-            name="add-circle-outline" 
-            color="primary" 
-            style="cursor: pointer;"
-            (click)="$event.stopPropagation(); otvoritNovuKategoriu()">
-         </ion-icon>
-      </div>
-
-      <ion-select-option *ngFor="let kat of kategorie" [value]="kat.id">
-        {{ kat.nazov }}
-      </ion-select-option>
-    </ion-select>
+    </div>
 
 
-    <h3 style="font-size: 0.9rem; color: gray; margin-top: 20px; margin-bottom: 10px;">Umiestnenie na sklade</h3>
-    
-    <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+    <div class="form-section">
+      <h3 class="section-title">📍 Umiestnenie</h3>
       
-      <ion-select
-        style="flex: 1;"
-        fill="outline"
-        label="Sklad"
-        label-placement="floating"
-        [(ngModel)]="vybranySkladId"
-        name="sklad_id"
-        (ionChange)="onSkladChange()"
-        interface="popover"
-      >
-        <div slot="end" style="padding-right: 5px; z-index: 100;">
-           <ion-icon 
-             name="add-circle-outline" 
-             color="primary" 
-             style="cursor: pointer;"
-             (click)="$event.stopPropagation(); otvoritNovuLokaciu()">
-           </ion-icon>
-        </div>
-        <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
-      </ion-select>
+      <ion-item lines="none" class="custom-select">
+        <ion-label position="stacked">Sklad</ion-label>
+        <ion-select
+          placeholder="Vyberte sklad"
+          interface="action-sheet"
+          [(ngModel)]="vybranySkladId"
+          name="sklad_id"
+          (ionChange)="onSkladChange()"
+        >
+          <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
+        </ion-select>
+      </ion-item>
 
-      <ion-select
-        style="flex: 1;"
-        fill="outline"
-        label="Regál"
-        label-placement="floating"
-        [(ngModel)]="vybranyRegalId"
-        name="regal_id"
-        [disabled]="!vybranySkladId"
-        interface="popover"
-      >
-         <div slot="end" style="padding-right: 5px; z-index: 100;">
-           <ion-icon 
-             name="add-circle-outline" 
-             color="primary" 
-             style="cursor: pointer;"
-             (click)="$event.stopPropagation(); otvoritNovuLokaciu()">
-           </ion-icon>
-        </div>
-        <ion-select-option *ngFor="let r of regaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
-      </ion-select>
+      <ion-item lines="none" class="custom-select ion-margin-top" [class.disabled-item]="!vybranySkladId">
+        <ion-label position="stacked">Regál</ion-label>
+        <ion-select
+          placeholder="Najprv vyberte sklad"
+          interface="action-sheet"
+          [(ngModel)]="vybranyRegalId"
+          name="regal_id"
+          [disabled]="!vybranySkladId"
+        >
+          <ion-select-option *ngFor="let r of regaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
+        </ion-select>
+      </ion-item>
 
+      <ion-button fill="clear" size="small" (click)="otvoritNovuLokaciu()" class="add-btn">
+        <ion-icon name="location-outline" slot="start"></ion-icon>
+        Spravovať lokácie
+      </ion-button>
     </div>
 
-    <div style="display: flex; gap: 10px;">
-      <ion-select
-        style="flex: 1;"
-        fill="outline"
-        label="Jednotka"
-        label-placement="floating"
-        [(ngModel)]="produkt.jednotka"
-        name="jednotka"
-        interface="popover"
-      >
-        <ion-select-option value="ks">ks</ion-select-option>
-        <ion-select-option value="kg">kg</ion-select-option>
-        <ion-select-option value="l">l</ion-select-option>
-        <ion-select-option value="m">m</ion-select-option>
-      </ion-select>
 
-      <ion-input
-        style="flex: 1;"
-        type="number"
-        fill="outline"
-        label="Balenie"
-        label-placement="floating"
-        [(ngModel)]="produkt.balenie_ks"
-        name="balenie_ks"
-      ></ion-input>
+    <div class="form-section">
+      <h3 class="section-title">📏 Detaily</h3>
+      
+      <div class="details-row">
+        <ion-item lines="none" class="custom-select half-width">
+          <ion-label position="stacked">Jednotka</ion-label>
+          <ion-select interface="popover" [(ngModel)]="produkt.jednotka" name="jednotka">
+            <ion-select-option value="ks">ks</ion-select-option>
+            <ion-select-option value="kg">kg</ion-select-option>
+            <ion-select-option value="m">m</ion-select-option>
+            <ion-select-option value="l">l</ion-select-option>
+            <ion-select-option value="bal">bal</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item lines="none" class="custom-input half-width">
+          <ion-label position="stacked">Balenie</ion-label>
+          <ion-input type="number" [(ngModel)]="produkt.balenie_ks" name="balenie_ks"></ion-input>
+        </ion-item>
+      </div>
     </div>
 
-    <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="!produkt.nazov">
-      Vytvoriť produkt
-    </ion-button>
+
+    <div class="submit-container">
+      
+      <ion-button expand="block" type="submit" size="large" [disabled]="!produkt.nazov" class="ion-margin-bottom">
+        Vytvoriť produkt
+      </ion-button>
+
+      <ion-button expand="block" fill="clear" color="medium" (click)="zrusit()">
+        Zrušiť
+      </ion-button>
+
+    </div>
 
   </form>
-
 </ion-content>

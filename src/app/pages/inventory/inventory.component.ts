@@ -21,7 +21,7 @@ import {
   caretDownOutline, clipboardOutline, cubeOutline,
   arrowUpOutline, locationOutline, listOutline,
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
-  addCircleOutline, createOutline, trashOutline, closeCircle
+  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -29,6 +29,7 @@ import { CalculatorModalComponent } from 'src/app/components/calculator-modal/ca
 import { NovyProduktModalComponent } from 'src/app/components/novy-produkt-modal/novy-produkt-modal.component';
 import { NovaLokaciaModalComponent } from 'src/app/components/nova-lokacia-modal/nova-lokacia-modal.component';
 import { Subscription } from 'rxjs';
+
 
 @Component({
   selector: 'app-inventory',
@@ -91,7 +92,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private cdr: ChangeDetectorRef,
     private modalCtrl: ModalController
   ) {
-    addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, searchOutline, filterOutline, arrowUpOutline, createOutline, trashOutline, checkmarkDoneOutline, locationOutline, add, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
+    addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline, settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline, createOutline, add, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
   }
 
   ngOnInit() {
@@ -114,22 +115,58 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   async nacitajKategoriePreFilter() {
-    let idPreServer = null;
 
+    // 🅰️ REŽIM: HOTOVÉ (V INVENTÚRE)
+    // Tu filtrujeme kategórie dynamicky podľa toho, čo je reálne v zozname
+    if (this.rezimZobrazenia === 'v_inventure') {
 
+      // 1. Zoberieme všetky načítané položky
+      let relevantnePolozky = this.zasoby;
 
+      // 2. Ak je vybraný SKLAD, zúžime výber
+      if (this.vybranySkladId) {
+        relevantnePolozky = relevantnePolozky.filter(z => z.sklad_id === this.vybranySkladId);
+      }
 
-    if (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) {
-      idPreServer = this.vybranyRegalId;
+      // 3. Ak je vybraný REGÁL, zúžime výber ešte viac
+      if (this.vybranyRegalId) {
+        relevantnePolozky = relevantnePolozky.filter(z => z.regal_id === this.vybranyRegalId);
+      }
+
+      // 4. Vytiahneme unikátne názvy kategórií
+      const unikatneKategorie = new Set<string>();
+      relevantnePolozky.forEach(z => {
+        if (z.kategoria && z.kategoria !== 'Bez kategórie') {
+          unikatneKategorie.add(z.kategoria);
+        }
+      });
+
+      // 5. Zoradíme ich podľa abecedy
+      this.zoznamKategorii = Array.from(unikatneKategorie).sort((a, b) => a.localeCompare(b));
+
+      console.log('📂 Lokálne prepočítané kategórie:', this.zoznamKategorii);
     }
 
-    console.log('🔄 Aktualizujem kategórie. Režim:', this.rezimZobrazenia, 'ID regálu:', idPreServer);
+    // 🅱️ REŽIM: REGÁL alebo GLOBAL
+    // Tu sa pýtame servera, lebo nemáme všetky dáta v pamäti
+    else {
+      let idPreServer = null;
 
-    this.zoznamKategorii = await this.supabaseService.getKategoriePreFilter(idPreServer);
+      if (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) {
+        idPreServer = this.vybranyRegalId;
+      }
 
+      // Voláme existujúcu funkciu zo servisu
+      this.zoznamKategorii = await this.supabaseService.getKategoriePreFilter(idPreServer);
+    }
 
+    // Kontrola: Ak sme mali vybranú kategóriu, ktorá v novom zozname nie je, prepneme na "Všetky"
     if (this.filterKategoria !== 'vsetky' && !this.zoznamKategorii.includes(this.filterKategoria)) {
       this.filterKategoria = 'vsetky';
+      // Ak sme v Hotových, musíme prefiltrovať zoznam znova, lebo sa zmenil filter
+      if (this.rezimZobrazenia === 'v_inventure') {
+        this.aplikovatFiltre();
+      }
     }
   }
 
@@ -277,54 +314,85 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     let temp = [...this.zasoby];
 
   }
-
   async zmenitRezim(event: any) {
     const novyRezim = event.detail.value;
+    console.log('🔄 Mením režim na:', novyRezim);
 
-
+    // 1. ULOŽENIE STAVU: Ak odchádzame z režimu "Regál", zapamätáme si, čo tam bolo
     if (this.rezimZobrazenia === 'regal') {
       this.ulozenyStavRegal = {
         skladId: this.vybranySkladId,
         regalId: this.vybranyRegalId,
         search: this.searchQuery,
-        kategoria: this.filterKategoria
+        kategoria: this.filterKategoria // Tu si zapamätáme napr. "Spojovací materiál"
       };
     }
 
+    // 2. PREPNUTIE REŽIMU
     this.rezimZobrazenia = novyRezim;
 
+    // 3. LOGIKA PRE JEDNOTLIVÉ REŽIMY
 
-    if (this.rezimZobrazenia === 'regal') {
+    // A) REŽIM: HOTOVÉ (V INVENTÚRE) -> TOTO JE TO, ČO VÁM NEŠLO
+    if (this.rezimZobrazenia === 'v_inventure') {
       this.jeGlobalnyPohlad = false;
 
+      // Resetujeme Sklad a Regál
+      this.vybranySkladId = null;
+      this.vybranyRegalId = null;
+      this.filtrovaneRegaly = [];
 
-      this.vybranySkladId = this.ulozenyStavRegal.skladId;
-      this.vybranyRegalId = this.ulozenyStavRegal.regalId;
-      this.searchQuery = this.ulozenyStavRegal.search || '';
-      this.filterKategoria = this.ulozenyStavRegal.kategoria || 'vsetky';
+      // Resetujeme vyhľadávanie
+      this.searchQuery = '';
 
+      // 🔥 TVRDÝ RESET KATEGÓRIE 🔥
+      // Nastavíme 'vsetky' a použijeme setTimeout, aby to Angular určite zaregistroval
+      this.filterKategoria = 'vsetky';
 
-      if (this.vybranySkladId && this.filtrovaneRegaly.length === 0) {
-        this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId);
-      }
+      // Pre istotu vymažeme zoznam, kým sa nenačíta nový
+      this.zasoby = [];
+      this.filtrovaneZasoby = [];
     }
+
+    // B) REŽIM: GLOBAL (Všetky)
     else if (this.rezimZobrazenia === 'global') {
       this.jeGlobalnyPohlad = true;
       this.vybranySkladId = null;
       this.vybranyRegalId = null;
       this.searchQuery = '';
       this.filterKategoria = 'vsetky';
+      this.filtrovaneRegaly = [];
     }
-    else {
 
+    // C) REŽIM: REGÁL (Návrat späť)
+    else if (this.rezimZobrazenia === 'regal') {
       this.jeGlobalnyPohlad = false;
+
+      // Obnovíme hodnoty z pamäte
+      this.vybranySkladId = this.ulozenyStavRegal.skladId;
+      this.vybranyRegalId = this.ulozenyStavRegal.regalId;
+      this.searchQuery = this.ulozenyStavRegal.search || '';
+
+      // Tu vrátime naspäť tú starú kategóriu
+      this.filterKategoria = this.ulozenyStavRegal.kategoria || 'vsetky';
+
+      if (this.vybranySkladId) {
+        this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId);
+        this.regaly = this.filtrovaneRegaly;
+      }
     }
 
+    // 4. AKTUALIZÁCIA DÁT
+    // Použijeme setTimeout, aby sme dali UI čas na resetovanie premenných
+    setTimeout(async () => {
 
-    await this.nacitajKategoriePreFilter();
+      // 1. KROK: Najprv musíme stiahnuť dáta (aby sme mali čo analyzovať)
+      await this.obnovitZoznamPodlaRezimu();
 
+      // 2. KROK: Až keď máme dáta, vypočítame, aké kategórie v nich sú
+      await this.nacitajKategoriePreFilter();
 
-    await this.obnovitZoznamPodlaRezimu();
+    }, 50);
   }
 
   async priZmeneSkladu() {
@@ -334,7 +402,6 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.isLoading = true;
     try {
       if (this.vybranySkladId) {
-
         this.filtrovaneRegaly = await this.supabaseService.getRegaly(this.vybranySkladId);
         this.regaly = this.filtrovaneRegaly;
       } else {
@@ -346,11 +413,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.isLoading = false;
     }
 
+    // 🔥 TOTO TU CHÝBALO:
+    // Po zmene skladu musíme aktualizovať zoznam kategórií (aby sedeli na nový sklad)
+    await this.nacitajKategoriePreFilter();
 
     if (this.rezimZobrazenia === 'v_inventure') {
       this.aplikovatFiltre();
     }
-
     else if (this.rezimZobrazenia === 'regal') {
       this.zasoby = [];
       this.filtrovaneZasoby = [];
@@ -935,5 +1004,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     this.filtrovaneZasoby = data;
   }
+
+
 
 }

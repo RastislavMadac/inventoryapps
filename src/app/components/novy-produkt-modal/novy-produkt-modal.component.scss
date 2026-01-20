@@ -1,53 +1,73 @@
-/* Vynútenie štýlov v tomto komponente (prebijeme global.scss) */
-:host {
-    ion-input, ion-select {
-      
-      /* 1. FARBA LABELU (Názov poľa - kľudový stav) */
-      /* Musí byť !important, inak vyhrá globálna čierna */
-      --label-color: #666666 !important; 
-      
-      /* 2. FARBA LABELU A ČIARY (Keď kliknete dnu) */
-      --highlight-color-focused: var(--ion-color-primary) !important;
-      
-      /* 3. FARBA ORAZOVANIA (Rámik) */
-      --border-color: #cccccc !important;
-      
-      /* 4. FARBA TEXTU, ČO PÍŠETE */
-      --color: #000000 !important;
-      
-      /* Pozadie */
-      --background: #ffffff !important;
-      background: #ffffff !important;
-      
-      margin-bottom: 16px;
-    }
+// Pozadie celého modalu
+ion-content.bg-light {
+  --background: #f4f5f8; // Jemná sivá, príjemná pre oči
+}
+
+// Jednotlivé sekcie (biele karty)
+.form-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.section-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+// Vlastné štýly pre inputy a selecty
+.custom-input, .custom-select {
+  --background: #f9f9f9;
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   
-    /* Ikonky (pluská, id karta) */
-    ion-icon {
-      color: var(--ion-color-primary); /* Primárna modrá */
-      font-size: 1.4rem;
-      
-      /* Ak by ikonky boli stále čierne kvôli global css: */
-      /* color: #3880ff !important; */
-    }
-    
-    /* Špeciálne pre ID kartu ikonku vnútri inputu, aby bola šedá */
-    ion-icon[name="id-card-outline"] {
-      color: #888888 !important;
-    }
+  // Keď klikneš, zmení sa border
+  &.item-has-focus {
+    border-color: var(--ion-color-primary);
   }
-  
-  /* Ak by to stále nešlo, tento "hack" ::ng-deep 
-     donúti prehliadač použiť tieto štýly bez ohľadu na všetko ostatné 
-  */
-  ::ng-deep app-novy-produkt-modal {
-    
-    .label-text-wrapper {
-      color: #666666 !important;
-    }
-    
-    /* Zmena farby labelu pri zameraní (focus) */
-    .item-has-focus .label-text-wrapper {
-      color: var(--ion-color-primary) !important;
-    }
-  }
+}
+
+// Štýl pre label "required" hviezdičku
+.required {
+  color: var(--ion-color-danger);
+}
+
+// Tlačidlá "Pridať novú..."
+.add-btn {
+  margin-top: 5px;
+  margin-left: -5px; // Zarovnanie doľava
+  font-weight: 500;
+  --color: var(--ion-color-primary);
+}
+
+// Rozloženie pre Jednotku a Balenie (vedľa seba)
+.details-row {
+  display: flex;
+  gap: 12px;
+}
+
+.half-width {
+  flex: 1; // Každý zaberie 50%
+}
+
+// Disabled stav
+.disabled-item {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+// Spodné tlačidlo
+.submit-container {
+  margin-top: 30px;
+  margin-bottom: 20px;
+}

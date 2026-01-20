@@ -4,7 +4,7 @@ import { RouterLink, Router } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { SupabaseService } from 'src/app/services/supabase.service';
-import { DashboardComponent } from '../components/dashboard/dashboard.component';
+
 import { clipboardOutline, cubeOutline, layersOutline, personCircleOutline, statsChartOutline } from 'ionicons/icons';
 ;
 @Component({
@@ -12,7 +12,7 @@ import { clipboardOutline, cubeOutline, layersOutline, personCircleOutline, stat
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
   standalone: true,
-  imports: [CommonModule, IonicModule, RouterLink, DashboardComponent],
+  imports: [CommonModule, IonicModule, RouterLink],
 })
 export class HomePage implements OnInit {
 

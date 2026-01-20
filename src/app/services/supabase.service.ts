@@ -6,6 +6,7 @@ import { Subject, Observable } from 'rxjs';
 export interface Sklad {
     id: number;
     nazov: string;
+    poradie?: number;
 }
 
 export interface Regal {
@@ -55,38 +56,20 @@ export class SupabaseService {
     }
 
 
-
     async getSklady() {
         const { data, error } = await this.supabase
             .from('sklady')
             .select('*')
-            .order('nazov');
+            // 🔥 1. Priorita: Zoraď podľa Vášho čísla
+            .order('poradie', { ascending: true })
+            // 2. Priorita: Ak majú rovnaké číslo, zoraď podľa abecedy
+            .order('nazov', { ascending: true });
 
         if (error) throw error;
         return data as Sklad[];
     }
 
-    async getRegaly(skladId: number) {
-        const { data, error } = await this.supabase
-            .from('regaly')
-            .select('*')
-            .eq('sklad_id', skladId)
-            .order('nazov');
 
-        if (error) throw error;
-        return data as Regal[];
-    }
-
-    async vytvoritSklad(nazov: string) {
-        const { data, error } = await this.supabase
-            .from('sklady')
-            .insert({ nazov: nazov })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
 
     async vytvoritRegal(nazov: string, skladId: number) {
         const { data, error } = await this.supabase
@@ -505,13 +488,27 @@ export class SupabaseService {
 
 
 
-    async getKategorie() {
+
+
+    async getKategorie(): Promise<any[]> {
         const { data, error } = await this.supabase
             .from('kategorie')
             .select('*')
-            .order('nazov');
+            .order('poradie', { ascending: true })
+            .order('nazov', { ascending: true });
+
         if (error) throw error;
         return data;
+    }
+
+
+    async aktualizovatPoradieKategorii(kategorie: { id: number, poradie: number }[]) {
+        const updates = kategorie.map(k =>
+            this.supabase.from('kategorie').update({ poradie: k.poradie }).eq('id', k.id)
+        );
+
+
+        await Promise.all(updates);
     }
 
     async vytvoritKategoriu(nazov: string) {
@@ -853,4 +850,37 @@ export class SupabaseService {
         }
         return data;
     }
+
+
+    async getRegaly(skladId: number) {
+        const { data, error } = await this.supabase
+            .from('regaly')
+            .select('*')
+            .eq('sklad_id', skladId)
+            // 🔥 1. Priorita: Zoraď podľa Vášho čísla
+            .order('poradie', { ascending: true })
+            // 2. Priorita: Podľa abecedy
+            .order('nazov', { ascending: true });
+
+        if (error) throw error;
+        return data as Regal[];
+    }
+
+    async vytvoritSklad(nazov: string) {
+        const { data, error } = await this.supabase
+            .from('sklady')
+            .insert({ nazov: nazov })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+    private ulozenyStavRegal: any = {
+        skladId: null,
+        regalId: null,
+        search: '',
+        kategoria: 'vsetky'
+    };
+
 }

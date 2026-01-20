@@ -44,10 +44,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Sklad</span>
           
-          <ion-icon *ngIf="rezimZobrazenia !== 'global'" 
-                    name="add-circle-outline" color="primary" style="font-size: 20px;" 
-                    (click)="otvoritNovuLokaciu()">
-          </ion-icon>
+          
         </div>
         
         <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
@@ -69,10 +66,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Regál</span>
           
-          <ion-icon *ngIf="rezimZobrazenia !== 'global'" 
-                    name="add-circle-outline" color="primary" style="font-size: 20px;" 
-                    (click)="otvoritNovuLokaciu()">
-          </ion-icon>
+       
         </div>
         
         <div class="custom-input-box" [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
@@ -116,6 +110,7 @@
 
           </ion-select>
         </div>
+        
       </div>
     </div>
 
