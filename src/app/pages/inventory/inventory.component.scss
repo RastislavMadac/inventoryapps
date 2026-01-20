@@ -2,7 +2,16 @@
 .bg-gray {
   --background: #f4f5f8;
 }
-
+ion-searchbar.custom-searchbar {
+  --background: #ffffff;
+  --border-radius: 10px;
+  --box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  
+  /* 0px hore/dole, 10px vľavo/vpravo */
+  padding: 0 10px;
+  
+  margin-top: 5px;
+}
 // Centrovanie načítavania a prázdnych stavov
 .center-content {
   display: flex;

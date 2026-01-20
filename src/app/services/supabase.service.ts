@@ -26,7 +26,7 @@ export interface SkladovaZasobaView {
     regal_id?: number;
     v_inventure?: boolean;
     jednotka?: string;
-
+    sklad_id?: number;
 }
 
 export interface Inventura {
@@ -304,7 +304,7 @@ export class SupabaseService {
 
     async getZoznamInventur() {
 
-        // 1. Stiahneme zoznam inventúr zoradený podľa dátumu
+
         const { data: inventury, error } = await this.supabase
             .from('inventury')
             .select('*')
@@ -314,16 +314,16 @@ export class SupabaseService {
 
         const zoznam: Inventura[] = [];
 
-        // 2. Prejdeme každú inventúru a spočítame položky bez 'vlastne_id'
+
         for (const inv of inventury) {
 
             let pocetChyb = 0;
 
-            // Počítame chyby iba ak inventúra nie je uzavretá (šetríme výkon)
+
             if (!inv.datum_uzavretia) {
 
-                // 👇 VOLÁME VAŠU EXISTUJÚCU FUNKCIU getPolozkyBezId
-                // Táto funkcia už správne filtruje podľa 'vlastne_id' (NULL aj prázdne "")
+
+
                 const chybnePolozky = await this.getPolozkyBezId(inv.id);
 
                 pocetChyb = chybnePolozky.length;
@@ -356,35 +356,64 @@ export class SupabaseService {
         const { data, error } = await this.supabase
             .from('inventura_polozky')
             .select(`
-        id,
-        mnozstvo,
-        produkt_id,
-        regal_id,
-        regaly:regal_id ( nazov ),
-        produkty:produkt_id ( nazov, balenie_ks, ean, jednotka )
-      `)
+                id,
+                mnozstvo,
+                produkt_id,
+                regal_id,
+                regaly:regal_id (
+                    nazov,
+                    sklad_id,      
+                    sklady ( nazov ) 
+                ),
+                produkty:produkt_id ( 
+                    nazov, 
+                    balenie_ks, 
+                    ean, 
+                    jednotka,
+                    kategorie ( nazov ) 
+                )
+            `)
             .eq('inventura_id', inventuraId);
 
         if (error) {
-            console.error('Chyba pri načítaní inventúry:', error);
+            console.error('❌ Chyba načítania inventúry:', error);
             throw error;
         }
 
-        return (data as any[]).map(d => ({
-            id: d.id,
-            produkt_id: d.produkt_id,
-            regal_id: d.regal_id,
-            mnozstvo_ks: d.mnozstvo,
-            nazov: d.produkty?.nazov || 'Neznámy produkt',
-            ean: d.produkty?.ean,
-            balenie_ks: d.produkty?.balenie_ks || 1,
-            jednotka: d.produkty?.jednotka || 'ks',
-            kategoria: 'Sklad',
-            v_inventure: true,
-            umiestnenie: d.regaly?.nazov || `Regál č. ${d.regal_id}`
-        }));
-    }
+        return (data as any[]).map(d => {
+            const regalObj = d.regaly;
+            const produktObj = d.produkty;
 
+
+            const skladData = regalObj?.sklady;
+            const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || 'Sklad';
+
+
+            const skladId = regalObj?.sklad_id;
+
+
+            const katData = produktObj?.kategorie;
+            const nazovKategorie = (Array.isArray(katData) ? katData[0]?.nazov : katData?.nazov) || 'Bez kategórie';
+
+            return {
+                id: d.id,
+                produkt_id: d.produkt_id,
+                regal_id: d.regal_id,
+                sklad_id: skladId,
+
+                mnozstvo_ks: d.mnozstvo,
+                nazov: produktObj?.nazov || 'Neznámy produkt',
+                ean: produktObj?.ean,
+                balenie_ks: produktObj?.balenie_ks || 1,
+                jednotka: produktObj?.jednotka || 'ks',
+
+                kategoria: nazovKategorie,
+
+                v_inventure: true,
+                umiestnenie: `${nazovSkladu} - ${regalObj?.nazov || 'Regál'}`
+            };
+        });
+    }
     async uzavrietInventuru(inventuraId: number) {
         const { error } = await this.supabase.rpc('uzavriet_inventuru', {
             p_inventura_id: inventuraId
@@ -515,16 +544,53 @@ export class SupabaseService {
         if (error) throw error;
     }
 
+
+
+
+
+    async ziskatLokacieProduktu(produktId: number) {
+        const { data, error } = await this.supabase
+            .from('skladove_zasoby')
+            .select(`
+        id,
+        mnozstvo_ks,
+        regal_id,
+        regaly (
+          id,
+          nazov,
+          sklad_id,
+          sklady (nazov)
+        )
+      `)
+            .eq('produkt_id', produktId);
+
+        if (error) {
+            console.error('Chyba pri hľadaní lokácií:', error);
+            return [];
+        }
+        return data;
+    }
     async vytvoritProduktSLocation(novyProdukt: any, regalId: number | null) {
+        console.log('🛠️ Vytváram produkt...', novyProdukt, 'na regál:', regalId);
+
+
         const { data: produkt, error: errProd } = await this.supabase
             .from('produkty')
             .insert(novyProdukt)
             .select()
             .single();
 
-        if (errProd) throw errProd;
+        if (errProd) {
+            console.error('❌ Chyba pri tvorbe produktu:', errProd);
+            throw errProd;
+        }
+
+        console.log('✅ Produkt vytvorený, ID:', produkt.id);
+
 
         if (regalId && produkt) {
+            console.log('🛠️ Vytváram záznam v skladove_zasoby...');
+
             const { error: errStock } = await this.supabase
                 .from('skladove_zasoby')
                 .insert({
@@ -533,11 +599,19 @@ export class SupabaseService {
                     mnozstvo_ks: 0
                 });
 
-            if (errStock) console.error('Chyba pri vytváraní zásoby:', errStock);
+            if (errStock) {
+                console.error('❌ CRITICAL: Chyba pri vytváraní zásoby:', errStock);
+
+
+            } else {
+                console.log('✅ Zásoba (0ks) úspešne vytvorená.');
+            }
+        } else {
+            console.warn('⚠️ Pozor: Nevytváram zásobu, lebo chýba regalId:', regalId);
         }
+
         return produkt;
     }
-
     async zmazatZaznamZInventury(inventuraId: number, produktId: number, regalId: number) {
         const { error } = await this.supabase
             .from('inventura_polozky')
@@ -604,8 +678,8 @@ export class SupabaseService {
 
 
     async getPolozkyBezId(inventuraId: number) {
-        // 1. Stiahneme VŠETKY položky z inventúry (bez filtrovania ID v databáze)
-        // Tým zaručíme, že nám neujdú tie, čo majú prázdny string namiesto NULL
+
+
         const { data, error } = await this.supabase
             .from('inventura_polozky')
             .select(`
@@ -618,14 +692,14 @@ export class SupabaseService {
 
         if (error) throw error;
 
-        // 2. Filtrujeme v JavaScripte (Zachytí NULL aj prázdny string "")
+
         const filtrovaneData = data.filter((item: any) =>
-            !item.produkt || // Poistka ak by produkt chýbal
-            !item.produkt.vlastne_id || // Null alebo Undefined
-            String(item.produkt.vlastne_id).trim() === '' // Prázdny string
+            !item.produkt ||
+            !item.produkt.vlastne_id ||
+            String(item.produkt.vlastne_id).trim() === ''
         );
 
-        // 3. Zoradíme ich presne ako v PDF (Sklad -> Regál -> Názov)
+
         filtrovaneData.sort((a: any, b: any) => {
             const skladA = (a.regal?.sklad?.nazov || '').toLowerCase();
             const skladB = (b.regal?.sklad?.nazov || '').toLowerCase();
@@ -653,21 +727,21 @@ export class SupabaseService {
         if (error) throw error;
     }
 
-    // Pridajte do triedy SupabaseService
+
 
     async getStatistikyKatalogu() {
-        // 1. Celkový počet produktov
+
         const { count: celkovo, error: err1 } = await this.supabase
             .from('produkty')
             .select('*', { count: 'exact', head: true });
 
         if (err1) throw err1;
 
-        // 2. Počet produktov bez vlastného ID (NULL alebo prázdny string)
+
         const { count: bezId, error: err2 } = await this.supabase
             .from('produkty')
             .select('*', { count: 'exact', head: true })
-            .or('vlastne_id.is.null,vlastne_id.eq.""'); // Filter pre NULL aj prázdne ""
+            .or('vlastne_id.is.null,vlastne_id.eq.""');
 
         if (err2) throw err2;
 
@@ -676,16 +750,16 @@ export class SupabaseService {
             bezId: bezId || 0
         };
     }
-    // Pridaj do SupabaseService triedy:
+
 
     async getZasobyFiltrovaneServer(
         skladId: number | null,
         regalId: number | null,
         kategoria: string,
         search: string,
-        limit: number = 100 // Stiahne max 100 položiek (okamžitá rýchlosť)
+        limit: number = 100
     ) {
-        // Volanie RPC funkcie z databázy
+
         const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', {
             p_sklad_id: skladId,
             p_regal_id: regalId,
@@ -701,5 +775,82 @@ export class SupabaseService {
         }
 
         return data || [];
+    }
+
+
+
+
+    async getKategoriePreFilter(regalId: number | null): Promise<string[]> {
+        if (regalId) {
+
+            const { data, error } = await this.supabase.rpc('get_kategorie_pre_regal', {
+                p_regal_id: regalId
+            });
+            if (error) {
+                console.error('Chyba:', error);
+                return [];
+            }
+            return data.map((d: any) => d.nazov);
+        } else {
+
+            const { data, error } = await this.supabase
+                .from('kategorie')
+                .select('nazov')
+                .order('nazov');
+
+            if (error) return [];
+            return data.map((d: any) => d.nazov);
+        }
+    }
+
+
+    async getVsetkyKategorie() {
+        const { data, error } = await this.supabase.from('kategorie').select('nazov').order('nazov');
+        if (error) return [];
+        return data;
+    }
+
+
+
+
+    async getZasobaNaRegali(produktId: number, regalId: number) {
+        const { data, error } = await this.supabase
+            .from('skladove_zasoby')
+            .select('id, mnozstvo_ks')
+            .eq('produkt_id', produktId)
+            .eq('regal_id', regalId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Chyba pri kontrole zásoby:', error);
+            return null;
+        }
+        return data;
+    }
+
+
+
+
+    async getZasobaVSklade(produktId: number, skladId: number) {
+        const { data, error } = await this.supabase
+            .from('skladove_zasoby')
+            .select(`
+        id, 
+        mnozstvo_ks, 
+        regaly!inner (
+          id, 
+          nazov, 
+          sklad_id
+        )
+      `)
+            .eq('produkt_id', produktId)
+            .eq('regaly.sklad_id', skladId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Chyba pri kontrole skladu:', error);
+            return null;
+        }
+        return data;
     }
 }

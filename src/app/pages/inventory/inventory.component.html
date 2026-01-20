@@ -55,7 +55,11 @@
                       [(ngModel)]="vybranySkladId" 
                       (ionChange)="priZmeneSkladu()"
                       [disabled]="rezimZobrazenia === 'global'">
-             <ion-select-option *ngFor="let s of sklady" [value]="s.id">{{ s.nazov }}</ion-select-option>
+             
+             <ion-select-option *ngFor="let s of sklady" [value]="s.id">
+               {{ s.nazov }}
+             </ion-select-option>
+             
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -76,7 +80,9 @@
                       [(ngModel)]="vybranyRegalId" 
                       (ionChange)="priZmeneRegalu()"  
                       [disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
-             <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">{{ r.nazov }}</ion-select-option>
+             <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">
+               {{ r.nazov }}
+             </ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -86,12 +92,14 @@
       
     <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
       
-      <div class="search-wrapper">
-        <ion-icon name="search-outline" class="search-icon"></ion-icon>
-        <input type="text" placeholder="Hľadať produkt..." 
-               [(ngModel)]="searchQuery" 
-               (input)="handleSearch($event)">
-      </div>
+      <ion-searchbar 
+        placeholder="Hľadať produkt..."
+        [(ngModel)]="searchQuery"
+        (ionInput)="handleSearch($event)"
+        [debounce]="500"
+        mode="ios"
+        class="custom-searchbar">
+      </ion-searchbar>
 
       <div class="filter-btn-wrapper">
         <div class="icon-box">
@@ -99,8 +107,13 @@
           <ion-select interface="action-sheet" 
                       [(ngModel)]="filterKategoria" 
                       (ionChange)="zmenitFilterKategorie($event)">
+             
              <ion-select-option value="vsetky">Všetky</ion-select-option>
-             <ion-select-option *ngFor="let k of unikatneKategorie" [value]="k">{{ k }}</ion-select-option>
+             
+             <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
+               {{ k }}
+             </ion-select-option>
+
           </ion-select>
         </div>
       </div>
@@ -177,9 +190,9 @@
                  <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
                </p>
                
-               <p *ngIf="z.umiestnenie && !z.v_inventure" class="loc">
-                 <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
-               </p>
+               <p *ngIf="z.umiestnenie" class="loc">
+                <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
+              </p>
              </div>
           </div>
 

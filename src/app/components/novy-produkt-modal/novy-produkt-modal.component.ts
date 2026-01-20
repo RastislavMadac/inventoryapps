@@ -138,13 +138,18 @@ export class NovyProduktModalComponent implements OnInit {
       if (this.produktNaUpravu) {
         // --- A) ÚPRAVA ---
         await this.supabase.updateProdukt(this.produktNaUpravu.id, this.produkt);
+
+        // Ak sa menila lokácia, musíme presunúť zásobu (voliteľné, ak to riešite tu)
+        // ... (kód pre presun) ...
+
         this.toast('Produkt upravený', 'success');
 
-        // Vrátime pôvodné ID a nové dáta
+        // Vrátime ID a nové dáta
         dataPreRodica = {
           ...this.produkt,
           id: this.produktNaUpravu.id,
-          regal_id: this.vybranyRegalId
+          regal_id: this.vybranyRegalId,
+          sklad_id: this.vybranySkladId // <--- ✅ TOTO TU CHÝBALO
         };
 
       } else {
@@ -154,24 +159,22 @@ export class NovyProduktModalComponent implements OnInit {
           this.vybranyRegalId
         );
 
-        // 👇👇👇 KRITICKÁ OPRAVA: Ošetrenie poľa vs objektu 👇👇👇
-        // Ak Supabase vráti pole [ {id: 1} ], vezmeme prvý prvok.
-        // Ak vráti objekt { id: 1 }, necháme ho tak.
+        // Ošetrenie poľa vs objektu
         const novyZaznam = Array.isArray(vysledok) ? vysledok[0] : vysledok;
 
         dataPreRodica = {
           ...novyZaznam,
-          // Pre istotu explicitne vytiahneme ID, ak je v objekte
           id: novyZaznam.id || novyZaznam.produkt_id,
-          regal_id: this.vybranyRegalId
+          regal_id: this.vybranyRegalId,
+          sklad_id: this.vybranySkladId // <--- ✅ TOTO TU CHÝBALO
         };
 
         this.toast('Produkt vytvorený', 'success');
       }
 
-      console.log('📤 MODAL ODOSIELA DÁTA:', dataPreRodica); // Debug
+      console.log('📤 MODAL ODOSIELA DÁTA:', dataPreRodica);
 
-      // Zatvoríme modal a pošleme opravené dáta
+      // Zatvoríme modal a pošleme kompletné dáta (aj so skladom)
       this.modalCtrl.dismiss(dataPreRodica, 'confirm');
 
     } catch (e) {
