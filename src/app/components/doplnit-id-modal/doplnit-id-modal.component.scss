@@ -49,6 +49,7 @@
     color: var(--ion-color-medium);
     font-size: 0.9rem;
   }
+
   strong {
     color: var(--ion-color-dark);
   }
@@ -67,15 +68,18 @@
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   overflow: hidden;
-  
+
   /* 👇 ANIMÁCIA: Plynulý prechod farby */
   transition: all 0.3s ease;
-  border: 1px solid transparent; /* Priprava na border */
+  border: 1px solid transparent;
+  /* Priprava na border */
 
   /* 👇 NOVÝ STAV: Keď je hotovo (zelená) */
   &.hotovo {
-    --background: #dcfce7; /* Svetlo zelená */
-    border-color: #22c55e; /* Zelený okraj */
+    --background: #dcfce7;
+    /* Svetlo zelená */
+    border-color: #22c55e;
+    /* Zelený okraj */
 
     /* Zmeníme farbu nadpisu vnútri */
     .item-content .top-row .texts h2 {
@@ -99,13 +103,15 @@
     .icon-box {
       width: 40px;
       height: 40px;
-      background: #eff6ff; /* Pôvodná modrá */
+      background: #eff6ff;
+      /* Pôvodná modrá */
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background-color 0.3s ease; /* Animácia */
+      transition: background-color 0.3s ease;
+      /* Animácia */
 
       ion-icon {
         color: var(--ion-color-primary);
@@ -115,10 +121,12 @@
 
       /* 👇 NOVÝ STAV: Zelená ikona */
       &.success-bg {
-        background: #bbf7d0; /* Sýtejšia zelená */
-        
+        background: #bbf7d0;
+        /* Sýtejšia zelená */
+
         ion-icon {
-          color: #15803d; /* Tmavozelená */
+          color: #15803d;
+          /* Tmavozelená */
         }
       }
     }
@@ -179,5 +187,87 @@
       align-items: center;
       gap: 6px;
     }
+  }
+}
+
+/* =========================================
+   TABLET OPTIMALIZÁCIA (GRID SYSTÉM)
+   ========================================= */
+
+@media (min-width: 768px) {
+
+  /* 1. KROK: Obmedzenie šírky a centrovanie */
+  .center-content,
+  .header-info {
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* 2. KROK: Vytvorenie mriežky pre karty */
+  .item-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 2 stĺpce vedľa seba */
+    gap: 20px;
+    /* Medzera medzi kartami */
+    max-width: 900px;
+    /* Maximálna šírka zoznamu */
+    margin: 0 auto;
+    /* Centrovanie zoznamu */
+    padding-bottom: 40px;
+  }
+
+  /* 3. KROK: Úprava samotnej karty pre Grid */
+  .custom-item {
+    margin-bottom: 0;
+    /* Margin rieši 'gap' v gride */
+    height: 100%;
+    /* Aby boli všetky karty rovnako vysoké */
+    display: flex;
+    /* Flex pre roztiahnutie obsahu */
+    flex-direction: column;
+  }
+
+  /* Roztiahnutie obsahu vnútri karty */
+  .custom-item .item-content {
+    flex: 1;
+    /* Vyplní celú výšku */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* Obsah hore, tlačidlá úplne dole */
+  }
+
+  /* Zväčšenie textov pre lepšiu čitateľnosť na tablete */
+  .custom-item .top-row .texts h2 {
+    font-size: 1.15rem;
+  }
+
+  /* Väčší header pre Empty State */
+  .empty-state h3 {
+    font-size: 1.6rem;
+  }
+
+  .empty-state p {
+    font-size: 1.1rem;
+    max-width: 500px;
+  }
+}
+
+/* =========================================
+     VEĽKÉ TABLETY / LANDSCAPE (iPad Pro, Desktop)
+     ========================================= */
+@media (min-width: 1024px) {
+
+  /* 3 stĺpce vedľa seba na širokých obrazovkách */
+  .item-list {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 1200px;
+  }
+
+  .center-content,
+  .header-info {
+    max-width: 1200px;
   }
 }
