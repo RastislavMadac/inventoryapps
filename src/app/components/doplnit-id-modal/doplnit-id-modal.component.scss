@@ -218,6 +218,15 @@
     padding-bottom: 40px;
   }
 
+  :host {
+    --width: 100vw;
+    /* 90% šírky */
+    --height: 100vh;
+    /* 80% výšky */
+    --border-radius: 15px;
+    /* Pridá oblé rohy, ktoré pri 100vh nevidno */
+  }
+
   /* 3. KROK: Úprava samotnej karty pre Grid */
   .custom-item {
     margin-bottom: 0;
