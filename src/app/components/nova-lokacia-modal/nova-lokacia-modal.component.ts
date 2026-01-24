@@ -13,10 +13,14 @@ import { SupabaseService } from 'src/app/services/supabase.service';
 })
 export class NovaLokaciaModalComponent implements OnInit {
 
-  typ: 'sklad' | 'regal' = 'sklad'; // Predvolená záložka
-  nazov: string = '';
+  typ: 'sklad' | 'regal' = 'sklad';
 
-  // Pre regál potrebujeme vybrať sklad
+  // Prepínač v záložke Regál: Chcem vybrať existujúci alebo vytvoriť nový sklad?
+  zdrojSkladu: 'existujuci' | 'novy' = 'existujuci';
+
+  nazovSkladu: string = '';
+  nazovRegalu: string = '';
+
   vybranySkladId: number | null = null;
   sklady: any[] = [];
 
@@ -27,7 +31,10 @@ export class NovaLokaciaModalComponent implements OnInit {
   ) { }
 
   async ngOnInit() {
-    // Načítame zoznam skladov pre výber (ak tvoríme regál)
+    await this.nacitajSklady();
+  }
+
+  async nacitajSklady() {
     try {
       this.sklady = await this.supabase.getSklady();
     } catch (e) {
@@ -35,8 +42,15 @@ export class NovaLokaciaModalComponent implements OnInit {
     }
   }
 
+  // Keď prepnete záložku, skontrolujeme, či ste už niečo napísali do názvu skladu
   zmenitTyp(ev: any) {
     this.typ = ev.detail.value;
+
+    if (this.typ === 'regal' && this.nazovSkladu.trim().length > 0) {
+      // Ak užívateľ napísal názov skladu a prepol na regál, 
+      // automaticky prepneme režim na "Nový sklad"
+      this.zdrojSkladu = 'novy';
+    }
   }
 
   zrusit() {
@@ -44,22 +58,59 @@ export class NovaLokaciaModalComponent implements OnInit {
   }
 
   async ulozit() {
-    if (!this.nazov) {
-      this.toast('Zadajte názov', 'warning');
-      return;
-    }
-
     try {
+      // --- A) Ukladáme iba SKLAD ---
       if (this.typ === 'sklad') {
-        await this.supabase.vytvoritSklad(this.nazov);
-        this.toast('Sklad vytvorený', 'success');
-      } else {
-        if (!this.vybranySkladId) {
-          this.toast('Vyberte sklad, do ktorého patrí tento regál', 'warning');
+        if (!this.nazovSkladu.trim()) {
+          this.toast('Zadajte názov skladu', 'warning');
           return;
         }
-        await this.supabase.vytvoritRegal(this.nazov, this.vybranySkladId);
-        this.toast('Regál vytvorený', 'success');
+        await this.supabase.vytvoritSklad(this.nazovSkladu);
+        this.toast('Sklad vytvorený', 'success');
+      }
+
+      // --- B) Ukladáme REGÁL (a možno aj SKLAD) ---
+      else {
+        if (!this.nazovRegalu.trim()) {
+          this.toast('Zadajte názov regálu', 'warning');
+          return;
+        }
+
+        let finalneSkladId = this.vybranySkladId;
+
+        // Ak užívateľ zvolil "Nový sklad", najprv ho vytvoríme
+        if (this.zdrojSkladu === 'novy') {
+          if (!this.nazovSkladu.trim()) {
+            this.toast('Zadajte názov nového skladu', 'warning');
+            return;
+          }
+
+          // 1. Vytvoríme sklad
+          const novySklad = await this.supabase.vytvoritSklad(this.nazovSkladu);
+
+          // 2. Získame jeho ID (Supabase vracia objekt, niekedy pole, ošetríme to)
+          finalneSkladId = novySklad.id;
+
+          if (!finalneSkladId) {
+            this.toast('Chyba pri vytváraní skladu', 'danger');
+            return;
+          }
+        } else {
+          // Kontrola pre existujúci sklad
+          if (!finalneSkladId) {
+            this.toast('Vyberte existujúci sklad', 'warning');
+            return;
+          }
+        }
+
+        // 3. Vytvoríme regál v správnom sklade (či už novom alebo starom)
+        await this.supabase.vytvoritRegal(this.nazovRegalu, finalneSkladId);
+
+        if (this.zdrojSkladu === 'novy') {
+          this.toast('Vytvorený nový sklad aj regál', 'success');
+        } else {
+          this.toast('Regál vytvorený', 'success');
+        }
       }
 
       this.modalCtrl.dismiss(true, 'confirm');

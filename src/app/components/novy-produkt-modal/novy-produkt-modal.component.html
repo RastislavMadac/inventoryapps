@@ -17,7 +17,7 @@
     
     <div class="form-section">
       <h3 class="section-title">📦 Základné údaje</h3>
-
+     
       <ion-item lines="none" class="custom-input">
         <ion-label position="stacked">Názov produktu <span class="required">*</span></ion-label>
         <ion-input
@@ -29,7 +29,7 @@
       </ion-item>
 
       <ion-item lines="none" class="custom-input ion-margin-top">
-        <ion-label position="stacked">Vlastné ID / EAN</ion-label>
+        <ion-label position="stacked">Vlastné ID</ion-label>
         <ion-input
           placeholder="Napr. 123456"
           [(ngModel)]="produkt.vlastne_id"
@@ -63,8 +63,10 @@
 
 
     <div class="form-section">
-      <h3 class="section-title">📍 Umiestnenie</h3>
-      
+      <h3 class="section-title">📍 Pridať na pozíciu</h3>
+      <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">
+         Výberom novej pozície sa produkt pridá aj na toto miesto. Pôvodné umiestnenie ostane zachované.
+      </p>
       <ion-item lines="none" class="custom-select">
         <ion-label position="stacked">Sklad</ion-label>
         <ion-select

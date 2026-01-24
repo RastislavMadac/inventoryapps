@@ -11,7 +11,7 @@
 
   <ion-segment [value]="typ" (ionChange)="zmenitTyp($event)" class="ion-margin-bottom">
     <ion-segment-button value="sklad">
-      <ion-label>Nový Sklad</ion-label>
+      <ion-label>Iba Sklad</ion-label>
     </ion-segment-button>
     <ion-segment-button value="regal">
       <ion-label>Nový Regál</ion-label>
@@ -20,28 +20,71 @@
 
   <div class="form-container">
     
-    <ion-item *ngIf="typ === 'regal'" fill="outline" class="ion-margin-bottom">
-      <ion-label position="floating">Patrí do skladu</ion-label>
-      <ion-select [(ngModel)]="vybranySkladId" interface="popover">
-        <ion-select-option *ngFor="let s of sklady" [value]="s.id">
-          {{ s.nazov }}
-        </ion-select-option>
-      </ion-select>
-    </ion-item>
+    <div *ngIf="typ === 'sklad'">
+      <ion-item fill="outline">
+        <ion-label position="floating">Názov skladu</ion-label>
+        <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Hlavný sklad"></ion-input>
+      </ion-item>
+      
+      <div class="info-text ion-padding-top">
+        <p>Vytvorí sa iba nová budova alebo miestnosť.</p>
+      </div>
 
-    <ion-item fill="outline">
-      <ion-label position="floating">Názov {{ typ === 'sklad' ? 'skladu' : 'regálu' }}</ion-label>
-      <ion-input [(ngModel)]="nazov" placeholder="Napr. Hlavný sklad / Regál A1"></ion-input>
-    </ion-item>
-
-    <div class="info-text ion-padding-top">
-      <p *ngIf="typ === 'sklad'">Vytvorí sa nová budova alebo miestnosť.</p>
-      <p *ngIf="typ === 'regal'">Vytvorí sa nová polica v vybranom sklade.</p>
+      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
+        Uložiť Sklad
+      </ion-button>
     </div>
 
-    <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
-      Uložiť {{ typ === 'sklad' ? 'Sklad' : 'Regál' }}
-    </ion-button>
+    <div *ngIf="typ === 'regal'">
+      
+      <ion-list-header>
+        <ion-label>Regál bude patriť do:</ion-label>
+      </ion-list-header>
+
+      <ion-segment [(ngModel)]="zdrojSkladu" color="secondary" class="ion-margin-bottom">
+        <ion-segment-button value="existujuci">
+          <ion-label>Existujúci sklad</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="novy">
+          <ion-label>+ Nový sklad</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+
+      <div *ngIf="zdrojSkladu === 'existujuci'">
+        <ion-item fill="outline" class="ion-margin-bottom">
+          <ion-label position="floating">Vyberte sklad</ion-label>
+          <ion-select [(ngModel)]="vybranySkladId" interface="popover" placeholder="Zoznam skladov">
+            <ion-select-option *ngFor="let s of sklady" [value]="s.id">
+              {{ s.nazov }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
+      <div *ngIf="zdrojSkladu === 'novy'">
+        <ion-item fill="outline" class="ion-margin-bottom success-border">
+          <ion-label position="floating">Názov NOVÉHO skladu</ion-label>
+          <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Sklad B (Vytvorí sa automaticky)"></ion-input>
+        </ion-item>
+      </div>
+
+      <ion-item fill="outline">
+        <ion-label position="floating">Názov nového regálu</ion-label>
+        <ion-input [(ngModel)]="nazovRegalu" placeholder="Napr. Regál A1"></ion-input>
+      </ion-item>
+
+      <div class="info-text ion-padding-top">
+        <p *ngIf="zdrojSkladu === 'novy'">
+          <ion-icon name="information-circle-outline" style="vertical-align: bottom"></ion-icon>
+          Uložením sa vytvorí <strong>najprv sklad</strong> "{{ nazovSkladu || '...' }}" a do neho sa vloží regál.
+        </p>
+      </div>
+
+      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
+        Uložiť {{ zdrojSkladu === 'novy' ? 'Všetko' : 'Regál' }}
+      </ion-button>
+    </div>
+
   </div>
 
 </ion-content>

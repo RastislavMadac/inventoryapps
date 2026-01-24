@@ -180,6 +180,8 @@
                   <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
                   <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
                </div>
+
+               
                
                <p *ngIf="z.v_inventure" class="done-text">
                  <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
@@ -191,26 +193,44 @@
              </div>
           </div>
 
-          <div class="card-right">
+          <div class="info">
             <div (click)="otvoritUpravu(z)">
-               <span class="qty">{{ z.mnozstvo_ks }}</span>
-               <small>{{ z.jednotka || 'ks' }}</small>
+              
+                
+                <span class="action-icons">
+                  
+                  <ion-button fill="clear" size="small" (click)="upravitProduktDetail(z); $event.stopPropagation()">
+                     <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
+                  </ion-button>
+                  <ion-icon 
+                    *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
+                     name="trash-outline" color="danger" class="trash-icon"
+                     (click)="zmazatPolozku(z, $event)">
+                  </ion-icon>
+                </span>
+              
             </div>
-            
-            <ion-button fill="clear" (click)="upravitProduktDetail(z); $event.stopPropagation()">
-              <ion-icon name="create-outline"></ion-icon>
-            </ion-button>
-          </div>
+            </div>
 
         </div> </ion-card-content>
     </ion-card>
 
   </div>
   
-  <ion-fab vertical="bottom" horizontal="end" slot="fixed" style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
-    <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
-      <ion-icon name="add"></ion-icon>
-    </ion-fab-button>
-  </ion-fab>
+  <ion-fab 
+  #draggableFab
+  vertical="bottom" 
+  horizontal="end" 
+  slot="fixed" 
+  class="draggable-fab"
+  (touchstart)="onDragStart($event)"
+  (touchmove)="onDragMove($event)"
+  (touchend)="onDragEnd()"
+  style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
+  
+  <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
+    <ion-icon name="add"></ion-icon>
+  </ion-fab-button>
+</ion-fab>
 
 </ion-content>

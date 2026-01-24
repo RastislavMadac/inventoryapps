@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, Renderer2, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ViewWillEnter } from '@ionic/angular';
@@ -53,6 +53,16 @@ import { Subscription } from 'rxjs';
   ]
 })
 export class InventoryComponent implements OnInit, ViewWillEnter {
+
+  // 1. Získame referenciu na tlačidlo
+  @ViewChild('draggableFab', { read: ElementRef }) fabElement!: ElementRef;
+
+  // 2. Premenné pre pohyb
+  private lastX = 0;
+  private lastY = 0;
+  private currentX = 0;
+  private currentY = 0;
+  private isDragging = false;
   private realtimeSubscription: Subscription | null = null;
   @ViewChild('content', { static: false }) content!: IonContent;
   rezimZobrazenia: 'regal' | 'global' | 'v_inventure' = 'regal';
@@ -90,7 +100,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private alertController: AlertController,
     private modalController: ModalController,
     private cdr: ChangeDetectorRef,
-    private modalCtrl: ModalController
+    private modalCtrl: ModalController,
+    private renderer: Renderer2
   ) {
     addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline, settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline, createOutline, add, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
   }
@@ -488,8 +499,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
 
 
-  async upravitProduktDetail(zasoba: SkladovaZasobaView) {
+  // src/app/pages/inventory/inventory.component.ts
 
+  async upravitProduktDetail(zasoba: SkladovaZasobaView) {
     console.log('🛠️ Otváram úpravu pre:', zasoba);
     this.idPolozkyPreScroll = zasoba.id;
 
@@ -497,6 +509,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       component: NovyProduktModalComponent,
       componentProps: {
         produktNaUpravu: {
+          // ... (kód ostáva rovnaký) ...
           id: zasoba.produkt_id,
           nazov: zasoba.nazov,
           vlastne_id: zasoba.ean || '',
@@ -513,17 +526,19 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === 'confirm' && data) {
-      console.log('📦 DÁTA Z MODALU:', data);
       this.isLoading = true;
       try {
+        // 1. Aktualizácia údajov produktu (Názov, EAN, Balenie...)
+        // Tieto zmeny sa prejavia všade, kde je produkt naskladnený
         const updateData = {
-          nazov: data.nazov || data.produktData?.nazov,
-          vlastne_id: data.vlastne_id || data.produktData?.vlastne_id,
-          jednotka: data.jednotka || data.produktData?.jednotka,
-          balenie_ks: data.balenie_ks || data.produktData?.balenie_ks,
-          kategoria_id: data.kategoria_id || data.produktData?.kategoria_id
+          nazov: data.nazov,
+          vlastne_id: data.vlastne_id,
+          jednotka: data.jednotka,
+          balenie_ks: data.balenie_ks,
+          kategoria_id: data.kategoria_id
         };
 
+        // Vyčistenie undefined hodnôt
         Object.keys(updateData).forEach(key =>
           (updateData as any)[key] === undefined && delete (updateData as any)[key]
         );
@@ -532,23 +547,37 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           await this.supabaseService.updateProdukt(zasoba.produkt_id, updateData);
         }
 
+        // 2. LOGIKA PRE UMIESTNENIE (TU JE ZMENA)
         const novyRegalId = Number(data.novyRegalId || data.regal_id);
         const staryRegalId = Number(zasoba.regal_id);
 
+        // Ak sa zmenil regál (alebo sklad) a produkt už existuje
         if (zasoba.id > 0 && novyRegalId && novyRegalId !== staryRegalId) {
-          await this.supabaseService.presunutZasobu(zasoba.id, novyRegalId);
-          this.zobrazToast('Produkt aktualizovaný a PRESUNUTÝ.', 'success');
+
+          // --- STARÝ KÓD (Presun) ---
+          // await this.supabaseService.presunutZasobu(zasoba.id, novyRegalId);
+
+          // --- NOVÝ KÓD (Pridanie nového umiestnenia) ---
+          // Vytvoríme novú zásobu na novom regáli s 0 ks. Pôvodná ostane nedotknutá.
+          await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
+
+          this.zobrazToast('Nové umiestnenie pridané. Pôvodné ostalo zachované.', 'success');
+
         } else if (zasoba.id === 0 && novyRegalId) {
+          // Ak tovar ešte nikde nebol (bol len v katalógu), vytvoríme ho tam
           await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
           this.zobrazToast('Produkt bol priradený na regál.', 'success');
         } else {
-          this.zobrazToast('Produkt aktualizovaný.', 'success');
+          // Regál sa nezmenil, len sme upravili názov/EAN
+          this.zobrazToast('Údaje o produkte aktualizované.', 'success');
         }
 
         await this.obnovitZoznamPodlaRezimu();
         this.skrolovatNaZapamatanuPolozku();
+
       } catch (error: any) {
         console.error('❌ Chyba:', error);
+        // Ošetrenie duplicity (ak už na tom novom regáli tovar je)
         if (error.code === '23505' || (error.message && error.message.includes('duplicate key'))) {
           this.zobrazToast('⚠️ Tento produkt už na vybranom regáli existuje.', 'warning');
         } else {
@@ -1005,6 +1034,52 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.filtrovaneZasoby = data;
   }
 
+  onDragStart(event: TouchEvent) {
+    // Uložíme počiatočnú pozíciu dotyku
+    this.lastX = event.touches[0].clientX;
+    this.lastY = event.touches[0].clientY;
+    this.isDragging = true;
 
+    // Pridáme triedu pre vizuálny efekt (v SCSS)
+    this.renderer.addClass(this.fabElement.nativeElement, 'is-dragging');
+  }
+
+  onDragMove(event: TouchEvent) {
+    if (!this.isDragging) return;
+
+    // Zabránime scrollovaniu stránky, kým ťaháme tlačidlo
+    event.preventDefault();
+
+    // Získame aktuálnu pozíciu dotyku
+    const clientX = event.touches[0].clientX;
+    const clientY = event.touches[0].clientY;
+
+    // Vypočítame o koľko sa prst pohol (delta)
+    const deltaX = clientX - this.lastX;
+    const deltaY = clientY - this.lastY;
+
+    // Pripočítame to k aktuálnej pozícii elementu
+    this.currentX += deltaX;
+    this.currentY += deltaY;
+
+    // Aktualizujeme "last" pozíciu pre ďalší cyklus
+    this.lastX = clientX;
+    this.lastY = clientY;
+
+    // Aplikujeme pohyb cez CSS transform
+    this.renderer.setStyle(
+      this.fabElement.nativeElement,
+      'transform',
+      `translate3d(${this.currentX}px, ${this.currentY}px, 0)`
+    );
+  }
+
+  onDragEnd() {
+    this.isDragging = false;
+    this.renderer.removeClass(this.fabElement.nativeElement, 'is-dragging');
+
+    // (Voliteľné) Tu by sa dala uložiť pozícia do localStorage, 
+    // aby si tlačidlo pamätalo miesto aj po reštarte aplikácie.
+  }
 
 }
