@@ -6,10 +6,7 @@
         {{ nazovProduktu }}
       </div>
 
-      <div class="detail-toggle" (click)="toggleDetail()">
-        <ion-icon [name]="zobrazitDetail ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
-        <span>{{ zobrazitDetail ? 'Skryť detail' : 'Zobraziť detail' }}</span>
-      </div>
+     
 
       <div class="display-container">
         <div class="formula-text" *ngIf="zobrazitDetail">
@@ -20,7 +17,7 @@
         </div>
       </div>
 
-      <div class="balenie-btn-container" *ngIf="balenie > 1">
+      <div class="balenie-btn-container" >
         <ion-button expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()">
           <ion-icon name="cube-outline" slot="start"></ion-icon>
           <strong>Balenie (x{{ balenie }})</strong>

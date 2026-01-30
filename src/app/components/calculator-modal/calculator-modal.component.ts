@@ -21,7 +21,7 @@ export class CalculatorModalComponent implements OnInit {
   fullFormula: string = '';   // "10 + 5" (Skryté/Detail)
   mainDisplay: string = '0';  // "5" (Hlavné)
 
-  zobrazitDetail: boolean = false; // Prepínač
+  zobrazitDetail: boolean = true
   shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
 
   private lastClickTime: number = 0;
@@ -36,9 +36,6 @@ export class CalculatorModalComponent implements OnInit {
     this.fullFormula = this.aktualnyStav.toString();
   }
 
-  toggleDetail() {
-    this.zobrazitDetail = !this.zobrazitDetail;
-  }
 
   stlacene(hodnota: string) {
     // Debounce (proti dvojkliku)
@@ -175,14 +172,24 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   pridatBalenie() {
-    // Pridanie balenia funguje ako "* balenie"
+    // 1. FIX: Ak je aktuálna hodnota 0, nechceme násobiť (lebo 0 * x = 0),
+    // ale chceme hodnotu priamo nastaviť na veľkosť balenia.
+    if (this.fullFormula === '0' || this.fullFormula === '') {
+      this.fullFormula = this.balenie.toString();
+      this.mainDisplay = this.balenie.toString();
+      this.shouldResetMain = true;
+      return; // Končíme, ďalej už nenásobíme
+    }
+
+    // 2. Ak tam už nejaké číslo je, pokračujeme vašou pôvodnou logikou (násobenie)
+
     // Najprv simulujeme stlačenie operátora krát
     this.handleOperator('*');
 
     // Potom pridáme číslo balenia do vzorca
     this.fullFormula += this.balenie.toString();
 
-    // A hneď vypočítame výsledok, aby ho užívateľ videl na mainDisplay
+    // A hneď vypočítame výsledok
     const res = this.evaluateString(this.fullFormula);
     if (res !== null) {
       this.mainDisplay = res.toString();
