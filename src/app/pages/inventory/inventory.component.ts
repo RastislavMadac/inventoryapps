@@ -12,7 +12,8 @@ import {
   IonItem, IonSelect, IonSelectOption, IonSearchbar, IonSpinner,
   IonList, IonCard, IonFab, IonFabButton,
   IonRefresher, IonRefresherContent
-  , IonCardContent, IonButton,
+  , IonCardContent, IonButton, IonBadge, IonInfiniteScroll,
+  IonInfiniteScrollContent
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -44,7 +45,8 @@ import { Subscription } from 'rxjs';
     IonSelect, IonSelectOption, IonSpinner,
     IonCard, IonFab, IonFabButton,
     IonRefresher, IonRefresherContent, IonCardContent,
-    IonButton, IonSearchbar
+    IonButton, IonSearchbar, IonBadge, IonInfiniteScroll,
+    IonInfiniteScrollContent
   ],
   providers: [
     ModalController,
@@ -85,7 +87,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   filterKategoria: string = 'vsetky';
 
   aktualnaRola: string = 'user';
-
+  pocetNacitanych = 0;
+  velkostStranky = 50; // Koľko sťahovať naraz
+  vsetkyHotoveNacitane = false; // Či sme už na konci
 
   private ulozenyStavRegal = {
     skladId: null as number | null,
@@ -216,7 +220,42 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.zobrazToast('Nepodarilo sa načítať sklady.', 'danger');
     }
   }
+  async nacitatDalsieHotove(event: any) {
+    if (this.vsetkyHotoveNacitane || !this.aktivnaInventura) {
+      if (event) event.target.complete();
+      return;
+    }
 
+    try {
+      const od = this.pocetNacitanych;
+      const do_poctu = this.pocetNacitanych + this.velkostStranky - 1;
+
+      console.log(`📥 Sťahujem hotové od ${od} do ${do_poctu}`);
+
+      const noveData = await this.supabaseService.getPolozkyVInventure(
+        this.aktivnaInventura.id,
+        od,
+        do_poctu
+      );
+
+      // Pridáme nové dáta k existujúcim (neprepisujeme!)
+      this.zasoby = [...this.zasoby, ...noveData.map(z => ({ ...z, v_inventure: true }))];
+
+      this.pocetNacitanych += noveData.length;
+
+      // Ak sme stiahli menej ako limit, znamená to, že sme na konci
+      if (noveData.length < this.velkostStranky) {
+        this.vsetkyHotoveNacitane = true;
+      }
+
+      this.aplikovatFiltre();
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (event) event.target.complete(); // Povieme scrolleru, že sme hotoví
+    }
+  }
   async obnovitZoznamPodlaRezimu() {
     this.isLoading = true;
     try {
@@ -224,9 +263,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
 
       if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
-        const hotove = await this.supabaseService.getPolozkyVInventure(this.aktivnaInventura.id);
-        this.zasoby = hotove.map(z => ({ ...z, v_inventure: true }));
-        this.aplikovatFiltre();
+        // Resetujeme stránkovanie
+        this.pocetNacitanych = 0;
+        this.vsetkyHotoveNacitane = false;
+        this.zasoby = []; // Vyčistíme zoznam
+
+        // Načítame prvú stranu (0 až 49)
+        await this.nacitatDalsieHotove(null);
       }
 
 
@@ -273,12 +316,15 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
             const regal = z.regal_id || this.vybranyRegalId;
             if (regal) {
               const kluc = `${z.produkt_id}-${regal}`;
+
               if (mapa.has(kluc)) {
                 z.v_inventure = true;
-                z.mnozstvo_ks = mapa.get(kluc) || 0;
+                // Namiesto prepísania mnozstvo_ks si to uložíme bokom
+                (z as any).spocitane_mnozstvo = mapa.get(kluc);
               } else {
                 z.v_inventure = false;
-                z.mnozstvo_ks = 0;
+                // Ak tovar v inventúre ešte nie je, spočítané je 0
+                (z as any).spocitane_mnozstvo = 0;
               }
             }
           });
@@ -716,7 +762,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       cssClass: 'my-custom-modal',
       componentProps: {
         nazovProduktu: zasoba.nazov,
-        aktualnyStav: zasoba.mnozstvo_ks,
+        // aktualnyStav: zasoba.mnozstvo_ks,
+        aktualnyStav: this.aktivnaInventura
+          ? ((zasoba as any).spocitane_mnozstvo ?? 0)
+          : zasoba.mnozstvo_ks,
         balenie: zasoba.balenie_ks
       }
     });
@@ -741,11 +790,18 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number) {
-    const novyStav = Number(novyStavInput);
-    if (isNaN(novyStav)) {
+    // 1. Prevedieme vstup na číslo
+    let suroveCislo = Number(novyStavInput);
+
+    // 2. Ošetrenie: Ak to nie je číslo, skončíme
+    if (isNaN(suroveCislo)) {
       this.zobrazToast('Zadaná hodnota nie je číslo', 'warning');
       return;
     }
+
+    // 3. 🔥 ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA 🔥
+    // (Math.round(X * 100) / 100) je štandardný trik pre peniaze a váhu
+    const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
 
 
     let cielovyRegalId = zasoba.regal_id || this.vybranyRegalId;
