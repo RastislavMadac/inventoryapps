@@ -322,6 +322,8 @@ export class SupabaseService {
         return zoznam;
     }
     async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
+        const user = await this.getCurrentUserDetails();
+
         const { error } = await this.supabase
             .from('inventura_polozky')
             .upsert({
@@ -329,6 +331,8 @@ export class SupabaseService {
                 produkt_id: produktId,
                 regal_id: regalId,
                 mnozstvo: mnozstvo,
+                pouzivatel_id: user.id,
+                pouzivatel_meno: user.email,
                 created_at: new Date().toISOString()
             }, { onConflict: 'inventura_id, produkt_id, regal_id' });
 
@@ -975,5 +979,15 @@ export class SupabaseService {
         // Vráti pole objektov s vlastnosťami: 
         // produkt_id, nazov, ean, regal_nazov, system_mnozstvo, spocitane_mnozstvo, rozdiel, je_hotove
         return data || [];
+    }
+
+    // V SupabaseService
+    async getCurrentUserDetails() {
+        const user = await this.supabase.auth.getUser();
+        return {
+            id: user.data.user?.id,
+            email: user.data.user?.email
+            // Ak máš meno v user_metadata, použi: user.data.user?.user_metadata['full_name']
+        };
     }
 }
