@@ -3,6 +3,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { Subject, Observable } from 'rxjs';
 
+
+export interface ZmenaPoradia {
+    id: number;      // ID zo skladove_zasoby
+    poradie: number; // Nový index
+}
 export interface Sklad {
     id: number;
     nazov: string;
@@ -22,6 +27,7 @@ export interface SkladovaZasobaView {
     ean?: string;
     kategoria: string;
     mnozstvo_ks: number;
+    poradie?: number;
     balenie_ks: number;
     umiestnenie?: string;
     regal_id?: number;
@@ -799,18 +805,23 @@ export class SupabaseService {
     async getZasobyFiltrovaneServer(
         skladId: number | null,
         regalId: number | null,
-        kategoria: string,
+        kategoria: string | null,
         search: string,
-        limit: number = 100
+        limit: number = 50,
+        offset: number = 0
     ) {
 
         const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', {
             p_sklad_id: skladId,
             p_regal_id: regalId,
             p_kategoria: kategoria === 'vsetky' ? null : kategoria,
+
+            p_stredisko_id: null, // <<< TOTO TU CHÝBALO (Musíme poslať aspoň null)
+
             p_search: search,
             p_limit: limit,
-            p_offset: 0
+
+            p_offset: offset // <<< TOTO SOM OPRAVIL (Mal si tam 0, takže by nefungoval scroll)
         });
 
         if (error) {
@@ -820,7 +831,6 @@ export class SupabaseService {
 
         return data || [];
     }
-
 
 
 
@@ -990,4 +1000,11 @@ export class SupabaseService {
             // Ak máš meno v user_metadata, použi: user.data.user?.user_metadata['full_name']
         };
     }
+    async ulozPoradieZasob(items: ZmenaPoradia[]) {
+        const { data, error } = await this.supabase
+            .rpc('update_skladove_zasoby_poradie', { payload: items });
+
+        return { data, error };
+    }
+
 }

@@ -2,8 +2,9 @@ import { Component, OnInit, ChangeDetectorRef, ViewChild, Renderer2, ElementRef 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ViewWillEnter } from '@ionic/angular';
+// >>> UPRAVENÉ: Pridaný import ItemReorderEventDetail <<<
 import {
-  ModalController, ToastController, AlertController, IonicSafeString
+  ModalController, ToastController, AlertController, IonicSafeString, ItemReorderEventDetail
 } from '@ionic/angular';
 
 import {
@@ -13,7 +14,9 @@ import {
   IonList, IonCard, IonFab, IonFabButton,
   IonRefresher, IonRefresherContent
   , IonCardContent, IonButton, IonBadge, IonInfiniteScroll,
-  IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  // >>> PRIDANÉ: Komponenty pre Drag & Drop <<<
+  IonReorderGroup, IonReorder
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -22,7 +25,9 @@ import {
   caretDownOutline, clipboardOutline, cubeOutline,
   arrowUpOutline, locationOutline, listOutline,
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
-  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline
+  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
+  // >>> PRIDANÉ: Ikony pre radenie <<<
+  reorderFourOutline, menuOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -46,7 +51,11 @@ import { Subscription } from 'rxjs';
     IonCard, IonFab, IonFabButton,
     IonRefresher, IonRefresherContent, IonCardContent,
     IonButton, IonSearchbar, IonBadge, IonInfiniteScroll,
-    IonInfiniteScrollContent
+    IonInfiniteScrollContent,
+    IonList,
+    IonItem,
+    IonReorderGroup,
+    IonReorder
   ],
   providers: [
     ModalController,
@@ -74,6 +83,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   regaly: Regal[] = [];
   filtrovaneRegaly: Regal[] = [];
 
+
   aktivnaInventura: Inventura | null = null;
   private idPolozkyPreScroll: number | null = null;
   zasoby: SkladovaZasobaView[] = [];
@@ -91,6 +101,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   velkostStranky = 50; // Koľko sťahovať naraz
   vsetkyHotoveNacitane = false; // Či sme už na konci
 
+  // >>> PRIDANÉ: Premenná pre stav reorder módu <<<
+  isReorderDisabled: boolean = true;
+
   private ulozenyStavRegal = {
     skladId: null as number | null,
     regalId: null as number | null,
@@ -107,7 +120,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private modalCtrl: ModalController,
     private renderer: Renderer2
   ) {
-    addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline, settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline, createOutline, add, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
+    // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
+    addIcons({
+      clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
+      settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
+      createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline
+    });
   }
 
   ngOnInit() {
@@ -375,6 +394,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     const novyRezim = event.detail.value;
     console.log('🔄 Mením režim na:', novyRezim);
 
+    // >>> PRIDANÉ: Pri zmene režimu vždy vypneme reorder <<<
+    this.isReorderDisabled = true;
+
     // 1. ULOŽENIE STAVU: Ak odchádzame z režimu "Regál", zapamätáme si, čo tam bolo
     if (this.rezimZobrazenia === 'regal') {
       this.ulozenyStavRegal = {
@@ -455,6 +477,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async priZmeneSkladu() {
     console.log('🏭 Zmena skladu na ID:', this.vybranySkladId);
     this.vybranyRegalId = null;
+    // >>> PRIDANÉ: Reset reorderu pri zmene skladu <<<
+    this.isReorderDisabled = true;
 
     this.isLoading = true;
     try {
@@ -485,7 +509,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async priZmeneRegalu() {
     console.log('📍 Zmena regálu na ID:', this.vybranyRegalId);
-
+    // >>> PRIDANÉ: Reset reorderu pri zmene regálu <<<
+    this.isReorderDisabled = true;
 
     await this.nacitajKategoriePreFilter();
 
@@ -637,9 +662,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
 
-
-
-
+    // >>> PRIDANÉ: Ak práve meníme poradie, zakážeme klikanie na položky <<<
+    if (!this.isReorderDisabled) {
+      return;
+    }
 
     if (
       (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) ||
@@ -959,7 +985,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       buttons: [
         { text: 'Zrušiť', role: 'cancel', cssClass: 'secondary' },
         {
-          text: tlacidloText,
+          text: 'tlacidloText',
           role: 'destructive',
           cssClass: cssClass,
           handler: async () => {
@@ -968,6 +994,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         }
       ]
     });
+
+
     await alert.present();
   }
 
@@ -1136,6 +1164,52 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     // (Voliteľné) Tu by sa dala uložiť pozícia do localStorage, 
     // aby si tlačidlo pamätalo miesto aj po reštarte aplikácie.
+  }
+
+  // >>> PRIDANÉ: Nové metódy pre Drag & Drop <<<
+
+  toggleReorder() {
+    // Reorder povolíme len ak sme v režime Regál a nemáme zapnuté filtre
+    if (this.searchQuery || (this.filterKategoria !== 'vsetky')) {
+      this.zobrazToast('Pre zmenu poradia zrušte filtre a vyhľadávanie.', 'warning');
+      return;
+    }
+    if (this.rezimZobrazenia !== 'regal') {
+      this.zobrazToast('Radenie je možné len v pohľade na Regál.', 'warning');
+      return;
+    }
+
+    this.isReorderDisabled = !this.isReorderDisabled;
+  }
+
+  async doReorder(ev: CustomEvent<ItemReorderEventDetail>) {
+    console.log('Presúvam z', ev.detail.from, 'na', ev.detail.to);
+
+    // 1. Zmena v lokálnom poli (filtrovaneZasoby)
+    const itemToMove = this.filtrovaneZasoby.splice(ev.detail.from, 1)[0];
+    this.filtrovaneZasoby.splice(ev.detail.to, 0, itemToMove);
+
+    // 2. Musíme aktualizovať aj hlavné pole 'zasoby', aby sa to po refreshi nestratilo
+    // Keďže nemáme filtre, indexy by mali sedieť, ale pre istotu nájdeme index v hlavnom poli
+    // (Zjednodušenie: ak nie sú filtre, zasoby === filtrovaneZasoby referenčne, ak nie, musíme to ošetriť)
+    this.zasoby = [...this.filtrovaneZasoby];
+
+    // 3. Dokončenie vizuálnej operácie
+    ev.detail.complete();
+
+    // 4. Odoslanie na server
+    const updates = this.filtrovaneZasoby.map((item, index) => ({
+      id: item.id,
+      poradie: index
+    }));
+
+    // Optimisticky nečakáme na await, ale logujeme chyby
+    this.supabaseService.ulozPoradieZasob(updates).then(({ error }) => {
+      if (error) {
+        console.error('Chyba pri ukladaní poradia:', error);
+        this.zobrazToast('Chyba pri ukladaní poradia', 'danger');
+      }
+    });
   }
 
 }

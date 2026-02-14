@@ -4887,10 +4887,18 @@ export class InventuryZoznamPage implements OnInit {
     </ion-buttons>
     <ion-title>Inventúra</ion-title>
     
-    <ion-chip *ngIf="aktivnaInventura" slot="end" class="inv-chip">
-      <ion-icon name="clipboard-outline"></ion-icon>
-      <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
-    </ion-chip>
+    <ion-buttons slot="end">
+      <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
+        <ion-icon name="clipboard-outline"></ion-icon>
+        <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
+      </ion-chip>
+
+      <ion-button (click)="toggleReorder()" 
+                  *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
+                  color="light">
+        <ion-icon slot="icon-only" [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 
   <ion-toolbar color="primary" class="toolbar-segment">
@@ -4910,14 +4918,13 @@ export class InventuryZoznamPage implements OnInit {
   <div class="filter-panel">
     
     <div class="ion-padding-horizontal reset-container" 
-         style="display: flex; justify-content: center; width: 100%;"
-         *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
+          style="display: flex; justify-content: center; width: 100%;"
+          *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
       
       <ion-chip color="danger" mode="ios" (click)="zrusitFiltre()">
         <ion-icon name="close-circle"></ion-icon>
         <ion-label>Zrušiť filtre</ion-label>
       </ion-chip>
-
     </div>
 
     <div class="select-row fade-in">
@@ -4925,8 +4932,6 @@ export class InventuryZoznamPage implements OnInit {
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Sklad</span>
-          
-          
         </div>
         
         <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
@@ -4934,11 +4939,9 @@ export class InventuryZoznamPage implements OnInit {
                       [(ngModel)]="vybranySkladId" 
                       (ionChange)="priZmeneSkladu()"
                       [disabled]="rezimZobrazenia === 'global'">
-             
              <ion-select-option *ngFor="let s of sklady" [value]="s.id">
                {{ s.nazov }}
              </ion-select-option>
-             
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
@@ -4947,8 +4950,6 @@ export class InventuryZoznamPage implements OnInit {
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label" style="margin-bottom: 0;">Regál</span>
-          
-       
         </div>
         
         <div class="custom-input-box" [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
@@ -4964,7 +4965,6 @@ export class InventuryZoznamPage implements OnInit {
         </div>
       </div>
     </div>
-
       
     <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
       
@@ -4983,19 +4983,14 @@ export class InventuryZoznamPage implements OnInit {
           <ion-select interface="action-sheet" 
                       [(ngModel)]="filterKategoria" 
                       (ionChange)="zmenitFilterKategorie($event)">
-             
              <ion-select-option value="vsetky">Všetky</ion-select-option>
-             
              <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
                {{ k }}
              </ion-select-option>
-
           </ion-select>
         </div>
-        
       </div>
     </div>
-
   </div>
 </ion-header>
 
@@ -5031,89 +5026,113 @@ export class InventuryZoznamPage implements OnInit {
 
   <div class="cards-list" *ngIf="!isLoading">
     
-    <ion-card *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
-    [id]="'polozka-' + z.id"
-    class="product-card">
-              
-      <ion-card-content>
+    <ion-list style="background: transparent;" lines="none">
+      
+      <ion-reorder-group [disabled]="isReorderDisabled" (ionItemReorder)="doReorder($event)">
         
-        <div class="card-container">
+        <ion-item *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
+                  class="transparent-item"
+                  style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
 
-          <div class="card-left">
-             <div class="icon-placeholder" [class.done]="z.v_inventure">
-               <ion-icon [name]="z.v_inventure ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
-             </div>
-             
-             <div class="info">
-               <div (click)="otvoritUpravu(z)">
-                 <h3>
-                   {{ z.nazov }}
-                   <span class="action-icons">
-                     <ion-icon 
-                       *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
-                        name="trash-outline" color="danger" class="trash-icon"
-                        (click)="zmazatPolozku(z, $event)">
-                     </ion-icon>
-                   </span>
-                 </h3>
-               </div>
+          <ion-card [id]="'polozka-' + z.id" class="product-card" style="width: 100%; margin: 5px 12px;">
+            <ion-card-content>
+              <div class="card-container">
 
-               <div class="meta">
-                  <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
-                  <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
-               </div>
-
-               
-               
-               <p *ngIf="z.v_inventure" class="done-text">
-                 <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
-               </p>
-               
-               <p *ngIf="z.umiestnenie" class="loc">
-                <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
-              </p>
-             </div>
-          </div>
-
-          <div class="info">
-            <div (click)="otvoritUpravu(z)">
-              
-                
-                <span class="action-icons">
+                <div class="card-left">
+                  <div class="icon-placeholder" [class.done]="z.v_inventure">
+                    <ion-icon [name]="z.v_inventure ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
+                  </div>
                   
-                  <ion-button fill="clear" size="small" (click)="upravitProduktDetail(z); $event.stopPropagation()">
-                     <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
-                  </ion-button>
-                  <ion-icon 
-                    *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
-                     name="trash-outline" color="danger" class="trash-icon"
-                     (click)="zmazatPolozku(z, $event)">
-                  </ion-icon>
-                </span>
-              
-            </div>
-            </div>
+                  <div class="info">
+                    <div (click)="otvoritUpravu(z)">
+                      <h3>{{ z.nazov }}</h3>
+                    </div>
 
-        </div> </ion-card-content>
-    </ion-card>
+                    <div class="meta">
+                      <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
+                      <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
+                    </div>
+                    
+                    <p *ngIf="z.v_inventure" class="done-text">
+                      <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
+                    </p>
+                    
+                    <p *ngIf="z.umiestnenie" class="loc">
+                      <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
+                    </p>
+                  </div>
+                </div>
 
+                <div class="qty-box" (click)="otvoritUpravu(z)">
+                  <ion-badge 
+                      [color]="aktivnaInventura 
+                              ? (z.v_inventure 
+                                ? ($any(z).spocitane_mnozstvo == z.mnozstvo_ks ? 'success' : 'warning') 
+                                : 'light') 
+                              : 'light'" 
+                      class="big-badge">
+                    {{ aktivnaInventura ? ($any(z).spocitane_mnozstvo || 0) : z.mnozstvo_ks }}
+                  </ion-badge>
+                </div>
+
+                <div class="info-actions">
+                  <span class="action-icons" *ngIf="isReorderDisabled">
+                    <ion-button fill="clear" size="small" (click)="upravitProduktDetail(z); $event.stopPropagation()">
+                        <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
+                    </ion-button>
+                    
+                    <ion-icon 
+                      *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
+                      name="trash-outline" color="danger" class="trash-icon"
+                      (click)="zmazatPolozku(z, $event)">
+                    </ion-icon>
+                  </span>
+
+                  <ion-reorder slot="end" *ngIf="!isReorderDisabled">
+                     <ion-icon name="menu-outline" size="large" color="medium" style="margin-left: 10px;"></ion-icon>
+                  </ion-reorder>
+
+                </div>
+
+              </div> 
+            </ion-card-content>
+          </ion-card>
+
+        </ion-item>
+
+      </ion-reorder-group>
+    </ion-list>
   </div>
-  
+
+         
+
+  <ion-infinite-scroll 
+      *ngIf="rezimZobrazenia === 'v_inventure'" 
+      threshold="100px" 
+      (ionInfinite)="nacitatDalsieHotove($event)">
+      
+    <ion-infinite-scroll-content
+      loadingSpinner="bubbles"
+      loadingText="Načítavam ďalšie...">
+    </ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+
   <ion-fab 
-  #draggableFab
-  vertical="bottom" 
-  horizontal="end" 
-  slot="fixed" 
-  class="draggable-fab"
-  (touchstart)="onDragStart($event)"
-  (touchmove)="onDragMove($event)"
-  (touchend)="onDragEnd()"
-  style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
-  
-  <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
-    <ion-icon name="add"></ion-icon>
-  </ion-fab-button>
-</ion-fab>
+    *ngIf="isReorderDisabled" 
+    #draggableFab
+    vertical="bottom" 
+    horizontal="end" 
+    slot="fixed" 
+    class="draggable-fab"
+    (touchstart)="onDragStart($event)"
+    (touchmove)="onDragMove($event)"
+    (touchend)="onDragEnd()"
+    style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
+    
+    <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
 
 </ion-content>
 </file>
@@ -5124,6 +5143,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { Subject, Observable } from 'rxjs';
 
+
+export interface ZmenaPoradia {
+    id: number;      // ID zo skladove_zasoby
+    poradie: number; // Nový index
+}
 export interface Sklad {
     id: number;
     nazov: string;
@@ -5149,6 +5173,7 @@ export interface SkladovaZasobaView {
     v_inventure?: boolean;
     jednotka?: string;
     sklad_id?: number;
+    spocitane_mnozstvo?: number;
 }
 
 export interface Inventura {
@@ -5442,6 +5467,8 @@ export class SupabaseService {
         return zoznam;
     }
     async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
+        const user = await this.getCurrentUserDetails();
+
         const { error } = await this.supabase
             .from('inventura_polozky')
             .upsert({
@@ -5449,6 +5476,8 @@ export class SupabaseService {
                 produkt_id: produktId,
                 regal_id: regalId,
                 mnozstvo: mnozstvo,
+                pouzivatel_id: user.id,
+                pouzivatel_meno: user.email,
                 created_at: new Date().toISOString()
             }, { onConflict: 'inventura_id, produkt_id, regal_id' });
 
@@ -5456,63 +5485,105 @@ export class SupabaseService {
         return true;
     }
 
-    async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
+    // async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
+    //     const { data, error } = await this.supabase
+    //         .from('inventura_polozky')
+    //         .select(`
+    //             id,
+    //             mnozstvo,
+    //             produkt_id,
+    //             regal_id,
+    //             regaly:regal_id (
+    //                 nazov,
+    //                 sklad_id,      
+    //                 sklady ( nazov ) 
+    //             ),
+    //             produkty:produkt_id ( 
+    //                 nazov, 
+    //                 balenie_ks, 
+    //                 ean, 
+    //                 jednotka,
+    //                 kategorie ( nazov ) 
+    //             )
+    //         `)
+    //         .eq('inventura_id', inventuraId);
+
+    //     if (error) {
+    //         console.error('❌ Chyba načítania inventúry:', error);
+    //         throw error;
+    //     }
+
+    //     return (data as any[]).map(d => {
+    //         const regalObj = d.regaly;
+    //         const produktObj = d.produkty;
+
+
+    //         const skladData = regalObj?.sklady;
+    //         const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || 'Sklad';
+
+
+    //         const skladId = regalObj?.sklad_id;
+
+
+    //         const katData = produktObj?.kategorie;
+    //         const nazovKategorie = (Array.isArray(katData) ? katData[0]?.nazov : katData?.nazov) || 'Bez kategórie';
+
+    //         return {
+    //             id: d.id,
+    //             produkt_id: d.produkt_id,
+    //             regal_id: d.regal_id,
+    //             sklad_id: skladId,
+
+    //             mnozstvo_ks: d.mnozstvo,
+    //             nazov: produktObj?.nazov || 'Neznámy produkt',
+    //             ean: produktObj?.ean,
+    //             balenie_ks: produktObj?.balenie_ks || 1,
+    //             jednotka: produktObj?.jednotka || 'ks',
+
+    //             kategoria: nazovKategorie,
+
+    //             v_inventure: true,
+    //             umiestnenie: `${nazovSkladu} - ${regalObj?.nazov || 'Regál'}`
+    //         };
+    //     });
+    // }
+
+    // Súbor: src/app/services/supabase.service.ts
+
+    async getPolozkyVInventure(inventuraId: number, od: number, do_poctu: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
             .from('inventura_polozky')
             .select(`
-                id,
-                mnozstvo,
-                produkt_id,
-                regal_id,
-                regaly:regal_id (
-                    nazov,
-                    sklad_id,      
-                    sklady ( nazov ) 
-                ),
-                produkty:produkt_id ( 
-                    nazov, 
-                    balenie_ks, 
-                    ean, 
-                    jednotka,
-                    kategorie ( nazov ) 
-                )
-            `)
-            .eq('inventura_id', inventuraId);
+            id, mnozstvo, created_at, produkt_id, regal_id,
+            regaly:regal_id ( nazov, sklad_id, sklady ( nazov ) ),
+            produkty:produkt_id ( nazov, balenie_ks, ean, jednotka, kategorie ( nazov ) )
+        `)
+            .eq('inventura_id', inventuraId)
+            .order('created_at', { ascending: false })
+            .range(od, do_poctu); // 🔥 TOTO JE KĽÚČOVÉ - Stránkovanie
 
-        if (error) {
-            console.error('❌ Chyba načítania inventúry:', error);
-            throw error;
-        }
+        if (error) throw error;
 
+        // Mapovanie dát (rovnaké ako predtým)
         return (data as any[]).map(d => {
             const regalObj = d.regaly;
             const produktObj = d.produkty;
-
-
             const skladData = regalObj?.sklady;
             const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || 'Sklad';
-
-
-            const skladId = regalObj?.sklad_id;
-
-
-            const katData = produktObj?.kategorie;
-            const nazovKategorie = (Array.isArray(katData) ? katData[0]?.nazov : katData?.nazov) || 'Bez kategórie';
+            const nazovKategorie = produktObj?.kategorie?.nazov || 'Bez kategórie';
 
             return {
                 id: d.id,
                 produkt_id: d.produkt_id,
                 regal_id: d.regal_id,
-                sklad_id: skladId,
-
+                sklad_id: regalObj?.sklad_id,
                 mnozstvo_ks: d.mnozstvo,
-                nazov: produktObj?.nazov || 'Neznámy produkt',
+                spocitane_mnozstvo: d.mnozstvo,
+                nazov: produktObj?.nazov || 'Neznámy',
                 ean: produktObj?.ean,
                 balenie_ks: produktObj?.balenie_ks || 1,
                 jednotka: produktObj?.jednotka || 'ks',
-
                 kategoria: nazovKategorie,
-
                 v_inventure: true,
                 umiestnenie: `${nazovSkladu} - ${regalObj?.nazov || 'Regál'}`
             };
@@ -6039,6 +6110,38 @@ export class SupabaseService {
 
         if (error) throw error;
     }
+
+    // NOVÁ FUNKCIA: Načítanie kompletného prehľadu inventúry (SQL: get_inventura_prehlad)
+    async getInventuraPrehlad(inventuraId: number) {
+        const { data, error } = await this.supabase
+            .rpc('get_inventura_prehlad', { p_inventura_id: inventuraId });
+
+        if (error) {
+            console.error('Chyba pri volaní RPC get_inventura_prehlad:', error);
+            throw error;
+        }
+
+        // Vráti pole objektov s vlastnosťami: 
+        // produkt_id, nazov, ean, regal_nazov, system_mnozstvo, spocitane_mnozstvo, rozdiel, je_hotove
+        return data || [];
+    }
+
+    // V SupabaseService
+    async getCurrentUserDetails() {
+        const user = await this.supabase.auth.getUser();
+        return {
+            id: user.data.user?.id,
+            email: user.data.user?.email
+            // Ak máš meno v user_metadata, použi: user.data.user?.user_metadata['full_name']
+        };
+    }
+    async ulozPoradieZasob(items: ZmenaPoradia[]) {
+        const { data, error } = await this.supabase
+            .rpc('update_skladove_zasoby_poradie', { payload: items });
+
+        return { data, error };
+    }
+
 }
 </file>
 
@@ -6047,8 +6150,9 @@ import { Component, OnInit, ChangeDetectorRef, ViewChild, Renderer2, ElementRef 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ViewWillEnter } from '@ionic/angular';
+// >>> UPRAVENÉ: Pridaný import ItemReorderEventDetail <<<
 import {
-  ModalController, ToastController, AlertController, IonicSafeString
+  ModalController, ToastController, AlertController, IonicSafeString, ItemReorderEventDetail
 } from '@ionic/angular';
 
 import {
@@ -6057,7 +6161,10 @@ import {
   IonItem, IonSelect, IonSelectOption, IonSearchbar, IonSpinner,
   IonList, IonCard, IonFab, IonFabButton,
   IonRefresher, IonRefresherContent
-  , IonCardContent, IonButton,
+  , IonCardContent, IonButton, IonBadge, IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  // >>> PRIDANÉ: Komponenty pre Drag & Drop <<<
+  IonReorderGroup, IonReorder
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -6066,7 +6173,9 @@ import {
   caretDownOutline, clipboardOutline, cubeOutline,
   arrowUpOutline, locationOutline, listOutline,
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
-  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline
+  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline,
+  // >>> PRIDANÉ: Ikony pre radenie <<<
+  reorderFourOutline, menuOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -6089,7 +6198,12 @@ import { Subscription } from 'rxjs';
     IonSelect, IonSelectOption, IonSpinner,
     IonCard, IonFab, IonFabButton,
     IonRefresher, IonRefresherContent, IonCardContent,
-    IonButton, IonSearchbar
+    IonButton, IonSearchbar, IonBadge, IonInfiniteScroll,
+    IonInfiniteScrollContent,
+    IonList,
+    IonItem,
+    IonReorderGroup,
+    IonReorder
   ],
   providers: [
     ModalController,
@@ -6130,7 +6244,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   filterKategoria: string = 'vsetky';
 
   aktualnaRola: string = 'user';
+  pocetNacitanych = 0;
+  velkostStranky = 50; // Koľko sťahovať naraz
+  vsetkyHotoveNacitane = false; // Či sme už na konci
 
+  // >>> PRIDANÉ: Premenná pre stav reorder módu <<<
+  isReorderDisabled: boolean = true;
 
   private ulozenyStavRegal = {
     skladId: null as number | null,
@@ -6148,7 +6267,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private modalCtrl: ModalController,
     private renderer: Renderer2
   ) {
-    addIcons({ clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline, settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline, createOutline, add, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline });
+    // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
+    addIcons({
+      clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
+      settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
+      createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline
+    });
   }
 
   ngOnInit() {
@@ -6261,7 +6386,42 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.zobrazToast('Nepodarilo sa načítať sklady.', 'danger');
     }
   }
+  async nacitatDalsieHotove(event: any) {
+    if (this.vsetkyHotoveNacitane || !this.aktivnaInventura) {
+      if (event) event.target.complete();
+      return;
+    }
 
+    try {
+      const od = this.pocetNacitanych;
+      const do_poctu = this.pocetNacitanych + this.velkostStranky - 1;
+
+      console.log(`📥 Sťahujem hotové od ${od} do ${do_poctu}`);
+
+      const noveData = await this.supabaseService.getPolozkyVInventure(
+        this.aktivnaInventura.id,
+        od,
+        do_poctu
+      );
+
+      // Pridáme nové dáta k existujúcim (neprepisujeme!)
+      this.zasoby = [...this.zasoby, ...noveData.map(z => ({ ...z, v_inventure: true }))];
+
+      this.pocetNacitanych += noveData.length;
+
+      // Ak sme stiahli menej ako limit, znamená to, že sme na konci
+      if (noveData.length < this.velkostStranky) {
+        this.vsetkyHotoveNacitane = true;
+      }
+
+      this.aplikovatFiltre();
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (event) event.target.complete(); // Povieme scrolleru, že sme hotoví
+    }
+  }
   async obnovitZoznamPodlaRezimu() {
     this.isLoading = true;
     try {
@@ -6269,9 +6429,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
 
       if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
-        const hotove = await this.supabaseService.getPolozkyVInventure(this.aktivnaInventura.id);
-        this.zasoby = hotove.map(z => ({ ...z, v_inventure: true }));
-        this.aplikovatFiltre();
+        // Resetujeme stránkovanie
+        this.pocetNacitanych = 0;
+        this.vsetkyHotoveNacitane = false;
+        this.zasoby = []; // Vyčistíme zoznam
+
+        // Načítame prvú stranu (0 až 49)
+        await this.nacitatDalsieHotove(null);
       }
 
 
@@ -6318,12 +6482,15 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
             const regal = z.regal_id || this.vybranyRegalId;
             if (regal) {
               const kluc = `${z.produkt_id}-${regal}`;
+
               if (mapa.has(kluc)) {
                 z.v_inventure = true;
-                z.mnozstvo_ks = mapa.get(kluc) || 0;
+                // Namiesto prepísania mnozstvo_ks si to uložíme bokom
+                (z as any).spocitane_mnozstvo = mapa.get(kluc);
               } else {
                 z.v_inventure = false;
-                z.mnozstvo_ks = 0;
+                // Ak tovar v inventúre ešte nie je, spočítané je 0
+                (z as any).spocitane_mnozstvo = 0;
               }
             }
           });
@@ -6373,6 +6540,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async zmenitRezim(event: any) {
     const novyRezim = event.detail.value;
     console.log('🔄 Mením režim na:', novyRezim);
+
+    // >>> PRIDANÉ: Pri zmene režimu vždy vypneme reorder <<<
+    this.isReorderDisabled = true;
 
     // 1. ULOŽENIE STAVU: Ak odchádzame z režimu "Regál", zapamätáme si, čo tam bolo
     if (this.rezimZobrazenia === 'regal') {
@@ -6454,6 +6624,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async priZmeneSkladu() {
     console.log('🏭 Zmena skladu na ID:', this.vybranySkladId);
     this.vybranyRegalId = null;
+    // >>> PRIDANÉ: Reset reorderu pri zmene skladu <<<
+    this.isReorderDisabled = true;
 
     this.isLoading = true;
     try {
@@ -6484,7 +6656,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async priZmeneRegalu() {
     console.log('📍 Zmena regálu na ID:', this.vybranyRegalId);
-
+    // >>> PRIDANÉ: Reset reorderu pri zmene regálu <<<
+    this.isReorderDisabled = true;
 
     await this.nacitajKategoriePreFilter();
 
@@ -6636,9 +6809,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
 
-
-
-
+    // >>> PRIDANÉ: Ak práve meníme poradie, zakážeme klikanie na položky <<<
+    if (!this.isReorderDisabled) {
+      return;
+    }
 
     if (
       (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) ||
@@ -6761,7 +6935,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       cssClass: 'my-custom-modal',
       componentProps: {
         nazovProduktu: zasoba.nazov,
-        aktualnyStav: zasoba.mnozstvo_ks,
+        // aktualnyStav: zasoba.mnozstvo_ks,
+        aktualnyStav: this.aktivnaInventura
+          ? ((zasoba as any).spocitane_mnozstvo ?? 0)
+          : zasoba.mnozstvo_ks,
         balenie: zasoba.balenie_ks
       }
     });
@@ -6786,11 +6963,18 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
   async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number) {
-    const novyStav = Number(novyStavInput);
-    if (isNaN(novyStav)) {
+    // 1. Prevedieme vstup na číslo
+    let suroveCislo = Number(novyStavInput);
+
+    // 2. Ošetrenie: Ak to nie je číslo, skončíme
+    if (isNaN(suroveCislo)) {
       this.zobrazToast('Zadaná hodnota nie je číslo', 'warning');
       return;
     }
+
+    // 3. 🔥 ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA 🔥
+    // (Math.round(X * 100) / 100) je štandardný trik pre peniaze a váhu
+    const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
 
 
     let cielovyRegalId = zasoba.regal_id || this.vybranyRegalId;
@@ -6948,7 +7132,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       buttons: [
         { text: 'Zrušiť', role: 'cancel', cssClass: 'secondary' },
         {
-          text: tlacidloText,
+          text: 'tlacidloText',
           role: 'destructive',
           cssClass: cssClass,
           handler: async () => {
@@ -6957,6 +7141,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         }
       ]
     });
+
+
     await alert.present();
   }
 
@@ -7125,6 +7311,52 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     // (Voliteľné) Tu by sa dala uložiť pozícia do localStorage, 
     // aby si tlačidlo pamätalo miesto aj po reštarte aplikácie.
+  }
+
+  // >>> PRIDANÉ: Nové metódy pre Drag & Drop <<<
+
+  toggleReorder() {
+    // Reorder povolíme len ak sme v režime Regál a nemáme zapnuté filtre
+    if (this.searchQuery || (this.filterKategoria !== 'vsetky')) {
+      this.zobrazToast('Pre zmenu poradia zrušte filtre a vyhľadávanie.', 'warning');
+      return;
+    }
+    if (this.rezimZobrazenia !== 'regal') {
+      this.zobrazToast('Radenie je možné len v pohľade na Regál.', 'warning');
+      return;
+    }
+
+    this.isReorderDisabled = !this.isReorderDisabled;
+  }
+
+  async doReorder(ev: CustomEvent<ItemReorderEventDetail>) {
+    console.log('Presúvam z', ev.detail.from, 'na', ev.detail.to);
+
+    // 1. Zmena v lokálnom poli (filtrovaneZasoby)
+    const itemToMove = this.filtrovaneZasoby.splice(ev.detail.from, 1)[0];
+    this.filtrovaneZasoby.splice(ev.detail.to, 0, itemToMove);
+
+    // 2. Musíme aktualizovať aj hlavné pole 'zasoby', aby sa to po refreshi nestratilo
+    // Keďže nemáme filtre, indexy by mali sedieť, ale pre istotu nájdeme index v hlavnom poli
+    // (Zjednodušenie: ak nie sú filtre, zasoby === filtrovaneZasoby referenčne, ak nie, musíme to ošetriť)
+    this.zasoby = [...this.filtrovaneZasoby];
+
+    // 3. Dokončenie vizuálnej operácie
+    ev.detail.complete();
+
+    // 4. Odoslanie na server
+    const updates = this.filtrovaneZasoby.map((item, index) => ({
+      id: item.id,
+      poradie: index
+    }));
+
+    // Optimisticky nečakáme na await, ale logujeme chyby
+    this.supabaseService.ulozPoradieZasob(updates).then(({ error }) => {
+      if (error) {
+        console.error('Chyba pri ukladaní poradia:', error);
+        this.zobrazToast('Chyba pri ukladaní poradia', 'danger');
+      }
+    });
   }
 
 }
