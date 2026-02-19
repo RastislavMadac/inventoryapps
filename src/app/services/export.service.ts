@@ -264,5 +264,78 @@ export class ExportService {
 
         });
     }
+    // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
+    public generovatTlacovuZostavu(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
+
+        // 1. Pripravíme dáta ako 2D pole (Array of Arrays)
+        const aoaData: any[][] = [];
+
+        // Vloženie 4 čistých prázdnych riadkov
+        aoaData.push([]);
+        aoaData.push([]);
+        aoaData.push([]);
+        aoaData.push([]);
+
+        // Presná hlavička
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // --- 1.5 AGREGÁCIA: Zlúčenie rovnakých ID a sčítanie množstva ---
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            // Hľadáme, či už produkt s týmto ID v akumulátore existuje
+            const existujucaPolozka = akumulator.find(
+                item => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            // Bezpečný prevod na číslo (ak by náhodou prišiel string z inputu), inak 0
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                // Ak existuje, len pripočítame fyzické množstvo
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                // Ak neexistuje, vytvoríme kópiu objektu a vložíme do poľa
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+
+            return akumulator;
+        }, []);
+        // -----------------------------------------------------------------
+
+        // 2. Mapovanie ZLÚČENÝCH dát do správnych stĺpcov
+        // Použijeme už prefiltrované a sčítané 'zluceneData' namiesto pôvodných 'data'
+        zluceneData.forEach((item: any) => {
+            aoaData.push([
+                item['Product ID'] || '',            // ID
+                '',                                  // CISLO (Prázdne)
+                // item['Produkt'] || '',               // NAZOV
+                // item['Jednotka'] || '',              // MJ
+                '',
+                '',
+                '',                                  // EAN (Natvrdo prázdne)
+                '',                                  // CENA (Prázdne)
+                '',                                  // PREDPOKLADANE MNOZSTVO (Prázdne)
+                item['Spočítané Množstvo'] || 0      // FYZICKE MNOZSTVO
+            ]);
+        });
+
+        // 3. Vytvorenie Excel zošita a hárku cez knižnicu XLSX
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
+
+        // 4. Uloženie a stiahnutie súboru
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        // Knižnica XLSX sa sama postará o správne kódovanie a formát stĺpcov
+        XLSX.writeFile(wb, `Tlacova_zostava_${cleanNazov}.xls`);
+
+        return true;
+    }
 }
 

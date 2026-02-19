@@ -35,8 +35,9 @@ export interface SkladovaZasobaView {
     jednotka?: string;
     sklad_id?: number;
     spocitane_mnozstvo?: number;
-    regal_nazov?: string; // <--- PRIDANÉ
+    regal_nazov?: string;
     sklad_nazov?: string;
+    vlastne_id?: string;
 }
 
 export interface Inventura {
@@ -1043,5 +1044,7 @@ export class SupabaseService {
             if (updateError) throw updateError;
         }
     }
+
+
 
 }

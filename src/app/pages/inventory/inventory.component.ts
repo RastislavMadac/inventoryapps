@@ -590,7 +590,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           // ... (kód ostáva rovnaký) ...
           id: zasoba.produkt_id,
           nazov: zasoba.nazov,
-          vlastne_id: zasoba.ean || '',
+          vlastne_id: zasoba.vlastne_id || '',
           jednotka: zasoba.jednotka,
           balenie_ks: zasoba.balenie_ks,
           kategoria: zasoba.kategoria,

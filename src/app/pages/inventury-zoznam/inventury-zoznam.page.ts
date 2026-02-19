@@ -145,6 +145,12 @@ export class InventuryZoznamPage implements OnInit {
     const actionSheet = await this.actionSheetCtrl.create({
       header: `Možnosti: ${inv.nazov}`,
       buttons: [
+
+        {
+          text: 'Špeciálna Tlačová zostava (.xls)',
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
+        },
         {
           text: 'Doplniť chýbajúce ID (Formulár)',
           icon: 'create-outline',
@@ -213,6 +219,9 @@ export class InventuryZoznamPage implements OnInit {
       let uspech = true;
 
       switch (typ) {
+        case 'tlacova_zostava':
+          uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
+          break;
         case 'excel_komplet':
           this.exportService.generovatExcelKomplet(data, inv.nazov);
           break;
