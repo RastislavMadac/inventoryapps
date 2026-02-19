@@ -35,6 +35,8 @@ export interface SkladovaZasobaView {
     jednotka?: string;
     sklad_id?: number;
     spocitane_mnozstvo?: number;
+    regal_nazov?: string; // <--- PRIDANÉ
+    sklad_nazov?: string;
 }
 
 export interface Inventura {
@@ -1005,6 +1007,41 @@ export class SupabaseService {
             .rpc('update_skladove_zasoby_poradie', { payload: items });
 
         return { data, error };
+    }
+
+    async presunutPolozku(zasobaId: number, produktId: number, novyRegalId: number, mnozstvoNaPresun: number) {
+        const { data: existujuca, error: checkError } = await this.supabase
+            .from('skladove_zasoby')
+            .select('id, mnozstvo_ks')
+            .eq('produkt_id', produktId)
+            .eq('regal_id', novyRegalId)
+            .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        if (existujuca) {
+            const noveMnozstvo = Number(existujuca.mnozstvo_ks) + Number(mnozstvoNaPresun);
+
+            await this.supabase
+                .from('skladove_zasoby')
+                .update({ mnozstvo_ks: noveMnozstvo, updated_at: new Date().toISOString() })
+                .eq('id', existujuca.id);
+
+            await this.supabase
+                .from('skladove_zasoby')
+                .delete()
+                .eq('id', zasobaId);
+        } else {
+            const { error: updateError } = await this.supabase
+                .from('skladove_zasoby')
+                .update({
+                    regal_id: novyRegalId,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', zasobaId);
+
+            if (updateError) throw updateError;
+        }
     }
 
 }

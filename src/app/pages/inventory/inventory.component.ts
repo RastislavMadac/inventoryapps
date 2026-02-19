@@ -8,7 +8,7 @@ import {
 } from '@ionic/angular';
 
 import {
-  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController,
+  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController, IonToggle,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonChip,
   IonItem, IonSelect, IonSelectOption, IonSearchbar, IonSpinner,
   IonList, IonCard, IonFab, IonFabButton,
@@ -27,7 +27,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -55,7 +55,8 @@ import { Subscription } from 'rxjs';
     IonList,
     IonItem,
     IonReorderGroup,
-    IonReorder
+    IonReorder,
+    IonToggle
   ],
   providers: [
     ModalController,
@@ -104,6 +105,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   // >>> PRIDANÉ: Premenná pre stav reorder módu <<<
   isReorderDisabled: boolean = true;
 
+  // Nový prepínač pre zobrazenie položiek
+  zobrazitVsetkoVRegaloch: boolean = true;
+
   private ulozenyStavRegal = {
     skladId: null as number | null,
     regalId: null as number | null,
@@ -125,7 +129,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
       settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
       createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline
     });
   }
 
@@ -295,22 +299,27 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       else {
         let hladatSkladId = null;
         let hladatRegalId = null;
-
-
-
         let textPreServer = this.searchQuery;
 
+
         if (this.rezimZobrazenia === 'regal') {
-          if (!this.vybranyRegalId) {
+          // Kontrola, či nezobrazujeme prázdny stav
+          if (!this.vybranyRegalId && !this.zobrazitVsetkoVRegaloch) {
             this.filtrovaneZasoby = [];
+            this.zasoby = [];
             this.isLoading = false;
             return;
           }
+
           hladatSkladId = this.vybranySkladId;
-          hladatRegalId = this.vybranyRegalId;
 
+          // >>> ZMENA: Zabezpečíme, že na server ide ID regálu, inak null
+          hladatRegalId = this.vybranyRegalId ? this.vybranyRegalId : null;
 
-          textPreServer = '';
+          // Ak je vybraný konkrétny regál, hľadáme iba lokálne (nepoľeme searchQuery na server)
+          if (this.vybranyRegalId) {
+            textPreServer = '';
+          }
         }
 
 
@@ -366,11 +375,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.searchQuery = event.target.value;
 
 
-    if (this.rezimZobrazenia === 'v_inventure' || this.rezimZobrazenia === 'regal') {
+    if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
       this.aplikovatFiltre();
-    }
-
-    else {
+    } else {
       this.obnovitZoznamPodlaRezimu();
     }
   }
@@ -502,23 +509,23 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.aplikovatFiltre();
     }
     else if (this.rezimZobrazenia === 'regal') {
-      this.zasoby = [];
-      this.filtrovaneZasoby = [];
+      // >>> ZMENA: Nahradené tvrdé vymazanie volaním centrálnej obnovy <<<
+      // Zabezpečí stiahnutie všetkých položiek skladu, ak je prepínač zapnutý
+      await this.obnovitZoznamPodlaRezimu();
     }
   }
 
   async priZmeneRegalu() {
     console.log('📍 Zmena regálu na ID:', this.vybranyRegalId);
-    // >>> PRIDANÉ: Reset reorderu pri zmene regálu <<<
     this.isReorderDisabled = true;
+
+
 
     await this.nacitajKategoriePreFilter();
 
     if (this.rezimZobrazenia === 'v_inventure') {
-
       this.aplikovatFiltre();
     } else {
-
       await this.obnovitZoznamPodlaRezimu();
     }
   }
@@ -661,24 +668,28 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
+    console.log('✏️ Kliknutie na položku:', zasoba.nazov);
 
-    // >>> PRIDANÉ: Ak práve meníme poradie, zakážeme klikanie na položky <<<
-    if (!this.isReorderDisabled) {
-      return;
-    }
+    // 1. Ak prebieha inventúra, rovno zadávame množstvo (preskakujeme výber lokácie)
+    if (this.aktivnaInventura) {
 
-    if (
-      (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) ||
-      (this.rezimZobrazenia === 'v_inventure')
-    ) {
+      const cielovyRegal = zasoba.regal_id || this.vybranyRegalId;
 
+      if (!cielovyRegal) {
+        this.zobrazToast('Táto položka nemá priradený regál. Priradte ju najprv na regál.', 'warning');
+        return;
+      }
 
+      // Poistka: Zabezpečíme, aby objekt 'zasoba' určite mal regal_id pre metódu ulozitZmenu()
+      zasoba.regal_id = cielovyRegal;
+
+      // Spúšťame priamo modálne okno na zadanie množstva
       await this.spustitKalkulacku(zasoba);
+
     }
+    // 2. Ak neprebieha inventúra, otvoríme bežný detail produktu pre úpravu vlastností
     else {
-
-
-      await this.vybratSkladPreZapis(zasoba);
+      this.upravitProduktDetail(zasoba);
     }
   }
 
@@ -962,19 +973,19 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
     let nadpis = 'Potvrdenie';
     let textSpravy = 'Naozaj chcete vykonať túto akciu?';
-    let tlacidloText = 'OK';
+    let Potvrdit = 'OK';
     let cssClass = '';
     const nazovProduktu = zasoba.nazov || 'túto položku';
 
     if (this.rezimZobrazenia === 'v_inventure') {
       nadpis = 'Zrušiť inventúrny zápis?';
       textSpravy = `Naozaj chcete odstrániť "${nazovProduktu}" zo zoznamu spočítaných položiek?\n\n(Tovar ostane v databáze, len sa vymaže z tejto inventúry)`;
-      tlacidloText = 'Zrušiť zápis';
+      Potvrdit = 'Zrušiť zápis';
       cssClass = 'alert-button-cancel';
     } else {
       nadpis = 'Odstrániť tovar?';
       textSpravy = `Naozaj chcete kompletne odstrániť "${nazovProduktu}" z tohto umiestnenia?\n\n(Vymaže sa zo skladu aj z inventúry)`;
-      tlacidloText = 'Odstrániť';
+      Potvrdit = 'Odstrániť';
       cssClass = 'alert-button-delete';
     }
 
@@ -985,7 +996,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       buttons: [
         { text: 'Zrušiť', role: 'cancel', cssClass: 'secondary' },
         {
-          text: 'tlacidloText',
+          text: 'Potvrdit',
           role: 'destructive',
           cssClass: cssClass,
           handler: async () => {
@@ -1087,33 +1098,51 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   trackByZasoby(index: number, item: SkladovaZasobaView): number {
     return item.id;
   }
+
   aplikovatFiltre() {
     console.log('🔍 Aplikujem lokálne filtre...');
 
-
     let data = [...this.zasoby];
 
+    // 1. Filter pre regály a automatické zotriedenie
+    if (this.rezimZobrazenia === 'regal') {
+      if (this.vybranyRegalId) {
+        // Ak je vybraný konkrétny regál, ukážeme len ten
+        data = data.filter(z => z.regal_id === this.vybranyRegalId);
+      }
+      else if (this.zobrazitVsetkoVRegaloch) {
+        // >>> ZMENA: Ak nie je vybraný regál, ukážeme len položky, ktoré MAJÚ priradený nejaký regál
+        data = data.filter(z => z.regal_id != null);
 
-    if (this.searchQuery) {
-      const q = this.odstranitDiakritiku(this.searchQuery);
-      data = data.filter(z => {
-        const nazov = this.odstranitDiakritiku(z.nazov || '');
-        const ean = (z.ean || '').toLowerCase();
-        return nazov.includes(q) || ean.includes(q);
-      });
+        // >>> BONUS (UX/Performance): Zotriedime položky podľa názvu regálu, aby išli pekne za sebou
+        data.sort((a, b) => {
+          const regalA = a.regal_nazov || '';
+          const regalB = b.regal_nazov || '';
+          return regalA.localeCompare(regalB);
+        });
+      }
     }
 
-
-    if (this.filterKategoria && this.filterKategoria !== 'vsetky') {
-      data = data.filter(z => z.kategoria === this.filterKategoria);
-    }
-
-
+    // 2. Filter pre inventúru
     if (this.rezimZobrazenia === 'v_inventure') {
       if (this.vybranySkladId) data = data.filter(z => z.sklad_id === this.vybranySkladId);
       if (this.vybranyRegalId) data = data.filter(z => z.regal_id === this.vybranyRegalId);
     }
 
+    // 3. Filter pre kategóriu
+    if (this.filterKategoria && this.filterKategoria !== 'vsetky') {
+      data = data.filter(z => z.kategoria === this.filterKategoria);
+    }
+
+    // 4. Textové vyhľadávanie
+    if (this.searchQuery) {
+      const q = this.odstranitDiakritiku(this.searchQuery).toLowerCase();
+      data = data.filter(z => {
+        const nazov = this.odstranitDiakritiku(z.nazov || '').toLowerCase();
+        const ean = (z.ean || '').toLowerCase();
+        return nazov.includes(q) || ean.includes(q);
+      });
+    }
 
     this.filtrovaneZasoby = data;
   }
@@ -1210,6 +1239,121 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         this.zobrazToast('Chyba pri ukladaní poradia', 'danger');
       }
     });
+  }
+
+  // 1. KROK: Výber cieľového skladu (Pridaná možnosť odstránenia)
+  async zobrazitPresunSklad(zasoba: SkladovaZasobaView, event: Event) {
+    if (event) event.stopPropagation();
+
+    if (zasoba.id === 0) {
+      this.zobrazToast('Položku najskôr musíte prijať na sklad.', 'warning');
+      return;
+    }
+
+    this.isLoading = true;
+    const sklady = await this.supabaseService.getSklady();
+    this.isLoading = false;
+    this.cdr.detectChanges(); // Poistka pre UI
+
+    const alert = await this.alertController.create({
+      header: 'Presunúť položku',
+      subHeader: `Kam chcete presunúť "${zasoba.nazov}"?`,
+      inputs: sklady.map(s => ({
+        type: 'radio',
+        label: s.nazov,
+        value: s.id
+      })),
+      buttons: [
+        { text: 'Zrušiť', role: 'cancel' },
+        {
+          // >>> PRIDANÉ: Možnosť odstrániť položku z regálu priamo odtiaľto <<<
+          text: 'Vymazať z regálu',
+          role: 'destructive',
+          handler: () => {
+            // Zavoláme tvoju existujúcu logiku, ktorá sa opýta na potvrdenie a zmaže ju
+            this.zmazatPolozku(zasoba, new Event('click'));
+          }
+        },
+        {
+          text: 'Ďalej',
+          handler: (skladId) => {
+            if (skladId) {
+              this.zobrazitPresunRegal(zasoba, skladId);
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  // 2. KROK: Výber regálu v danom sklade
+  async zobrazitPresunRegal(zasoba: SkladovaZasobaView, skladId: number) {
+    this.isLoading = true;
+    const regaly = await this.supabaseService.getRegaly(skladId);
+    this.isLoading = false;
+    this.cdr.detectChanges();
+
+    if (regaly.length === 0) {
+      this.zobrazToast('Vybraný sklad nemá žiadne regály.', 'warning');
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'Vyberte cieľový regál',
+      inputs: regaly.map(r => ({
+        type: 'radio',
+        label: r.nazov,
+        value: r.id
+      })),
+      buttons: [
+        { text: 'Späť', handler: () => this.zobrazitPresunSklad(zasoba, new Event('click')) },
+        {
+          text: 'Presunúť',
+          handler: (novyRegalId) => {
+            if (novyRegalId) {
+              if (novyRegalId === zasoba.regal_id) {
+                this.zobrazToast('Položka sa už nachádza na tomto regáli.', 'warning');
+                return false; // Necháme alert otvorený
+              }
+
+              // >>> ZMENA: Presunuli sme asynchrónnu logiku mimo alert handleru <<<
+              this.vykonatPresun(zasoba, novyRegalId);
+            }
+            return true;
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  // >>> NOVÁ METÓDA: Rieši "zaseknutý spinner" a bezpečne updatuje UI <<<
+  async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
+    this.isLoading = true;
+    this.cdr.detectChanges(); // Vynútime zobrazenie loadera
+
+    try {
+      // 1. Presun v hlavnej databáze (skladove_zasoby)
+      await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+
+      // 2. Presun v inventúre (ak nejaká beží)
+      if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
+        const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
+        await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
+        await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, novyRegalId, spocitane);
+      }
+
+      this.zobrazToast('Položka úspešne presunutá.', 'success');
+      await this.obnovitZoznamPodlaRezimu();
+
+    } catch (error: any) {
+      console.error('Chyba pri presune:', error);
+      this.zobrazToast('Nepodarilo sa presunúť položku.', 'danger');
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges(); // Vynútime skrytie loadera
+    }
   }
 
 }

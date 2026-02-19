@@ -5167,6 +5167,7 @@ export interface SkladovaZasobaView {
     ean?: string;
     kategoria: string;
     mnozstvo_ks: number;
+    poradie?: number;
     balenie_ks: number;
     umiestnenie?: string;
     regal_id?: number;
@@ -5944,18 +5945,23 @@ export class SupabaseService {
     async getZasobyFiltrovaneServer(
         skladId: number | null,
         regalId: number | null,
-        kategoria: string,
+        kategoria: string | null,
         search: string,
-        limit: number = 100
+        limit: number = 50,
+        offset: number = 0
     ) {
 
         const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', {
             p_sklad_id: skladId,
             p_regal_id: regalId,
             p_kategoria: kategoria === 'vsetky' ? null : kategoria,
+
+            p_stredisko_id: null, // <<< TOTO TU CHÝBALO (Musíme poslať aspoň null)
+
             p_search: search,
             p_limit: limit,
-            p_offset: 0
+
+            p_offset: offset // <<< TOTO SOM OPRAVIL (Mal si tam 0, takže by nefungoval scroll)
         });
 
         if (error) {
@@ -5965,7 +5971,6 @@ export class SupabaseService {
 
         return data || [];
     }
-
 
 
 
@@ -6173,7 +6178,7 @@ import {
   caretDownOutline, clipboardOutline, cubeOutline,
   arrowUpOutline, locationOutline, listOutline,
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
-  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline,
+  addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
   reorderFourOutline, menuOutline
 } from 'ionicons/icons';
@@ -6231,6 +6236,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   regaly: Regal[] = [];
   filtrovaneRegaly: Regal[] = [];
 
+
   aktivnaInventura: Inventura | null = null;
   private idPolozkyPreScroll: number | null = null;
   zasoby: SkladovaZasobaView[] = [];
@@ -6272,7 +6278,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
       settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
       createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline
     });
   }
 
