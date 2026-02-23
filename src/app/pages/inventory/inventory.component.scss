@@ -3,6 +3,30 @@
   --background: #f4f5f8;
 }
 
+
+
+/* --- Úprava prepínača v hlavičke --- */
+.custom-header-toggle {
+  /* Jemné odsadenie od textu zľava */
+  padding-left: 10px;
+
+  /* 1. STAV: ZAPNUTÝ (TRUE) */
+  --background-checked: #ffffff;
+  /* Pozadie prepínača bude biele */
+  --handle-background-checked: var(--ion-color-primary);
+  /* Gulička bude modrá (vo farbe hlavičky) */
+
+  /* 2. STAV: VYPNUTÝ (FALSE) */
+  --background: rgba(255, 255, 255, 0.4);
+  /* Pozadie bude polopriesvitné biele, aby ladilo s modrou hlavičkou */
+  --handle-background: #ffffff;
+  /* Gulička ostane biela */
+
+  /* Voliteľné: Veľkosť prepínača (odkomentuj, ak ho chceš menší/väčší) */
+  /* padding: 0; */
+  /* transform: scale(0.9); */
+}
+
 ion-searchbar.custom-searchbar {
   --background: #ffffff;
   --border-radius: 10px;

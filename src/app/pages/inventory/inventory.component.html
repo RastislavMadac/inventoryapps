@@ -33,6 +33,16 @@
     </ion-segment>
   </ion-toolbar>
 
+  <ion-toolbar color="primary" *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" class="fade-in" style="--min-height: 45px;">
+    <ion-item color="primary" lines="none" style="--padding-start: 16px; --inner-padding-end: 16px;">
+      <ion-label class="ionlabel-text" style="color: white; font-size: 0.85rem; white-space: normal; opacity: 0.9;">
+        Zobraziť všetky položky zo skladu
+      </ion-label>
+      <ion-toggle class="custom-header-toggle" mode="ios" [(ngModel)]="zobrazitVsetkoVRegaloch" (ionChange)="obnovitZoznamPodlaRezimu()" color="light"></ion-toggle>
+    </ion-item>
+  </ion-toolbar>
+  
+
   <div class="filter-panel">
     
     <div class="ion-padding-horizontal reset-container" 
@@ -82,15 +92,6 @@
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
       </div>
-    </div>
-
-    <div class="toggle-row fade-in" *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" style="padding: 0 16px; margin-bottom: 10px;">
-      <ion-item lines="none" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
-        <ion-label style="color: var(--ion-color-dark); font-size: 0.85rem; white-space: normal;">
-          Zobraziť všetky položky zo skladu (aj bez vybraného regálu)
-        </ion-label>
-        <ion-toggle mode="ios" [(ngModel)]="zobrazitVsetkoVRegaloch" (ionChange)="obnovitZoznamPodlaRezimu()" color="primary"></ion-toggle>
-      </ion-item>
     </div>
       
     <div *ngIf="(rezimZobrazenia === 'regal' && (vybranyRegalId || zobrazitVsetkoVRegaloch)) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
