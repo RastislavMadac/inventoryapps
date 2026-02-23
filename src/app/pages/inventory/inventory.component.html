@@ -219,7 +219,7 @@
                     
                     <ion-button fill="clear" size="small" 
                                 (click)="zobrazitPresunSklad(z, $event)"
-                                *ngIf="z.id > 0"
+                               
                                 title="Presunúť">
                         <ion-icon name="arrow-redo-outline" style="font-size: 1.2rem; color: var(--ion-color-tertiary);"></ion-icon>
                     </ion-button>
@@ -229,7 +229,7 @@
                     </ion-button>
                     
                     <ion-icon 
-                      *ngIf="jeAdmin && (z.id > 0 || z.v_inventure)"
+                      *ngIf="jeAdmin || rezimZobrazenia === 'v_inventure'"
                       name="trash-outline" color="danger" class="trash-icon"
                       (click)="zmazatPolozku(z, $event)">
                     </ion-icon>

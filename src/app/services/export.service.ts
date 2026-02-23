@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fontRobotoRegular } from 'src/app/font';
@@ -264,39 +264,35 @@ export class ExportService {
 
         });
     }
+
     // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
     public generovatTlacovuZostavu(data: any[], nazovInventury: string) {
         if (!data || data.length === 0) return false;
 
-        // 1. Pripravíme dáta ako 2D pole (Array of Arrays)
         const aoaData: any[][] = [];
 
-        // Vloženie 4 čistých prázdnych riadkov
+        // Vloženie 4 čistých prázdnych riadkov (Riadky 1-4 v Exceli)
         aoaData.push([]);
         aoaData.push([]);
         aoaData.push([]);
         aoaData.push([]);
 
-        // Presná hlavička
+        // Presná hlavička (Riadok 5 v Exceli)
         aoaData.push([
             'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
         ]);
 
-        // --- 1.5 AGREGÁCIA: Zlúčenie rovnakých ID a sčítanie množstva ---
+        // --- AGREGÁCIA DAT (zlučovanie rovnakých ID) ---
         const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
-            // Hľadáme, či už produkt s týmto ID v akumulátore existuje
             const existujucaPolozka = akumulator.find(
-                item => item['Product ID'] === aktualnaPolozka['Product ID']
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
             );
 
-            // Bezpečný prevod na číslo (ak by náhodou prišiel string z inputu), inak 0
             const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
 
             if (existujucaPolozka) {
-                // Ak existuje, len pripočítame fyzické množstvo
                 existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
             } else {
-                // Ak neexistuje, vytvoríme kópiu objektu a vložíme do poľa
                 akumulator.push({
                     ...aktualnaPolozka,
                     'Spočítané Množstvo': aktualneMnozstvo
@@ -305,37 +301,79 @@ export class ExportService {
 
             return akumulator;
         }, []);
-        // -----------------------------------------------------------------
 
-        // 2. Mapovanie ZLÚČENÝCH dát do správnych stĺpcov
-        // Použijeme už prefiltrované a sčítané 'zluceneData' namiesto pôvodných 'data'
+        // --- MAPOVANIE DO AOA ---
         zluceneData.forEach((item: any) => {
             aoaData.push([
-                item['Product ID'] || '',            // ID
-                '',                                  // CISLO (Prázdne)
-                // item['Produkt'] || '',               // NAZOV
-                // item['Jednotka'] || '',              // MJ
-                '',
-                '',
-                '',                                  // EAN (Natvrdo prázdne)
-                '',                                  // CENA (Prázdne)
-                '',                                  // PREDPOKLADANE MNOZSTVO (Prázdne)
-                item['Spočítané Množstvo'] || 0      // FYZICKE MNOZSTVO
+                item['Product ID'] || '',            // A (0) - ID
+                '',                                  // B (1) - CISLO
+                '',               // C (2) - NAZOV
+                '',              // D (3) - MJ
+                '',                                  // E (4) - EAN
+                '',                                  // F (5) - CENA
+                '',                                  // G (6) - PREDPOKLADANE MNOZSTVO
+                item['Spočítané Množstvo'] || 0      // H (7) - FYZICKE MNOZSTVO
             ]);
         });
 
-        // 3. Vytvorenie Excel zošita a hárku cez knižnicu XLSX
+        // Vytvorenie hárku
         const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // --- FORMÁTOVANIE A ŠTÝLOVANIE BUNIEK ---
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+
+                    if (!cell) continue;
+
+                    // Inicializácia objektu štýlov, ak neexistuje
+                    if (!cell.s) cell.s = {};
+
+                    // 1. FORMÁT ČÍSEL (.z)
+                    if (R < 5) {
+                        // Riadky 1-5 (Indexy 0 až 4)
+                        cell.z = 'General';
+                    } else {
+                        // Od riadku 6 (Index 5 a vyššie)
+                        if (C >= 0 && C <= 4) {
+                            cell.z = '0'; // A, B, C, D, E
+                        } else if (C === 5) {
+                            cell.z = '0.0000'; // F
+                        } else if (C === 6 || C === 7) {
+                            cell.z = '0.000'; // G, H
+                        }
+                    }
+
+                    // 2. TUČNÉ PÍSMO (.s.font) - Iba riadok 5 (Index 4)
+                    if (R === 4) {
+                        if (!cell.s.font) cell.s.font = {};
+                        cell.s.font.bold = true;
+                    }
+
+                    // 3. ZAROVNANIE (.s.alignment) - Od riadku 5 (Index 4) nadol
+                    if (R >= 4) {
+                        // Stĺpce A(0), B(1), F(5), G(6), H(7)
+                        if (C === 0 || C === 1 || C === 5 || C === 6 || C === 7) {
+                            if (!cell.s.alignment) cell.s.alignment = {};
+                            cell.s.alignment.horizontal = 'center';
+                            cell.s.alignment.vertical = 'center'; // Pridávam aj vertikálne centrovanie pre lepší vizuál
+                        }
+                    }
+                }
+            }
+        }
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
 
-        // 4. Uloženie a stiahnutie súboru
         const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-        // Knižnica XLSX sa sama postará o správne kódovanie a formát stĺpcov
         XLSX.writeFile(wb, `Tlacova_zostava_${cleanNazov}.xls`);
 
         return true;
     }
-}
 
+}

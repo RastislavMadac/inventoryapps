@@ -967,6 +967,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async zmazatPolozku(zasoba: SkladovaZasobaView, event: Event) {
     event.stopPropagation();
+
+    // 🔥 BEZPEČNOSTNÁ POISTKA: Ak nie je admin a nie je v inventúre, zablokuj to
+    if (!this.jeAdmin && this.rezimZobrazenia !== 'v_inventure') {
+      this.zobrazToast('Nemáte oprávnenie na vymazanie tovaru zo skladu.', 'danger');
+      return;
+    }
     if (this.rezimZobrazenia !== 'v_inventure' && zasoba.id === 0 && !zasoba.v_inventure) {
       this.zobrazToast('Túto položku nie je možné zmazať (nie je na sklade).', 'warning');
       return;
@@ -1136,11 +1142,24 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     // 4. Textové vyhľadávanie
     if (this.searchQuery) {
+      // search input zbavíme diakritiky a dáme na malé písmená
       const q = this.odstranitDiakritiku(this.searchQuery).toLowerCase();
+
       data = data.filter(z => {
+        // Textové polia
         const nazov = this.odstranitDiakritiku(z.nazov || '').toLowerCase();
         const ean = (z.ean || '').toLowerCase();
-        return nazov.includes(q) || ean.includes(q);
+        const vlastneId = (z.vlastne_id || '').toLowerCase();
+
+        // Číselné IDčka prevedené na string pre potreby fulltextu
+        const idZasoby = String(z.id || '');
+        const idProduktu = String(z.produkt_id || '');
+
+        return nazov.includes(q) ||
+          ean.includes(q) ||
+          vlastneId.includes(q) ||
+          idZasoby.includes(q) ||
+          idProduktu.includes(q);
       });
     }
 
@@ -1245,10 +1264,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async zobrazitPresunSklad(zasoba: SkladovaZasobaView, event: Event) {
     if (event) event.stopPropagation();
 
-    if (zasoba.id === 0) {
-      this.zobrazToast('Položku najskôr musíte prijať na sklad.', 'warning');
-      return;
-    }
+
 
     this.isLoading = true;
     const sklady = await this.supabaseService.getSklady();
@@ -1269,9 +1285,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           // >>> PRIDANÉ: Možnosť odstrániť položku z regálu priamo odtiaľto <<<
           text: 'Vymazať z regálu',
           role: 'destructive',
+          cssClass: zasoba.id === 0 ? 'd-none' : '',
           handler: () => {
-            // Zavoláme tvoju existujúcu logiku, ktorá sa opýta na potvrdenie a zmaže ju
-            this.zmazatPolozku(zasoba, new Event('click'));
+            if (zasoba.id > 0) this.zmazatPolozku(zasoba, new Event('click'));
           }
         },
         {
@@ -1331,28 +1347,35 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   // >>> NOVÁ METÓDA: Rieši "zaseknutý spinner" a bezpečne updatuje UI <<<
   async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
     this.isLoading = true;
-    this.cdr.detectChanges(); // Vynútime zobrazenie loadera
+    this.cdr.detectChanges();
 
     try {
-      // 1. Presun v hlavnej databáze (skladove_zasoby)
-      await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+      // 🔥 OPRAVA: Vetvenie logiky na 'Presun' vs 'Nové priradenie'
+      if (zasoba.id > 0) {
+        // Existujúca zásoba -> Aktualizujeme regál (Presun)
+        await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+        this.zobrazToast('Položka úspešne presunutá.', 'success');
+      } else {
+        // Katalógová položka -> Vytvoríme nový záznam na regáli s 0 ks
+        await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
+        this.zobrazToast('Produkt bol úspešne priradený na regál.', 'success');
+      }
 
-      // 2. Presun v inventúre (ak nejaká beží)
+      // Presun v inventúre (ak nejaká beží)
       if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
         const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
         await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
         await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, novyRegalId, spocitane);
       }
 
-      this.zobrazToast('Položka úspešne presunutá.', 'success');
       await this.obnovitZoznamPodlaRezimu();
 
     } catch (error: any) {
-      console.error('Chyba pri presune:', error);
-      this.zobrazToast('Nepodarilo sa presunúť položku.', 'danger');
+      console.error('Chyba pri presune/priradení:', error);
+      this.zobrazToast('Nepodarilo sa vykonať akciu.', 'danger');
     } finally {
       this.isLoading = false;
-      this.cdr.detectChanges(); // Vynútime skrytie loadera
+      this.cdr.detectChanges();
     }
   }
 
