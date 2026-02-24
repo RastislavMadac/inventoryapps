@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core';
+import { addIcons } from 'ionicons';
+import { createOutline, printOutline } from 'ionicons/icons';
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,7 +11,12 @@ import { fontRobotoRegular } from 'src/app/font';
 })
 export class ExportService {
 
-    constructor() { }
+    constructor() {
+        addIcons({
+            'create-outline': createOutline,
+            'print-outline': printOutline
+        });
+    }
 
     /**
      * Pomocná funkcia: Pripraví a zoradí dáta
@@ -304,11 +311,20 @@ export class ExportService {
 
         // --- MAPOVANIE DO AOA ---
         zluceneData.forEach((item: any) => {
+
+            // 1. Získame ID a ubezpečíme sa, že z neho nezostane string so zalomením (\n) z čítačky
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
             aoaData.push([
-                item['Product ID'] || '',            // A (0) - ID
+                cisteProductID || '',                // A (0) - ID (Istota, že je to čisté Number pre import)
                 '',                                  // B (1) - CISLO
-                '',               // C (2) - NAZOV
-                '',              // D (3) - MJ
+                '',               // C (2) - NAZOV (Presne ako v tvojom kóde)
+                '',              // D (3) - MJ (Presne ako v tvojom kóde)
                 '',                                  // E (4) - EAN
                 '',                                  // F (5) - CENA
                 '',                                  // G (6) - PREDPOKLADANE MNOZSTVO
@@ -367,11 +383,25 @@ export class ExportService {
             }
         }
 
+        // Vytvorenie zošita a vloženie hárku (Iba raz)
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
 
+        // Vyčistenie názvu (Iba raz)
         const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        XLSX.writeFile(wb, `Tlacova_zostava_${cleanNazov}.xls`);
+
+        // --- Browser-safe stiahnutie súboru bez Node.js (fs/stream) ---
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        downloadLink.download = `Tlacova_zostava_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href); // Uvoľnenie pamäte
+        // -------------------------------------------------------------------------
 
         return true;
     }
