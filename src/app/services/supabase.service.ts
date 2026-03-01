@@ -23,6 +23,7 @@ export interface Regal {
 export interface SkladovaZasobaView {
     id: number;
     produkt_id: number;
+    interne_id?: string;
     nazov: string;
     ean?: string;
     kategoria: string;
@@ -104,6 +105,7 @@ export class SupabaseService {
         produkt:produkty (
           id,
           nazov,
+          interne_id,
           ean,
           balenie_ks,
           jednotka,       
@@ -122,6 +124,7 @@ export class SupabaseService {
         return data.map((item: any) => ({
             id: item.id,
             produkt_id: item.produkt?.id,
+            interne_id: item.produkt?.interne_id,
             nazov: item.produkt?.nazov,
             ean: item.produkt?.ean,
             jednotka: item.produkt?.jednotka || 'ks',
@@ -142,7 +145,7 @@ export class SupabaseService {
         mnozstvo_ks,
         regal_id,
         produkt:produkty (
-          id, nazov, ean, balenie_ks, jednotka, kategorie(nazov)
+          id, nazov, ean, Interne_id, balenie_ks, jednotka, kategorie(nazov)
         ),
         regal:regaly (
           id, nazov,
@@ -155,6 +158,7 @@ export class SupabaseService {
         const sformatovaneData: SkladovaZasobaView[] = data.map((item: any) => ({
             id: item.id,
             produkt_id: item.produkt?.id,
+            interne_id: item.produkt?.Interne_id,
             nazov: item.produkt?.nazov || 'Neznámy',
             ean: item.produkt?.ean,
             kategoria: item.produkt?.kategorie?.nazov || 'Bez kategórie',
@@ -189,6 +193,7 @@ export class SupabaseService {
             vysledok.push({
                 id: 0,
                 produkt_id: prod.id,
+                interne_id: prod.Interne_id,
                 nazov: prod.nazov,
                 ean: prod.ean,
                 jednotka: prod.jednotka,
@@ -349,70 +354,6 @@ export class SupabaseService {
         return true;
     }
 
-    // async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
-    //     const { data, error } = await this.supabase
-    //         .from('inventura_polozky')
-    //         .select(`
-    //             id,
-    //             mnozstvo,
-    //             produkt_id,
-    //             regal_id,
-    //             regaly:regal_id (
-    //                 nazov,
-    //                 sklad_id,      
-    //                 sklady ( nazov ) 
-    //             ),
-    //             produkty:produkt_id ( 
-    //                 nazov, 
-    //                 balenie_ks, 
-    //                 ean, 
-    //                 jednotka,
-    //                 kategorie ( nazov ) 
-    //             )
-    //         `)
-    //         .eq('inventura_id', inventuraId);
-
-    //     if (error) {
-    //         console.error('❌ Chyba načítania inventúry:', error);
-    //         throw error;
-    //     }
-
-    //     return (data as any[]).map(d => {
-    //         const regalObj = d.regaly;
-    //         const produktObj = d.produkty;
-
-
-    //         const skladData = regalObj?.sklady;
-    //         const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || 'Sklad';
-
-
-    //         const skladId = regalObj?.sklad_id;
-
-
-    //         const katData = produktObj?.kategorie;
-    //         const nazovKategorie = (Array.isArray(katData) ? katData[0]?.nazov : katData?.nazov) || 'Bez kategórie';
-
-    //         return {
-    //             id: d.id,
-    //             produkt_id: d.produkt_id,
-    //             regal_id: d.regal_id,
-    //             sklad_id: skladId,
-
-    //             mnozstvo_ks: d.mnozstvo,
-    //             nazov: produktObj?.nazov || 'Neznámy produkt',
-    //             ean: produktObj?.ean,
-    //             balenie_ks: produktObj?.balenie_ks || 1,
-    //             jednotka: produktObj?.jednotka || 'ks',
-
-    //             kategoria: nazovKategorie,
-
-    //             v_inventure: true,
-    //             umiestnenie: `${nazovSkladu} - ${regalObj?.nazov || 'Regál'}`
-    //         };
-    //     });
-    // }
-
-    // Súbor: src/app/services/supabase.service.ts
 
     async getPolozkyVInventure(inventuraId: number, od: number, do_poctu: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
@@ -420,15 +361,14 @@ export class SupabaseService {
             .select(`
             id, mnozstvo, created_at, produkt_id, regal_id,
             regaly:regal_id ( nazov, sklad_id, sklady ( nazov ) ),
-            produkty:produkt_id ( nazov, balenie_ks, ean, jednotka, kategorie ( nazov ) )
+            produkty:produkt_id ( nazov, balenie_ks, ean, jednotka, Interne_id, vlastne_id, kategorie ( nazov ) )
         `)
             .eq('inventura_id', inventuraId)
             .order('created_at', { ascending: false })
-            .range(od, do_poctu); // 🔥 TOTO JE KĽÚČOVÉ - Stránkovanie
+            .range(od, do_poctu);
 
         if (error) throw error;
 
-        // Mapovanie dát (rovnaké ako predtým)
         return (data as any[]).map(d => {
             const regalObj = d.regaly;
             const produktObj = d.produkty;
@@ -439,6 +379,9 @@ export class SupabaseService {
             return {
                 id: d.id,
                 produkt_id: d.produkt_id,
+                /* 👇 PRIDANÉ MAPOVANIE 👇 */
+                interne_id: produktObj?.Interne_id,
+                vlastne_id: produktObj?.vlastne_id,
                 regal_id: d.regal_id,
                 sklad_id: regalObj?.sklad_id,
                 mnozstvo_ks: d.mnozstvo,
@@ -498,6 +441,7 @@ export class SupabaseService {
         produkt:produkty (
           nazov,
           vlastne_id,
+          Interne_id,
           balenie_ks,
           jednotka,
           kategoria:kategorie ( nazov )
@@ -514,6 +458,7 @@ export class SupabaseService {
         return data.map((item: any) => ({
             'Produkt': item.produkt?.nazov || 'Neznámy',
             'Product ID': item.produkt?.vlastne_id || '',
+            'Interné ID': item.produkt?.Interne_id || '',
             'Kategória': item.produkt?.kategoria?.nazov || '',
             'Sklad': item.regal?.sklad?.nazov || '',
             'Regál': item.regal?.nazov || '',

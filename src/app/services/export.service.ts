@@ -104,6 +104,13 @@ export class ExportService {
     public generovatPdfSId(data: any[], nazovInventury: string) {
         const { sId } = this.pripravitData(data);
         if (sId.length === 0) return false;
+
+        sId.sort((a: any, b: any) => {
+            const produktA = a['Produkt'] || '';
+            const produktB = b['Produkt'] || '';
+            return produktA.localeCompare(produktB);
+        });
+
         const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         this.createPdfFile(sId, nazovInventury, 'Položky s ID', `Inventura_${cleanNazov}_S_ID.pdf`);
         return true;

@@ -151,43 +151,43 @@ export class InventuryZoznamPage implements OnInit {
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
         },
-        {
-          text: 'Doplniť chýbajúce ID (Formulár)',
-          icon: 'create-outline',
-          handler: () => {
-            this.otvoritFormularBezId(inv);
-          }
-        },
-        {
-          text: 'PDF Kompaktné (2 stĺpce)',
-          icon: 'print-outline',
-          handler: () => { this.spustitExport(inv, 'pdf_2col'); }
-        },
-        {
-          text: 'Excel (Kompletný - 2 hárky)',
-          icon: 'grid-outline',
-          handler: () => { this.spustitExport(inv, 'excel_komplet'); }
-        },
+        // {
+        //   text: 'Doplniť chýbajúce ID (Formulár)',
+        //   icon: 'create-outline',
+        //   handler: () => {
+        //     this.otvoritFormularBezId(inv);
+        //   }
+        // },
+        // {
+        //   text: 'PDF Kompaktné (2 stĺpce)',
+        //   icon: 'print-outline',
+        //   handler: () => { this.spustitExport(inv, 'pdf_2col'); }
+        // },
+        // {
+        //   text: 'Excel (Kompletný - 2 hárky)',
+        //   icon: 'grid-outline',
+        //   handler: () => { this.spustitExport(inv, 'excel_komplet'); }
+        // },
         {
           text: 'Excel (Len s ID)',
           icon: 'grid-outline',
           handler: () => { this.spustitExport(inv, 'excel_id'); }
         },
-        {
-          text: 'Excel (Len bez ID)',
-          icon: 'grid-outline',
-          handler: () => { this.spustitExport(inv, 'excel_noid'); }
-        },
+        // {
+        //   text: 'Excel (Len bez ID)',
+        //   icon: 'grid-outline',
+        //   handler: () => { this.spustitExport(inv, 'excel_noid'); }
+        // },
         {
           text: 'PDF (Len s ID)',
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'pdf_id'); }
         },
-        {
-          text: 'PDF (Len bez ID)',
-          icon: 'document-text-outline',
-          handler: () => { this.spustitExport(inv, 'pdf_noid'); }
-        },
+        // {
+        //   text: 'PDF (Len bez ID)',
+        //   icon: 'document-text-outline',
+        //   handler: () => { this.spustitExport(inv, 'pdf_noid'); }
+        // },
         {
           text: 'Zmazať inventúru',
           role: 'destructive',
