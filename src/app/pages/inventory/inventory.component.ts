@@ -807,7 +807,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         aktualnyStav: this.aktivnaInventura
           ? ((zasoba as any).spocitane_mnozstvo ?? 0)
           : zasoba.mnozstvo_ks,
-        balenie: zasoba.balenie_ks
+        balenie: zasoba.balenie_ks,
+        jednotka: zasoba.jednotka || 'ks'
       }
     });
 

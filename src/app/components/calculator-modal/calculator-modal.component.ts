@@ -17,6 +17,7 @@ export class CalculatorModalComponent implements OnInit {
   @Input() nazovProduktu: string = '';
   @Input() aktualnyStav: number = 0;
   @Input() balenie: number = 1;
+  @Input() jednotka: string = 'ks'; //
   povodnneBalenie: number = 1;
   // Dve premenné pre zobrazenie
   fullFormula: string = '';   // "10 + 5" (Skryté/Detail)
