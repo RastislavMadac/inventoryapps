@@ -1,137 +1,238 @@
+/* HLAVNÝ KONTAJNER PRE HORNÉ KARTY */
 .dashboard-container {
-    display: flex;
-    gap: 10px;
-    padding: 10px 16px;
-    justify-content: space-between;
-  }
-  
-  .stat-card {
-    margin: 0;
-    flex: 1;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    position: relative;
-    overflow: visible;
-  
-    ion-card-content {
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 10px;
-    }
-  
-    /* Modrá karta */
-    &.blue {
-      background: #f0f9ff;
-      .icon-bg { background: #bae6fd; color: #0284c7; }
-      h2 { color: #0c4a6e; }
-    }
-  
-    /* Oranžová karta */
-    &.orange {
-      background: #fff7ed;
-      .icon-bg { background: #fed7aa; color: #ea580c; }
-      h2 { color: #7c2d12; }
-    }
-  
-    h2 {
-      font-size: 1.8rem;
-      font-weight: 800;
-      margin: 0;
-      line-height: 1;
-    }
-  
-    p {
-      margin: 0;
-      font-size: 0.8rem;
-      font-weight: 600;
-      opacity: 0.7;
-      color: var(--ion-color-dark);
-    }
-  }
-  
-  .icon-bg {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-  }
-  
-  /* Pulzujúca bodka ak sú chyby */
-  .pulse-indicator {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 8px;
-    height: 8px;
-    background-color: #ef4444;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-  }
-  
-  .internal-list-container {
-    background: white;
-    border-radius: 16px 16px 0 0; /* Zaoblenie len hore, dole nech je to rovné */
-    margin-top: 20px;
-    padding: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f0f0f0;
-    
-    /* 🔥 KĽÚČOVÉ ZMENY PRE ROZTIAHNUTIE: */
-    flex: 1;           /* Zaberie všetok zvyšný priestor až po spodok */
-    min-height: 0;     /* Nutné pre správne fungovanie scrollu vo flexboxe */
-    max-height: none;  /* Zrušíme staré obmedzenie 400px */
-    margin-bottom: 0;  /* Žiadna medzera dole */
-    
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Zvyšok ostáva rovnaký, aby fungoval scroll vnútri zoznamu */
-  ion-list {
-    overflow-y: auto;
-    flex: 1; /* Aj zoznam sa musí natiahnuť */
-  }
-  
-  // 🔥 A UPRAVTE AJ TOTO, ABY HLAVIČKA OSTALA HORE A SCROLLOVAL LEN ZOZNAM:
-  .list-header {
-    flex-shrink: 0; /* Hlavička sa nebude zmenšovať */
-    // ... ostatné vaše štýly pre header ...
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-left: 10px;
-    margin-bottom: 5px;
-    border-bottom: 1px solid #f2f2f2;
-  }
-  
-  ion-list {
-    overflow-y: auto; /* Scrollovať bude iba zoznam, nie hlavička */
-    
-    /* Pre plynulé scrollovanie na iPhone: */
-    -webkit-overflow-scrolling: touch; 
-  }
-
-.spinner-center {
-  text-align: center;
-  padding: 20px;
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  justify-content: space-between;
 }
 
-.empty-msg {
-  text-align: center;
-  padding: 20px;
-  color: #888;
+/* SPOLOČNÝ ŠTÝL PRE VŠETKY KARTY */
+.stat-card {
+  margin: 0;
+  flex: 1;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: visible;
+  border: none;
+
+  ion-card-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.8;
+    color: var(--ion-color-dark);
+  }
+
+  /* Farebné témy */
+  &.blue {
+    background: #f0f9ff;
+
+    .icon-bg {
+      background: #bae6fd;
+      color: #0284c7;
+    }
+
+    h2 {
+      color: #0c4a6e;
+    }
+  }
+
+  &.orange {
+    background: #fff7ed;
+
+    .icon-bg {
+      background: #fed7aa;
+      color: #ea580c;
+    }
+
+    h2 {
+      color: #7c2d12;
+    }
+  }
+}
+
+/* POZADIE IKONY V KARTÁCH */
+.icon-bg {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px; // Trošku modernejší tvar ako čistý kruh
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+/* --- NOVÁ ROZKLIKÁVACIA KARTA --- */
+.inventory-expand-card {
+  margin: 0 16px 16px 16px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+  background: white;
+  overflow: hidden;
+
+  .card-toggle-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+
+    &:active {
+      background: #f9f9f9;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ion-color-dark);
+      }
+
+      p {
+        margin: 2px 0 0 0;
+        font-size: 0.75rem;
+        color: #888;
+      }
+    }
+  }
+
+  .card-expand-content {
+    border-top: 1px solid #f5f5f5;
+    background: #fafafa;
+
+    ion-list {
+      padding: 0;
+      background: transparent;
+    }
+
+    ion-item {
+      --padding-start: 16px;
+      --inner-padding-end: 16px;
+      --min-height: 64px;
+      --background: transparent;
+    }
+  }
+}
+
+/* INDIKÁTORY V ZOZNAME INVENTÚR */
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  margin-right: 4px;
+
+  &.open {
+    background: #2dd36f;
+    box-shadow: 0 0 8px rgba(45, 211, 111, 0.4);
+  }
+}
+
+.count-box {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 1.1rem;
+    color: var(--ion-color-primary);
+    line-height: 1;
+  }
+
+  span {
+    font-size: 0.65rem;
+    color: #999;
+    font-weight: 500;
+  }
+}
+
+/* --- SPODNÝ ZOZNAM (DETAILE) --- */
+.internal-list-container {
+  background: white;
+  border-radius: 24px 24px 0 0;
+  margin-top: 8px;
+  padding: 8px 0 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f0f0f0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.list-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f2f2f2;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+}
+
+ion-list {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* POMOCNÉ TRIEDY */
+.pulse-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  z-index: 10;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 .fade-in {
@@ -139,6 +240,20 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.spinner-center,
+.empty-msg {
+  text-align: center;
+  padding: 30px;
+  color: #888;
 }

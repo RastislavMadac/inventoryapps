@@ -466,6 +466,8 @@ export class SupabaseService {
             'Balenie': item.produkt?.balenie_ks || 1,
             'Spočítané Množstvo': item.mnozstvo
         }));
+
+
     }
 
 
@@ -990,6 +992,48 @@ export class SupabaseService {
         }
     }
 
+    // V SupabaseService nahraď pôvodnú funkciu touto verziou
+    async getPocetSpocitanychGlobal(): Promise<number> {
+        // Pýtame sa priamo na počet všetkých riadkov v tabuľke inventura_polozky
+        const { count, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('*', { count: 'exact', head: true });
 
+        if (error) {
+            console.error('Chyba pri získavaní globálnych štatistík:', error);
+            return 0;
+        }
+        return count || 0;
+    }
 
+    async getStatsPreInventuru(inventuraId: number): Promise<number> {
+        const { count, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('*', { count: 'exact', head: true })
+            .eq('inventura_id', inventuraId);
+        return count || 0;
+    }
+    async getZoznamInventurSoStats() {
+        // Tento dotaz vytiahne inventúry a k nim počet riadkov z tabuľky inventura_polozky
+        const { data, error } = await this.supabase
+            .from('inventury')
+            .select(`
+      id, 
+      nazov, 
+      stav, 
+      datum_vytvorenia,
+      inventura_polozky(count)
+    `)
+            .order('datum_vytvorenia', { ascending: false });
+
+        if (error) throw error;
+
+        return data.map((inv: any) => ({
+            id: inv.id,
+            nazov: inv.nazov,
+            stav: inv.stav,
+            datum: inv.datum_vytvorenia,
+            pocet: inv.inventura_polozky[0]?.count || 0
+        }));
+    }
 }

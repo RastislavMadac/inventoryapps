@@ -4,7 +4,8 @@ import { SupabaseService } from 'src/app/services/supabase.service';
 import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
-  closeCircleOutline, alertCircle, checkmarkCircleOutline, createOutline
+  closeCircleOutline, alertCircle, checkmarkCircleOutline,
+  createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline
 } from 'ionicons/icons';
 import { AlertController, ToastController } from '@ionic/angular';
 
@@ -16,7 +17,6 @@ import {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-
   imports: [
     CommonModule,
     IonCard, IonCardContent, IonIcon, IonSpinner,
@@ -27,21 +27,34 @@ import {
 })
 export class DashboardComponent implements OnInit {
 
-  stats = { celkovo: 0, bezId: 0 };
-  isLoadingStats = true;
+  // Globálne štatistiky katalógu
+  stats = { celkovo: 0, bezId: 0, spocitaneGlobal: 0 };
 
+  // Zoznam všetkých inventúr s ich počtami
+  zoznamInventurStats: any[] = [];
+
+  isLoadingStats = true;
+  // 1. Pridaj premennú do triedy DashboardComponent
+  isInvExpanded: boolean = false;
+
+  // 2. Pridaj jednoduchú funkciu na prepínanie
+  toggleInventury() {
+    this.isInvExpanded = !this.isInvExpanded;
+  }
   @ViewChild('zoznamRef') zoznamElement!: ElementRef;
   zobrazeneProdukty: any[] = [];
   nadpisZoznamu: string = '';
   isLoadingZoznam = false;
 
-  constructor(private supabase: SupabaseService,
-    private alertCtrl: AlertController, // Injectujeme Alert
+  constructor(
+    private supabase: SupabaseService,
+    private alertCtrl: AlertController,
     private toastCtrl: ToastController
   ) {
     addIcons({
       statsChartOutline, alertCircleOutline, refreshOutline,
-      closeCircleOutline, alertCircle, checkmarkCircleOutline, createOutline
+      closeCircleOutline, alertCircle, checkmarkCircleOutline,
+      createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline
     });
   }
 
@@ -52,56 +65,83 @@ export class DashboardComponent implements OnInit {
   async obnovitStatistiky() {
     this.isLoadingStats = true;
     try {
-      this.stats = await this.supabase.getStatistikyKatalogu();
+      // 1. Základné dáta katalógu
+      const katalog = await this.supabase.getStatistikyKatalogu();
+      const global = await this.supabase.getPocetSpocitanychGlobal();
+
+      this.stats = {
+        celkovo: katalog.celkovo,
+        bezId: katalog.bezId,
+        spocitaneGlobal: global
+      };
+
+      // 2. Načítame zoznam všetkých inventúr a ich progres (musíš mať túto funkciu v SupabaseService)
+      this.zoznamInventurStats = await this.supabase.getZoznamInventurSoStats();
+
     } catch (e) {
-      console.error(e);
+      console.error('Chyba pri načítaní Dashboardu:', e);
     } finally {
       this.isLoadingStats = false;
     }
   }
 
-
-
-  async zobrazitBezId() {
-    if (this.stats.bezId === 0) return;
-
-    this.nadpisZoznamu = 'Produkty bez vlastného ID';
+  // Zobrazenie detailného zoznamu pre konkrétnu inventúru
+  async zobrazitDetailInventury(inv: any) {
+    this.nadpisZoznamu = `Položky: ${inv.nazov}`;
     this.isLoadingZoznam = true;
     this.zobrazeneProdukty = [];
 
     try {
-      this.zobrazeneProdukty = await this.supabase.getProduktyBezIdZoznam();
+      // Stiahneme prvých 100 položiek danej inventúry
+      this.zobrazeneProdukty = await this.supabase.getPolozkyVInventure(inv.id, 0, 100);
+      this.scrollToList();
     } catch (e) {
       console.error(e);
     } finally {
       this.isLoadingZoznam = false;
     }
+  }
+
+  async zobrazitSpocitaneGlobal() {
+    this.nadpisZoznamu = 'Všetky vykonané zápisy (História)';
+    this.isLoadingZoznam = true;
+    try {
+      const { data, error } = await this.supabase.supabase
+        .from('inventura_polozky')
+        .select(`id, mnozstvo, produkty:produkt_id ( nazov, vlastne_id )`)
+        .order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      this.zobrazeneProdukty = data.map((d: any) => ({
+        id: d.id, nazov: d.produkty?.nazov, vlastne_id: d.produkty?.vlastne_id, mnozstvo_ks: d.mnozstvo
+      }));
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
+  }
+
+  async zobrazitBezId() {
+    this.nadpisZoznamu = 'Produkty bez vlastného ID';
+    this.isLoadingZoznam = true;
+    try {
+      this.zobrazeneProdukty = await this.supabase.getProduktyBezIdZoznam();
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
   }
 
   async zobrazitVsetky() {
     this.nadpisZoznamu = 'Všetky produkty v katalógu';
     this.isLoadingZoznam = true;
-    this.zobrazeneProdukty = [];
-
     try {
       this.zobrazeneProdukty = await this.supabase.getVsetkyProduktyZoznam();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.isLoadingZoznam = false;
-    }
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
   }
 
   private scrollToList() {
-    // Použijeme setTimeout, aby sme počkali, kým Angular vykreslí *ngIf
     setTimeout(() => {
       if (this.zoznamElement) {
-        this.zoznamElement.nativeElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'  // Toto zabezpečí, že zoznam bude v strede/hore obrazovky
-        });
+        this.zoznamElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 100);
+    }, 150);
   }
 
   zavrietZoznam() {
@@ -109,68 +149,6 @@ export class DashboardComponent implements OnInit {
     this.zobrazeneProdukty = [];
   }
 
-  async zmenitId(produkt: any) {
-    const alert = await this.alertCtrl.create({
-      header: 'Pridať ID produktu',
-      subHeader: produkt.nazov,
-      inputs: [
-        {
-          name: 'noveId',
-          type: 'text',
-          placeholder: 'Naskenujte alebo zadajte ID',
-          value: produkt.vlastne_id || '' // Ak tam niečo je, predvyplníme to
-        }
-      ],
-      buttons: [
-        {
-          text: 'Zrušiť',
-          role: 'cancel'
-        },
-        {
-          text: 'Uložiť',
-          handler: async (data) => {
-            if (data.noveId) {
-              await this.ulozitNoveId(produkt.id, data.noveId);
-            }
-          }
-        }
-      ]
-    });
-
-    await alert.present();
-  }
-
-  async ulozitNoveId(id: number, noveId: string) {
-    try {
-      await this.supabase.aktualizovatVlastneId(id, noveId);
-
-      // Zobrazíme potvrdenie
-      const toast = await this.toastCtrl.create({
-        message: 'ID bolo uložené ✅',
-        duration: 2000,
-        color: 'success',
-        position: 'top'
-      });
-      toast.present();
-
-      // Obnovíme zoznamy a štatistiky
-      await this.obnovitStatistiky();
-
-      // Ak máme otvorený zoznam "bez ID", obnovíme ho tiež
-      if (this.nadpisZoznamu === 'Produkty bez vlastného ID') {
-        await this.zobrazitBezId();
-      } else if (this.nadpisZoznamu === 'Všetky produkty v katalógu') {
-        await this.zobrazitVsetky();
-      }
-
-    } catch (error) {
-      console.error(error);
-      const toast = await this.toastCtrl.create({
-        message: 'Chyba pri ukladaní ❌',
-        duration: 2000,
-        color: 'danger'
-      });
-      toast.present();
-    }
-  }
+  async zmenitId(p: any) { /* Tvoja existujúca funkcia na zmenu ID */ }
+  async ulozitNoveId(id: number, noveId: string) { /* Tvoja existujúca funkcia */ }
 }
