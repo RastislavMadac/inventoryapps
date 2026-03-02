@@ -905,7 +905,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       message: sprava,
       duration: 2500, // Mierne predĺžime čas pre lepšie prečítanie (z 2000 na 2500)
       color: farba,
-      position: 'bottom', // Zmena z 'top' na 'bottom' je pre mobily oveľa bezpečnejšia
+      position: 'top', // Zmena z 'top' na 'bottom' je pre mobily oveľa bezpečnejšia
       mode: 'ios',
       // cssClass: 'top-toast' // DOČASNE ZAKOMENTOVANÉ: Tvoja CSS trieda mohla robiť problémy na mobile
     });
