@@ -1,8 +1,9 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, ModalController } from '@ionic/angular';
+import { IonicModule, ModalController, AlertController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { cubeOutline, eyeOutline, eyeOffOutline } from 'ionicons/icons';
+// >>> UPRAVENÉ: Pridaná ikona createOutline <<<
+import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-calculator-modal',
@@ -16,7 +17,7 @@ export class CalculatorModalComponent implements OnInit {
   @Input() nazovProduktu: string = '';
   @Input() aktualnyStav: number = 0;
   @Input() balenie: number = 1;
-
+  povodnneBalenie: number = 1;
   // Dve premenné pre zobrazenie
   fullFormula: string = '';   // "10 + 5" (Skryté/Detail)
   mainDisplay: string = '0';  // "5" (Hlavné)
@@ -26,16 +27,51 @@ export class CalculatorModalComponent implements OnInit {
 
   private lastClickTime: number = 0;
 
-  constructor(private modalController: ModalController) {
-    addIcons({ cubeOutline, eyeOutline, eyeOffOutline });
+  constructor(private modalController: ModalController, private alertCtrl: AlertController) {
+    addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
   }
-
   ngOnInit() {
-    // Inicializácia
-    this.mainDisplay = this.aktualnyStav.toString();
-    this.fullFormula = this.aktualnyStav.toString();
-  }
+    this.balenie = this.balenie || 1;
+    this.povodnneBalenie = this.balenie; // Zapamätáme si úvodnú hodnotu
 
+    const pociatocnyStav = this.aktualnyStav || 0;
+    this.mainDisplay = pociatocnyStav.toString();
+    this.fullFormula = pociatocnyStav.toString();
+  }
+  // >>> PRIDANÁ METÓDA: Rýchla zmena balenia <<<
+  async zmenitVelkostBalenia() {
+    const alert = await this.alertCtrl.create({
+      header: 'Veľkosť balenia',
+      message: 'Zadajte, koľko kusov je v jednom balení:',
+      inputs: [
+        {
+          name: 'noveBalenie',
+          type: 'number',
+          value: this.balenie > 1 ? this.balenie : '',
+          placeholder: 'Napr. 12',
+          min: 1
+        }
+      ],
+      buttons: [
+        { text: 'Zrušiť', role: 'cancel' },
+        {
+          text: 'Uložiť',
+          handler: (data) => {
+            // Nahradíme čiarku za bodku (aby fungovalo "0,5" aj "0.5")
+            const textHodnota = data.noveBalenie.replace(',', '.');
+            // Použijeme parseFloat pre podporu desatinných čísel
+            const cislo = parseFloat(textHodnota);
+
+            // Prijímame všetko väčšie ako 0 (teda aj 0.5, 0.1 atď.)
+            if (!isNaN(cislo) && cislo > 0) {
+              this.balenie = cislo;
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
 
   stlacene(hodnota: string) {
     // Debounce (proti dvojkliku)
@@ -153,18 +189,23 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   potvrdit() {
-    // Pre istotu prepočítame všetko
     const res = this.evaluateString(this.fullFormula);
 
+    let vysledok = 0;
     if (res !== null && !isNaN(res)) {
-      this.modalController.dismiss({ novyStav: res }, 'confirm');
+      vysledok = res;
     } else {
-      // Ak je tam chyba alebo len číslo v mainDisplay
       const simpleVal = parseFloat(this.mainDisplay);
-      if (!isNaN(simpleVal)) {
-        this.modalController.dismiss({ novyStav: simpleVal }, 'confirm');
-      }
+      if (!isNaN(simpleVal)) vysledok = simpleVal;
     }
+
+    // Ak sa balenie zmenilo oproti databáze, pošleme ho rodičovi na uloženie
+    const noveBaleniePreDb = this.balenie !== this.povodnneBalenie ? this.balenie : null;
+
+    this.modalController.dismiss({
+      novyStav: vysledok,
+      noveBalenie: noveBaleniePreDb // Odošleme zmenu
+    }, 'confirm');
   }
 
   zrusit() {

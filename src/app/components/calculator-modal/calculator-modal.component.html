@@ -17,11 +17,22 @@
         </div>
       </div>
 
-      <div class="balenie-btn-container" >
-        <ion-button expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()">
+      <div class="balenie-btn-container" style="display: flex; gap: 8px;">
+        
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()" style="flex: 1;">
           <ion-icon name="cube-outline" slot="start"></ion-icon>
           <strong>Balenie (x{{ balenie }})</strong>
         </ion-button>
+
+        <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()" style="flex: 1;">
+          <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+          Pridať balenie
+        </ion-button>
+
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()">
+          <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+        </ion-button>
+        
       </div>
     </div> 
     <div class="keypad-section">

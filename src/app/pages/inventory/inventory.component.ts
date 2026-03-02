@@ -836,10 +836,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    // 3. 🔥 ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA 🔥
-    // (Math.round(X * 100) / 100) je štandardný trik pre peniaze a váhu
+    // 3. ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA
     const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
-
 
     let cielovyRegalId = zasoba.regal_id || this.vybranyRegalId;
     const cielovyProduktId = zasoba.produkt_id;
@@ -852,12 +850,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}`);
 
     try {
-
-
+      // Získame jednotku pre krajší výpis (ak nie je, použijeme 'ks')
+      const jednotka = zasoba.jednotka || 'ks';
 
       if (zasoba.id === 0) {
         await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
-        this.zobrazToast(`Vytvorené: ${novyStav} ks`, 'success');
+        // >>> UPRAVENÉ: Dynamická notifikácia pre nový záznam <<<
+        this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
+
         if (this.aktivnaInventura) {
           await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
         }
@@ -865,24 +865,21 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         if (this.aktivnaInventura) {
           if (novyStav > 0) {
             await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
-            this.zobrazToast(`Zapísané: ${novyStav} ks`, 'primary');
+            // >>> UPRAVENÉ: Dynamická notifikácia pre inventúru <<<
+            this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success'); // Zmenil som farbu na success pre lepšiu viditeľnosť
           } else {
             await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
-            this.zobrazToast('Vymazané', 'medium');
+            // >>> UPRAVENÉ: Dynamická notifikácia pre vymazanie <<<
+            this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
           }
         } else {
           await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
-          this.zobrazToast(`Aktualizované: ${novyStav} ks`, 'success');
+          // >>> UPRAVENÉ: Dynamická notifikácia pre bežný update <<<
+          this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
         }
       }
 
-
-
-
       await this.obnovitZoznamPodlaRezimu();
-
-
-
 
       const najdenaPolozka = this.filtrovaneZasoby.find(z =>
         z.produkt_id === cielovyProduktId &&
@@ -890,26 +887,16 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       );
 
       if (najdenaPolozka) {
-        console.log('📍 Položka nájdená v zozname, Nové ID:', najdenaPolozka.id);
-
-
         this.idPolozkyPreScroll = najdenaPolozka.id;
-
-
         this.cdr.detectChanges();
-
-
         setTimeout(() => {
           this.skrolovatNaZapamatanuPolozku();
         }, 150);
-
-      } else {
-        console.warn('⚠️ Položka sa v novom zozname nenašla (filtre?).');
       }
 
     } catch (error: any) {
       console.error('❌ Chyba pri zápise:', error);
-      alert('CHYBA: ' + error.message);
+      this.zobrazToast('Chyba pri ukladaní: ' + error.message, 'danger');
     }
   }
 
