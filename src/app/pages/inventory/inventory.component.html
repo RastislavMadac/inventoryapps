@@ -273,5 +273,14 @@
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
   </ion-fab>
-
+<ion-toast
+  [isOpen]="toastState.isOpen"
+  [message]="toastState.message"
+  [color]="toastState.color"
+  [duration]="3000"
+  position="middle"
+  mode="ios"
+  class="force-toast-visible"
+  (didDismiss)="toastState.isOpen = false">
+</ion-toast>
 </ion-content>

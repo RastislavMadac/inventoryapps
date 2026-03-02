@@ -17,6 +17,7 @@ import {
   IonInfiniteScrollContent,
   // >>> PRIDANÉ: Komponenty pre Drag & Drop <<<
   IonReorderGroup, IonReorder
+  , IonToast
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -56,7 +57,7 @@ import { Subscription } from 'rxjs';
     IonItem,
     IonReorderGroup,
     IonReorder,
-    IonToggle
+    IonToggle, IonToast
   ],
   providers: [
     ModalController,
@@ -93,7 +94,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   vybranySkladId: number | null = null;
   vybranyRegalId: number | null = null;
   isLoading = false;
-
+  toastState = {
+    isOpen: false,    // Premenované z isToastOpen na isOpen
+    message: '',      // Premenované z toastMessage na message
+    color: 'success'  // Premenované z toastColor na color
+  };
   searchQuery: string = '';
   filterKategoria: string = 'vsetky';
 
@@ -899,23 +904,23 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
 
-  async zobrazToast(sprava: string, farba: string) {
-    const toast = await this.toastController.create({
-      message: sprava,
-      duration: 3000,
-      color: farba,
-      position: 'middle', // Stred je najistejší proti klávesnici
-      cssClass: 'force-toast-visible', // Naša špeciálna trieda
-      mode: 'ios',
-      buttons: [
-        {
-          text: 'OK',
-          role: 'cancel'
-        }
-      ]
-    });
-    await toast.present();
+  zobrazToast(sprava: string, farba: string) {
+    console.log('🔔 Spúšťam toast cez šablónu:', sprava);
+
+    // Resetujeme stav (ak by bol náhodou otvorený iný)
+    this.toastState.isOpen = false;
+
+    // Malý timeout zabezpečí, že Angular si všimne zmenu a toast sa "preblikne"
+    setTimeout(() => {
+      this.toastState.message = sprava;
+      this.toastState.color = farba;
+      this.toastState.isOpen = true;
+
+      // Vynútime prekreslenie pre istotu
+      this.cdr.detectChanges();
+    }, 100);
   }
+
   prihlasitOdberZmien() {
     if (this.realtimeSubscription) {
       this.realtimeSubscription.unsubscribe();
