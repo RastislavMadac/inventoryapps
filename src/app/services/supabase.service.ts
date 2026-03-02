@@ -335,10 +335,11 @@ export class SupabaseService {
 
         return zoznam;
     }
-    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
+    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number, balenie: number) {
         const user = await this.getCurrentUserDetails();
 
-        const { error } = await this.supabase
+        // 1. KROK: Zapíšeme množstvo do inventúry (tu balenie_ks neuvádzame, lebo tam nie je)
+        const { error: invError } = await this.supabase
             .from('inventura_polozky')
             .upsert({
                 inventura_id: inventuraId,
@@ -350,7 +351,16 @@ export class SupabaseService {
                 created_at: new Date().toISOString()
             }, { onConflict: 'inventura_id, produkt_id, regal_id' });
 
-        if (error) throw error;
+        if (invError) throw invError;
+
+        // 2. KROK: Aktualizujeme balenie priamo v tabuľke PRODUKTY
+        const { error: prodError } = await this.supabase
+            .from('produkty')
+            .update({ balenie_ks: balenie }) // Tu stĺpec balenie_ks máš
+            .eq('id', produktId);
+
+        if (prodError) throw prodError;
+
         return true;
     }
 

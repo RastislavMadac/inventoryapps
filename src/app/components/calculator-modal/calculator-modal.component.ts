@@ -205,7 +205,7 @@ export class CalculatorModalComponent implements OnInit {
 
     this.modalController.dismiss({
       novyStav: vysledok,
-      noveBalenie: noveBaleniePreDb // Odošleme zmenu
+      balenie: this.balenie
     }, 'confirm');
   }
 

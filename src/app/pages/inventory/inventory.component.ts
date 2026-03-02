@@ -817,13 +817,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     // 🔴 ZMENA 1: Zmenené z onWillDismiss na onDidDismiss
     const { data, role } = await modal.onDidDismiss();
 
-    if (role === 'confirm') {
-
-      // // 🔴 ZMENA 2: Umelá pauza na zasunutie mobilnej klávesnice
-      // await new Promise(resolve => setTimeout(resolve, 400));
-
+    if (role === 'confirm' && data) {
       const novyStav = data.novyStav;
-      await this.ulozitZmenu(zasoba, novyStav);
+      const balenieZModalu = data.balenie; // <<< PRIDAJ TENTO RIADOK
+
+      // A sem pridaj treti parameter:
+      await this.ulozitZmenu(zasoba, novyStav, balenieZModalu);
 
       this.cdr.detectChanges();
 
@@ -831,7 +830,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.idPolozkyPreScroll = null;
     }
   }
-  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number) {
+  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number) {
     // 1. Prevedieme vstup na číslo
     let suroveCislo = Number(novyStavInput);
 
@@ -852,38 +851,54 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}`);
+    // >>> KĽÚČOVÝ BOD: Príprava balenia pre zápis <<<
+    const finalBalenie = balenie ?? zasoba.balenie_ks ?? 1;
+
+    console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}, Balenie: ${finalBalenie}`);
 
     try {
-      // Získame jednotku pre krajší výpis (ak nie je, použijeme 'ks')
       const jednotka = zasoba.jednotka || 'ks';
 
       if (zasoba.id === 0) {
+        // A) Nová zásoba na regáli
         await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
-        // >>> UPRAVENÉ: Dynamická notifikácia pre nový záznam <<<
-        this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
 
         if (this.aktivnaInventura) {
-          await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
+          // Voláme servis s 5 argumentmi
+          await this.supabaseService.zapisatDoInventury(
+            this.aktivnaInventura.id,
+            zasoba.produkt_id,
+            cielovyRegalId,
+            novyStav,
+            finalBalenie
+          );
         }
+        this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
       } else {
+        // B) Existujúca zásoba
         if (this.aktivnaInventura) {
           if (novyStav > 0) {
-            await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
-            // >>> UPRAVENÉ: Dynamická notifikácia pre inventúru <<<
-            this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success'); // Zmenil som farbu na success pre lepšiu viditeľnosť
+            // Voláme servis s 5 argumentmi
+            await this.supabaseService.zapisatDoInventury(
+              this.aktivnaInventura.id,
+              zasoba.produkt_id,
+              cielovyRegalId,
+              novyStav,
+              finalBalenie
+            );
+            this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success');
           } else {
             await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
-            // >>> UPRAVENÉ: Dynamická notifikácia pre vymazanie <<<
             this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
           }
         } else {
+          // Bežná aktualizácia skladu (mimo inventúry)
           await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
-          // >>> UPRAVENÉ: Dynamická notifikácia pre bežný update <<<
           this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
         }
       }
 
+      // Obnova zoznamu a scroll späť na položku
       await this.obnovitZoznamPodlaRezimu();
 
       const najdenaPolozka = this.filtrovaneZasoby.find(z =>
@@ -949,6 +964,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         zasoba.mnozstvo_ks = 0;
       } else {
         zasoba.mnozstvo_ks = novyZaznam.mnozstvo;
+        (zasoba as any).spocitane_mnozstvo = novyZaznam.mnozstvo; // Pridané
         zasoba.v_inventure = true;
       }
     } else if (typUdalosti === 'INSERT') {
@@ -1341,28 +1357,38 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     await alert.present();
   }
 
-  // >>> NOVÁ METÓDA: Rieši "zaseknutý spinner" a bezpečne updatuje UI <<<
   async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
     this.isLoading = true;
     this.cdr.detectChanges();
 
     try {
-      // 🔥 OPRAVA: Vetvenie logiky na 'Presun' vs 'Nové priradenie'
+      // 1. ZADEFINUJEME PREMENNÚ 'balenie', ktorú vytiahneme zo zásoby (aby zmizla chyba)
+      const balenie = zasoba.balenie_ks || 1;
+
+      // 2. Logika pre samotný presun v sklade
       if (zasoba.id > 0) {
-        // Existujúca zásoba -> Aktualizujeme regál (Presun)
         await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
         this.zobrazToast('Položka úspešne presunutá.', 'success');
       } else {
-        // Katalógová položka -> Vytvoríme nový záznam na regáli s 0 ks
         await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
         this.zobrazToast('Produkt bol úspešne priradený na regál.', 'success');
       }
 
-      // Presun v inventúre (ak nejaká beží)
+      // 3. Presun v inventúre (ak nejaká beží)
       if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
         const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
+
+        // Najprv zmažeme starý záznam
         await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
-        await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, novyRegalId, spocitane);
+
+        // A TU VOLÁME SERVIS S 5 ARGUMENTMI (použijeme tú premennú 'balenie' z bodu 1)
+        await this.supabaseService.zapisatDoInventury(
+          this.aktivnaInventura.id,
+          zasoba.produkt_id,
+          novyRegalId,
+          spocitane,
+          balenie // <<< TERAZ UŽ BUDE FUNGOVAŤ, LEBO JE DEFINOVANÁ VYŠŠIE
+        );
       }
 
       await this.obnovitZoznamPodlaRezimu();
