@@ -3,7 +3,9 @@
   --background: #f4f5f8;
 }
 
-
+.super-toast {
+  z-index: 999999 !important;
+}
 
 /* --- Úprava prepínača v hlavičke --- */
 .custom-header-toggle {
