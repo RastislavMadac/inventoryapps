@@ -799,7 +799,6 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       cssClass: 'my-custom-modal',
       componentProps: {
         nazovProduktu: zasoba.nazov,
-        // aktualnyStav: zasoba.mnozstvo_ks,
         aktualnyStav: this.aktivnaInventura
           ? ((zasoba as any).spocitane_mnozstvo ?? 0)
           : zasoba.mnozstvo_ks,
@@ -808,20 +807,20 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     });
 
     await modal.present();
-    const { data, role } = await modal.onWillDismiss();
+
+    // 🔴 ZMENA 1: Zmenené z onWillDismiss na onDidDismiss
+    const { data, role } = await modal.onDidDismiss();
 
     if (role === 'confirm') {
+
+      // 🔴 ZMENA 2: Umelá pauza na zasunutie mobilnej klávesnice
+      await new Promise(resolve => setTimeout(resolve, 400));
+
       const novyStav = data.novyStav;
-
-
       await this.ulozitZmenu(zasoba, novyStav);
 
       this.cdr.detectChanges();
 
-
-      if (this.rezimZobrazenia === 'global') {
-
-      }
     } else {
       this.idPolozkyPreScroll = null;
     }
