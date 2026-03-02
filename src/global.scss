@@ -3,12 +3,15 @@
  */
 
 /* Fix pre farby inputov (aby boli viditeľné) */
-ion-input, ion-textarea {
+ion-input,
+ion-textarea {
   --color: #000000 !important;
   --placeholder-color: #666666 !important;
 }
 
-ion-item, ion-input, ion-label {
+ion-item,
+ion-input,
+ion-label {
   --color: #000000 !important;
   color: #000000 !important;
 }
@@ -17,7 +20,8 @@ ion-item {
   --background: transparent !important;
   --color: #000000 !important;
 }
- ion-content {
+
+ion-content {
   --padding-top: env(safe-area-inset-top);
   --padding-bottom: env(safe-area-inset-bottom);
   --padding-start: env(safe-area-inset-left);
@@ -48,11 +52,26 @@ ion-item {
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-/* @import '@ionic/angular/css/palettes/dark.system.css'; */ /* 👈 TOTO SOM ZAKOMENTOVAL */
+/* @import '@ionic/angular/css/palettes/dark.system.css'; */
+/* 👈 TOTO SOM ZAKOMENTOVAL */
+.force-toast-visible {
+  --z-index: 99999 !important;
+  z-index: 99999 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* Zabezpečí, aby bol toast viditeľný aj cez pozostatky modálu */
+  pointer-events: auto !important;
+}
+
+/* Oprava pre Ionic Overlays v mobilnom Chrome/Safari */
+.overlay-container {
+  z-index: 99999 !important;
+}
 
 .alert-danger-button {
-    color: var(--ion-color-danger) !important;
-    font-weight: bold;
+  color: var(--ion-color-danger) !important;
+  font-weight: bold;
 }
 
 /* Vynútenie svetlého režimu NATVRDO */
@@ -70,7 +89,9 @@ body {
 }
 
 /* Oprava inputov, aby boli viditeľné */
-ion-item, ion-input, ion-label {
+ion-item,
+ion-input,
+ion-label {
   --background: #ffffff !important;
   --color: #000000 !important;
   color: #000000 !important;
@@ -84,7 +105,8 @@ ion-input[type="password"] .native-input,
 input[type="password"] {
   --color: #000000 !important;
   color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important; /* Toto je kľúčové pre Android */
+  -webkit-text-fill-color: #000000 !important;
+  /* Toto je kľúčové pre Android */
   opacity: 1 !important;
 }
 
@@ -97,18 +119,19 @@ ion-input-password-toggle,
 
 /* Oprava, ak ti Android ponúka "Autofill" (žlté/modré pozadie) */
 input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active  {
-    -webkit-box-shadow: 0 0 0 30px white inset !important;
-    -webkit-text-fill-color: black !important;
-    transition: background-color 5000s ease-in-out 0s;
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: black !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 ion-toast {
   --z-index: 10000;
   margin-top: 50px; // Aby nebol úplne nalepený na vrchu pod status barom
 }
+
 .ion-page {
   /* Prepíšeme 'space-between' na 'flex-start' (všetko začína hore) */
   justify-content: flex-start !important;
