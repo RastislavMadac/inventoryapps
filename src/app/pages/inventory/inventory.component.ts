@@ -900,6 +900,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   async zobrazToast(sprava: string, farba: string) {
+    alert('DEBUG: ' + sprava);
     const toast = await this.toastController.create({
       message: sprava,
       duration: 2500, // Mierne predĺžime čas pre lepšie prečítanie (z 2000 na 2500)
