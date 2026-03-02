@@ -818,8 +818,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     if (role === 'confirm') {
 
-      // 🔴 ZMENA 2: Umelá pauza na zasunutie mobilnej klávesnice
-      await new Promise(resolve => setTimeout(resolve, 400));
+      // // 🔴 ZMENA 2: Umelá pauza na zasunutie mobilnej klávesnice
+      // await new Promise(resolve => setTimeout(resolve, 400));
 
       const novyStav = data.novyStav;
       await this.ulozitZmenu(zasoba, novyStav);
