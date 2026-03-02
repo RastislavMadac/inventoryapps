@@ -903,11 +903,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async zobrazToast(sprava: string, farba: string) {
     const toast = await this.toastController.create({
       message: sprava,
-      duration: 2000,
+      duration: 2500, // Mierne predĺžime čas pre lepšie prečítanie (z 2000 na 2500)
       color: farba,
-      position: 'top',
+      position: 'bottom', // Zmena z 'top' na 'bottom' je pre mobily oveľa bezpečnejšia
       mode: 'ios',
-      cssClass: 'top-toast'
+      // cssClass: 'top-toast' // DOČASNE ZAKOMENTOVANÉ: Tvoja CSS trieda mohla robiť problémy na mobile
     });
     await toast.present();
   }
