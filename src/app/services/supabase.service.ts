@@ -279,6 +279,20 @@ export class SupabaseService {
 
 
     async vytvoritInventuru(nazov: string) {
+        const { data: otvorena, error: otvorenaError } = await this.supabase
+            .from('inventury')
+            .select('id')
+            .eq('stav', 'otvorena')
+            .maybeSingle();
+    
+        if (otvorenaError) {
+            throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
+        }
+    
+        if (otvorena) {
+            throw new Error('Nemôžete vytvoriť novú inventúru, pretože iná inventúra je už otvorená.');
+        }
+        
         const { data, error } = await this.supabase
             .from('inventury')
             .insert({ nazov: nazov, stav: 'otvorena' })
@@ -411,6 +425,34 @@ export class SupabaseService {
             p_inventura_id: inventuraId
         });
         if (error) throw error;
+    }
+
+    async znovuOtvoritInventuru(inventuraId: number) {
+        // 1. Check if any other inventory is open
+        const { data: otvorena, error: otvorenaError } = await this.supabase
+            .from('inventury')
+            .select('id')
+            .eq('stav', 'otvorena')
+            .neq('id', inventuraId) // check for other inventories
+            .maybeSingle();
+    
+        if (otvorenaError) {
+            throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
+        }
+    
+        if (otvorena) {
+            throw new Error('Nemôžete otvoriť túto inventúru, pretože iná inventúra je už otvorená.');
+        }
+    
+        // 2. Re-open the selected inventory
+        const { error } = await this.supabase
+            .from('inventury')
+            .update({ stav: 'otvorena', datum_uzavretia: null })
+            .eq('id', inventuraId);
+    
+        if (error) {
+            throw error;
+        }
     }
 
     async zmazatInventuru(id: number) {

@@ -58,6 +58,13 @@
             Uzavrieť
           </ion-button>
           
+          <ion-button *ngIf="inv.datum_uzavretia"
+                      color="success" fill="outline" size="small"
+                      (click)="znovuOtvorit(inv)">
+            <ion-icon name="reload" slot="start"></ion-icon>
+            Otvoriť
+          </ion-button>
+
           <ion-button fill="clear" color="dark" (click)="otvoritMoznosti(inv)">
             <ion-icon name="ellipsis-vertical" slot="icon-only"></ion-icon>
           </ion-button>

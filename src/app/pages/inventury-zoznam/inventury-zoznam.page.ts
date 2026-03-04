@@ -14,7 +14,7 @@ import { addIcons } from 'ionicons';
 import {
   add, logOutOutline, checkmarkDoneOutline,
   ellipsisVertical, documentTextOutline, gridOutline,
-  trashOutline, closeOutline, warningOutline, closeCircle
+  trashOutline, closeOutline, warningOutline, closeCircle, reload
 } from 'ionicons/icons';
 import { DoplnitIdModalComponent } from 'src/app/components/doplnit-id-modal/doplnit-id-modal.component';
 import { ModalController } from '@ionic/angular';
@@ -57,7 +57,8 @@ export class InventuryZoznamPage implements OnInit {
       gridOutline,
       trashOutline,
       closeOutline,
-      closeCircle
+      closeCircle,
+      reload
     });
   }
 
@@ -97,8 +98,9 @@ export class InventuryZoznamPage implements OnInit {
       this.isLoading = true;
       await this.supabase.vytvoritInventuru(nazov);
       await this.nacitajZoznam();
-    } catch (e) {
+    } catch (e: any) {
       this.isLoading = false;
+      this.toast(e.message, 'danger');
     }
   }
 
@@ -114,11 +116,53 @@ export class InventuryZoznamPage implements OnInit {
   async vykonatUzavretie(id: number) {
     try {
       this.isLoading = true;
+      const user = await this.supabase.getCurrentUser();
+      if (!user) {
+        this.toast('Nepodarilo sa overiť prihlásenie. Skúste sa prosím prihlásiť znova.', 'danger');
+        this.navCtrl.navigateRoot('/login');
+        this.isLoading = false;
+        return;
+      }
       await this.supabase.uzavrietInventuru(id);
       await this.nacitajZoznam();
-    } catch (e) {
+    } catch (e: any) {
       this.isLoading = false;
+      this.toast(e.message, 'danger');
     }
+  }
+
+  async znovuOtvorit(inv: Inventura) {
+    const alert = await this.alertCtrl.create({
+      header: 'Znovu otvoriť inventúru?',
+      message: 'Naozaj chcete znovu otvoriť túto inventúru?',
+      buttons: [
+        'Zrušiť',
+        {
+          text: 'Áno, otvoriť',
+          handler: async () => {
+            try {
+              this.isLoading = true;
+              const user = await this.supabase.getCurrentUser();
+              if (!user) {
+                this.toast('Nepodarilo sa overiť prihlásenie. Skúste sa prosím prihlásiť znova.', 'danger');
+                this.navCtrl.navigateRoot('/login');
+                this.isLoading = false;
+                return;
+              }
+              await this.supabase.znovuOtvoritInventuru(inv.id);
+              await this.nacitajZoznam();
+              this.toast('Inventúra bola znovu otvorená.', 'success');
+            } catch (e: any) {
+              this.isLoading = false;
+              this.toast(e.message, 'danger');
+            } finally {
+              this.isLoading = false;
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
   }
 
   async zmazat(inv: Inventura) {
@@ -261,7 +305,7 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async toast(msg: string, color: string) {
-    const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'bottom' });
+    const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'top' });
     t.present();
   }
 
