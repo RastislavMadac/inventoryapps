@@ -28,7 +28,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -36,7 +36,7 @@ import { CalculatorModalComponent } from 'src/app/components/calculator-modal/ca
 import { NovyProduktModalComponent } from 'src/app/components/novy-produkt-modal/novy-produkt-modal.component';
 import { NovaLokaciaModalComponent } from 'src/app/components/nova-lokacia-modal/nova-lokacia-modal.component';
 import { Subscription } from 'rxjs';
-
+import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
 
 @Component({
   selector: 'app-inventory',
@@ -127,14 +127,15 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private modalController: ModalController,
     private cdr: ChangeDetectorRef,
     private modalCtrl: ModalController,
-    private renderer: Renderer2
+    private renderer: Renderer2,
+    public speechService: SpeechRecognitionService
   ) {
     // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
     addIcons({
       clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
       settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
       createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline, mic
     });
   }
 
@@ -1408,5 +1409,34 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.cdr.detectChanges();
     }
   }
+  // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
+  async vyhladatHlasom() {
+    try {
+      this.zobrazToast('Počúvam názov produktu...', 'tertiary');
 
+      // Voláme našu PWA službu (Web Speech API)
+      const hladanyNazov = await this.speechService.startListening();
+
+      if (!hladanyNazov) return;
+
+      const hladanyLower = this.odstranitDiakritiku(hladanyNazov).toLowerCase();
+
+      // Hľadáme zhodu v lokálnom poli načítaných zásob
+      const najdenyProdukt = this.zasoby.find(p => {
+        const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
+        return nazov.includes(hladanyLower) || (p.ean && p.ean.includes(hladanyLower));
+      });
+
+      if (najdenyProdukt) {
+        this.zobrazToast(`Našiel som: ${najdenyProdukt.nazov}`, 'success');
+        // Prechádzame na KROK 2 - Otvorenie kalkulačky (tvoja existujúca metóda)
+        await this.spustitKalkulacku(najdenyProdukt);
+      } else {
+        this.zobrazToast(`Produkt "${hladanyNazov}" nebol nájdený.`, 'warning');
+      }
+    } catch (error) {
+      console.warn('Hlasové vyhľadávanie bolo zrušené alebo zlyhalo.', error);
+      // Ak používateľ zamietol povolenie pre mikrofón v prehliadači, padne to sem
+    }
+  }
 }

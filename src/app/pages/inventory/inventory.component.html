@@ -355,6 +355,10 @@
     (touchend)="onDragEnd()"
     style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
 
+<ion-fab-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" color="tertiary">
+      <ion-icon name="mic"></ion-icon>
+    </ion-fab-button>
+
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
