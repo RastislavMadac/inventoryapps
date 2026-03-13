@@ -4,6 +4,7 @@ import { IonicModule, ModalController, AlertController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
+import { SupabaseService } from 'src/app/services/supabase.service';
 
 @Component({
   selector: 'app-calculator-modal',
@@ -14,6 +15,7 @@ import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/
 })
 export class CalculatorModalComponent implements OnInit {
 
+  @Input() produktId: number = 0;
   @Input() nazovProduktu: string = '';
   @Input() aktualnyStav: number = 0;
   @Input() balenie: number = 1;
@@ -28,7 +30,11 @@ export class CalculatorModalComponent implements OnInit {
 
   private lastClickTime: number = 0;
 
-  constructor(private modalController: ModalController, private alertCtrl: AlertController) {
+  constructor(
+    private modalController: ModalController, 
+    private alertCtrl: AlertController,
+    private supabaseService: SupabaseService
+  ) {
     addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
   }
   ngOnInit() {
@@ -57,15 +63,22 @@ export class CalculatorModalComponent implements OnInit {
         { text: 'Zrušiť', role: 'cancel' },
         {
           text: 'Uložiť',
-          handler: (data) => {
-            // Nahradíme čiarku za bodku (aby fungovalo "0,5" aj "0.5")
+          handler: async (data) => {
             const textHodnota = data.noveBalenie.replace(',', '.');
-            // Použijeme parseFloat pre podporu desatinných čísel
             const cislo = parseFloat(textHodnota);
 
-            // Prijímame všetko väčšie ako 0 (teda aj 0.5, 0.1 atď.)
             if (!isNaN(cislo) && cislo > 0) {
-              this.balenie = cislo;
+              try {
+                await this.supabaseService.updateProdukt(this.produktId, { balenie_ks: cislo });
+                this.balenie = cislo;
+              } catch (e: any) {
+                const errorAlert = await this.alertCtrl.create({
+                  header: 'Chyba',
+                  message: 'Nepodarilo sa uložiť zmenu balenia: ' + e.message,
+                  buttons: ['OK']
+                });
+                await errorAlert.present();
+              }
             }
           }
         }

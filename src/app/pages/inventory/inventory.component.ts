@@ -803,6 +803,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       component: CalculatorModalComponent,
       cssClass: 'my-custom-modal',
       componentProps: {
+        produktId: zasoba.produkt_id,
         nazovProduktu: zasoba.nazov,
         aktualnyStav: this.aktivnaInventura
           ? ((zasoba as any).spocitane_mnozstvo ?? 0)
@@ -895,6 +896,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           // Bežná aktualizácia skladu (mimo inventúry)
           await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
           this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
+
+          // >>> FIX: Aktualizácia balenia aj mimo inventúry <<<
+          if (balenie && balenie !== zasoba.balenie_ks) {
+            await this.supabaseService.updateProdukt(zasoba.produkt_id, { balenie_ks: balenie });
+            this.zobrazToast('Balenie produktu bolo aktualizované.', 'success');
+          }
         }
       }
 

@@ -46,10 +46,6 @@ src/app/app.component.scss
 src/app/app.component.spec.ts
 src/app/app.component.ts
 src/app/app.routes.ts
-src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.html
-src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.scss
-src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.spec.ts
-src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.ts
 src/app/components/calculator-modal/calculator-modal.component.html
 src/app/components/calculator-modal/calculator-modal.component.scss
 src/app/components/calculator-modal/calculator-modal.component.spec.ts
@@ -128,59 +124,6 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 });
-</file>
-
-<file path="src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.html">
-<p>
-  sparovat-modal.component works!
-</p>
-</file>
-
-<file path="src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.scss">
-
-</file>
-
-<file path="src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.spec.ts">
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-
-import { SparovatModalComponentComponent } from './sparovat-modal.component.component';
-
-describe('SparovatModalComponentComponent', () => {
-  let component: SparovatModalComponentComponent;
-  let fixture: ComponentFixture<SparovatModalComponentComponent>;
-
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [SparovatModalComponentComponent],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(SparovatModalComponentComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  }));
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-});
-</file>
-
-<file path="src/app/app/components/sparovat-modal.component/sparovat-modal.component.component.ts">
-import { Component, OnInit } from '@angular/core';
-
-@Component({
-  selector: 'app-sparovat-modal.component',
-  templateUrl: './sparovat-modal.component.component.html',
-  styleUrls: ['./sparovat-modal.component.component.scss'],
-  standalone: true,
-})
-export class SparovatModalComponentComponent  implements OnInit {
-
-  constructor() { }
-
-  ngOnInit() {}
-
-}
 </file>
 
 <file path="src/app/components/calculator-modal/calculator-modal.component.spec.ts">
@@ -1373,276 +1316,6 @@ export class LoginPage {
 }
 </file>
 
-<file path="src/app/services/export.service.ts">
-import { Injectable } from '@angular/core';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { fontRobotoRegular } from 'src/app/font';
-
-@Injectable({
-    providedIn: 'root'
-})
-export class ExportService {
-
-    constructor() { }
-
-    /**
-     * Pomocná funkcia: Pripraví a zoradí dáta
-     */
-    private pripravitData(data: any[]) {
-        const sId = data.filter(item => item['Product ID'] && String(item['Product ID']).trim() !== '');
-        const bezId = data.filter(item => !item['Product ID'] || String(item['Product ID']).trim() === '');
-
-        // 1. Zoradenie s ID (podľa ID)
-        sId.sort((a, b) => {
-            const idA = String(a['Product ID']).toLowerCase();
-            const idB = String(b['Product ID']).toLowerCase();
-            return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
-        });
-
-        // 2. Zoradenie bez ID (podľa Lokácie: Sklad -> Regál -> Produkt)
-        // Toto zabezpečí, že položky pôjdu za sebou tak, ako sú v regáloch
-        bezId.sort((a, b) => {
-            // A. Najprv podľa skladu
-            const skladA = String(a['Sklad'] || '').toLowerCase();
-            const skladB = String(b['Sklad'] || '').toLowerCase();
-            if (skladA !== skladB) return skladA.localeCompare(skladB);
-
-            // B. Potom podľa regálu (numericky, aby Regál 2 bol pred Regál 10)
-            const regalA = String(a['Regál'] || '').toLowerCase();
-            const regalB = String(b['Regál'] || '').toLowerCase();
-            const regalDiff = regalA.localeCompare(regalB, undefined, { numeric: true });
-            if (regalDiff !== 0) return regalDiff;
-
-            // C. Nakoniec podľa názvu produktu
-            return String(a['Produkt']).localeCompare(String(b['Produkt']));
-        });
-
-        return { sId, bezId };
-    }
-
-    // --- 1. EXCEL (KOMPLET - 2 Hárky) ---
-    public generovatExcelKomplet(data: any[], nazovInventury: string) {
-        const { sId, bezId } = this.pripravitData(data);
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-        const wb = XLSX.utils.book_new();
-
-        if (sId.length > 0) {
-            const ws1 = XLSX.utils.json_to_sheet(sId);
-            XLSX.utils.book_append_sheet(wb, ws1, 'S Product ID');
-        }
-        if (bezId.length > 0) {
-            const ws2 = XLSX.utils.json_to_sheet(bezId);
-            XLSX.utils.book_append_sheet(wb, ws2, 'Bez ID');
-        }
-
-        XLSX.writeFile(wb, `Inventura_${cleanNazov}_KOMPLET.xlsx`);
-    }
-
-    // --- 2. EXCEL (LEN S ID) ---
-    public generovatExcelSId(data: any[], nazovInventury: string) {
-        const { sId } = this.pripravitData(data);
-        if (sId.length === 0) return false;
-
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(sId);
-        XLSX.utils.book_append_sheet(wb, ws, 'S Product ID');
-
-        XLSX.writeFile(wb, `Inventura_${cleanNazov}_S_ID.xlsx`);
-        return true;
-    }
-
-    // --- 3. EXCEL (LEN BEZ ID) ---
-    public generovatExcelBezId(data: any[], nazovInventury: string) {
-        const { bezId } = this.pripravitData(data);
-        if (bezId.length === 0) return false;
-
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(bezId);
-        XLSX.utils.book_append_sheet(wb, ws, 'Bez ID');
-
-        XLSX.writeFile(wb, `Inventura_${cleanNazov}_BEZ_ID.xlsx`);
-        return true;
-    }
-
-    // --- PDF FUNKCIE (Ostávajú rovnaké) ---
-    public generovatPdfSId(data: any[], nazovInventury: string) {
-        const { sId } = this.pripravitData(data);
-        if (sId.length === 0) return false;
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        this.createPdfFile(sId, nazovInventury, 'Položky s ID', `Inventura_${cleanNazov}_S_ID.pdf`);
-        return true;
-    }
-
-    public generovatPdfBezId(data: any[], nazovInventury: string) {
-        const { bezId } = this.pripravitData(data);
-        if (bezId.length === 0) return false;
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        this.createPdfFile(bezId, nazovInventury, 'Položky bez ID', `Inventura_${cleanNazov}_BEZ_ID.pdf`);
-        return true;
-    }
-
-    private createPdfFile(data: any[], nazovInventury: string, podnadpis: string, nazovSuboru: string) {
-        const doc = new jsPDF();
-        doc.addFileToVFS('Roboto-Regular.ttf', fontRobotoRegular);
-        doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-        doc.setFont('Roboto');
-
-        doc.setFontSize(18);
-        doc.text(`Inventúra: ${nazovInventury}`, 14, 20);
-        doc.setFontSize(14);
-        doc.text(podnadpis, 14, 30);
-
-        const bodyData = data.map((item: any) => [
-            item['Product ID'] || '-',
-            item['Produkt'],
-            String(item['Spočítané Množstvo']) + ' ' + (item['Jednotka'] || ''),
-            `${item['Sklad']} / ${item['Regál']}`
-        ]);
-
-        autoTable(doc, {
-            head: [['ID', 'Produkt', 'Množstvo', 'Lokácia']],
-            body: bodyData,
-            startY: 40,
-            styles: { font: 'Roboto', fontStyle: 'normal' },
-            headStyles: { fillColor: [41, 128, 185] }
-        });
-
-        doc.save(nazovSuboru);
-    }
-
-    public generovatPdfDvaStlpce(data: any[], nazovInventury: string) {
-        const { sId, bezId } = this.pripravitData(data); // Toto už dáta zoradí
-
-        if (sId.length === 0 && bezId.length === 0) return false;
-
-        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const doc = new jsPDF();
-
-        // Registrácia fontu
-        doc.addFileToVFS('Roboto-Regular.ttf', fontRobotoRegular);
-        doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-        doc.setFont('Roboto');
-
-        // 1. ČASŤ: POLOŽKY S ID
-        if (sId.length > 0) {
-            this.vygenerovatTabulku(doc, sId, `Inventúra: ${nazovInventury} (S ID Kódmi)`, true);
-        }
-
-        // 2. ČASŤ: POLOŽKY BEZ ID (Na novej strane)
-        if (bezId.length > 0) {
-            if (sId.length > 0) {
-                doc.addPage(); // Pridá novú stranu, ak sme už tlačili IDčkové
-            }
-            this.vygenerovatTabulku(doc, bezId, `Inventúra: ${nazovInventury} (Bez ID)`, false);
-        }
-
-        doc.save(`Inventura_${cleanNazov}_2col.pdf`);
-        return true;
-    }
-
-    // Pomocná metóda na vykreslenie tabuľky
-    private vygenerovatTabulku(doc: jsPDF, dataList: any[], nadpis: string, maId: boolean) {
-        // 1. Nadpis sekcie
-        doc.setFontSize(16);
-        doc.text(nadpis, 14, 15);
-        doc.setFontSize(10);
-        doc.text(`Dátum tlače: ${new Date().toLocaleDateString()}`, 14, 22);
-
-        // 2. Transformácia dát na 2 bloky po 4 stĺpcoch (Por., ID, Názov, Mn.)
-        const rows = [];
-        for (let i = 0; i < dataList.length; i += 2) {
-            const item1 = dataList[i];
-            const item2 = dataList[i + 1];
-
-            // Ľavá strana (Index je i + 1)
-            const rowData = [
-                (i + 1).toString(), // Poradie
-                item1['Product ID'] || (maId ? '-' : ''),
-                item1['Produkt'],
-                `${item1['Spočítané Množstvo']} ${item1['Jednotka'] || ''}`
-            ];
-
-            // Pravá strana (Index je i + 2)
-            if (item2) {
-                rowData.push(
-                    (i + 2).toString(), // Poradie
-                    item2['Product ID'] || (maId ? '-' : ''),
-                    item2['Produkt'],
-                    `${item2['Spočítané Množstvo']} ${item2['Jednotka'] || ''}`
-                );
-            } else {
-                // Ak chýba pravá položka, doplníme prázdne bunky (4 stĺpce)
-                rowData.push('', '', '', '');
-            }
-            rows.push(rowData);
-        }
-
-        // 3. Definícia hlavičky (8 stĺpcov)
-        // Používame 'as const' pre TypeScript
-        const styleLeft = { halign: 'left' as const, fontStyle: 'bold' as const };
-        const styleRight = { halign: 'right' as const, fontStyle: 'bold' as const };
-        const styleCenter = { halign: 'center' as const, fontStyle: 'bold' as const };
-
-        const hlava = [
-            { content: 'Por.', styles: styleCenter },
-            { content: 'ID', styles: styleLeft },
-            { content: 'Názov produktu', styles: styleLeft },
-            { content: 'Mn.', styles: styleRight },
-            // Stredová čiara
-            { content: 'Por.', styles: styleCenter },
-            { content: 'ID', styles: styleLeft },
-            { content: 'Názov produktu', styles: styleLeft },
-            { content: 'Mn.', styles: styleRight },
-        ];
-
-        // 4. Generovanie tabuľky
-        autoTable(doc, {
-            head: [hlava],
-            body: rows,
-            startY: 25,
-            theme: 'grid', // Mriežka pomôže zarovnaniu
-            styles: {
-                font: 'Roboto',
-                fontSize: 8, // Trochu menšie písmo, aby sa zmestilo 8 stĺpcov
-                cellPadding: 2,
-                overflow: 'ellipsize',
-                valign: 'middle',
-                lineWidth: 0.1,
-                lineColor: [200, 200, 200]
-            },
-            headStyles: {
-                fillColor: maId ? [41, 128, 185] : [192, 57, 43], // Modrá / Červená
-                textColor: 255,
-                lineWidth: 0.1,
-                lineColor: [50, 50, 50]
-            },
-            // Nastavenie šírok stĺpcov (spolu cca 180-190mm na A4)
-            columnStyles: {
-                // ĽAVÁ STRANA
-                0: { cellWidth: 10, halign: 'center' }, // Por.
-                1: { cellWidth: 22, fontStyle: 'bold' }, // ID
-                2: { cellWidth: 'auto' }, // Názov (zvyšok)
-                3: { cellWidth: 15, halign: 'right' }, // Mn.
-
-                // PRAVÁ STRANA (Identické)
-                4: { cellWidth: 10, halign: 'center' }, // Por.
-                5: { cellWidth: 22, fontStyle: 'bold' }, // ID
-                6: { cellWidth: 'auto' }, // Názov
-                7: { cellWidth: 15, halign: 'right' }  // Mn.
-            },
-
-
-
-        });
-    }
-}
-</file>
-
 <file path="src/app/app.component.scss">
 .app-version {
   position: fixed;
@@ -1662,495 +1335,6 @@ export class ExportService {
 
  
 }
-</file>
-
-<file path="src/app/components/dashboard/dashboard.component.html">
-<div class="dashboard-container">
-  
-  <ion-card class="stat-card blue" button (click)="zobrazitVsetky()">
-    <ion-card-content>
-      <div class="icon-bg">
-        <ion-icon name="stats-chart-outline"></ion-icon>
-      </div>
-      <div class="stat-info">
-        <h2 *ngIf="!isLoadingStats">{{ stats.celkovo }}</h2>
-        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
-        <p>Všetky položky</p>
-      </div>
-    </ion-card-content>
-  </ion-card>
-
-  <ion-card class="stat-card orange" button (click)="zobrazitBezId()">
-    <div class="pulse-indicator" *ngIf="stats.bezId > 0"></div>
-    <ion-card-content>
-      <div class="icon-bg warning">
-        <ion-icon name="alert-circle-outline"></ion-icon>
-      </div>
-      <div class="stat-info">
-        <h2 *ngIf="!isLoadingStats">{{ stats.bezId }}</h2>
-        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
-        <p>Bez vlastného ID</p>
-      </div>
-    </ion-card-content>
-  </ion-card>
-
-</div>
-
-<div #zoznamRef *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
-  
-  <div class="list-header">
-    <h3>{{ nadpisZoznamu }}</h3>
-    <ion-button fill="clear" size="small" color="medium" (click)="zavrietZoznam()">
-      <ion-icon slot="icon-only" name="close-circle-outline"></ion-icon>
-    </ion-button>
-  </div>
-
-  <div *ngIf="isLoadingZoznam" class="spinner-center">
-    <ion-spinner name="crescent"></ion-spinner>
-  </div>
-
-  <ion-list *ngIf="!isLoadingZoznam" lines="full">
-    
-    <ion-item *ngFor="let p of zobrazeneProdukty">
-      <ion-label>
-        <h2>{{ p.nazov }}</h2>
-        <p>Kat: {{ p.kategoria || '-' }}</p>
-      </ion-label>
-      
-      <ion-badge color="warning" *ngIf="!p.vlastne_id" style="margin-right: 10px;">Chýba ID</ion-badge>
-      <ion-badge color="medium" *ngIf="p.vlastne_id" style="margin-right: 10px;">{{ p.vlastne_id }}</ion-badge>
-
-      <ion-button fill="clear" slot="end" (click)="zmenitId(p)">
-        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
-      </ion-button>
-
-    </ion-item>
-
-    <div *ngIf="zobrazeneProdukty.length === 0" class="empty-msg">
-      Žiadne položky.
-    </div>
-  </ion-list>
-
-</div>
-</file>
-
-<file path="src/app/components/dashboard/dashboard.component.scss">
-.dashboard-container {
-    display: flex;
-    gap: 10px;
-    padding: 10px 16px;
-    justify-content: space-between;
-  }
-  
-  .stat-card {
-    margin: 0;
-    flex: 1;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    position: relative;
-    overflow: visible;
-  
-    ion-card-content {
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 10px;
-    }
-  
-    /* Modrá karta */
-    &.blue {
-      background: #f0f9ff;
-      .icon-bg { background: #bae6fd; color: #0284c7; }
-      h2 { color: #0c4a6e; }
-    }
-  
-    /* Oranžová karta */
-    &.orange {
-      background: #fff7ed;
-      .icon-bg { background: #fed7aa; color: #ea580c; }
-      h2 { color: #7c2d12; }
-    }
-  
-    h2 {
-      font-size: 1.8rem;
-      font-weight: 800;
-      margin: 0;
-      line-height: 1;
-    }
-  
-    p {
-      margin: 0;
-      font-size: 0.8rem;
-      font-weight: 600;
-      opacity: 0.7;
-      color: var(--ion-color-dark);
-    }
-  }
-  
-  .icon-bg {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-  }
-  
-  /* Pulzujúca bodka ak sú chyby */
-  .pulse-indicator {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 8px;
-    height: 8px;
-    background-color: #ef4444;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-  }
-  
-  .internal-list-container {
-    background: white;
-    border-radius: 16px 16px 0 0; /* Zaoblenie len hore, dole nech je to rovné */
-    margin-top: 20px;
-    padding: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f0f0f0;
-    
-    /* 🔥 KĽÚČOVÉ ZMENY PRE ROZTIAHNUTIE: */
-    flex: 1;           /* Zaberie všetok zvyšný priestor až po spodok */
-    min-height: 0;     /* Nutné pre správne fungovanie scrollu vo flexboxe */
-    max-height: none;  /* Zrušíme staré obmedzenie 400px */
-    margin-bottom: 0;  /* Žiadna medzera dole */
-    
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Zvyšok ostáva rovnaký, aby fungoval scroll vnútri zoznamu */
-  ion-list {
-    overflow-y: auto;
-    flex: 1; /* Aj zoznam sa musí natiahnuť */
-  }
-  
-  // 🔥 A UPRAVTE AJ TOTO, ABY HLAVIČKA OSTALA HORE A SCROLLOVAL LEN ZOZNAM:
-  .list-header {
-    flex-shrink: 0; /* Hlavička sa nebude zmenšovať */
-    // ... ostatné vaše štýly pre header ...
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-left: 10px;
-    margin-bottom: 5px;
-    border-bottom: 1px solid #f2f2f2;
-  }
-  
-  ion-list {
-    overflow-y: auto; /* Scrollovať bude iba zoznam, nie hlavička */
-    
-    /* Pre plynulé scrollovanie na iPhone: */
-    -webkit-overflow-scrolling: touch; 
-  }
-
-.spinner-center {
-  text-align: center;
-  padding: 20px;
-}
-
-.empty-msg {
-  text-align: center;
-  padding: 20px;
-  color: #888;
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-</file>
-
-<file path="src/app/components/dashboard/dashboard.component.ts">
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SupabaseService } from 'src/app/services/supabase.service';
-import { addIcons } from 'ionicons';
-import {
-  statsChartOutline, alertCircleOutline, refreshOutline,
-  closeCircleOutline, alertCircle, checkmarkCircleOutline, createOutline
-} from 'ionicons/icons';
-import { AlertController, ToastController } from '@ionic/angular';
-
-import {
-  IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
-  IonItem, IonLabel, IonBadge, IonButton
-} from '@ionic/angular/standalone';
-
-@Component({
-  selector: 'app-dashboard',
-  standalone: true,
-
-  imports: [
-    CommonModule,
-    IonCard, IonCardContent, IonIcon, IonSpinner,
-    IonList, IonItem, IonLabel, IonBadge, IonButton
-  ],
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
-})
-export class DashboardComponent implements OnInit {
-
-  stats = { celkovo: 0, bezId: 0 };
-  isLoadingStats = true;
-
-  @ViewChild('zoznamRef') zoznamElement!: ElementRef;
-  zobrazeneProdukty: any[] = [];
-  nadpisZoznamu: string = '';
-  isLoadingZoznam = false;
-
-  constructor(private supabase: SupabaseService,
-    private alertCtrl: AlertController, // Injectujeme Alert
-    private toastCtrl: ToastController
-  ) {
-    addIcons({
-      statsChartOutline, alertCircleOutline, refreshOutline,
-      closeCircleOutline, alertCircle, checkmarkCircleOutline, createOutline
-    });
-  }
-
-  async ngOnInit() {
-    await this.obnovitStatistiky();
-  }
-
-  async obnovitStatistiky() {
-    this.isLoadingStats = true;
-    try {
-      this.stats = await this.supabase.getStatistikyKatalogu();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.isLoadingStats = false;
-    }
-  }
-
-
-
-  async zobrazitBezId() {
-    if (this.stats.bezId === 0) return;
-
-    this.nadpisZoznamu = 'Produkty bez vlastného ID';
-    this.isLoadingZoznam = true;
-    this.zobrazeneProdukty = [];
-
-    try {
-      this.zobrazeneProdukty = await this.supabase.getProduktyBezIdZoznam();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.isLoadingZoznam = false;
-    }
-  }
-
-  async zobrazitVsetky() {
-    this.nadpisZoznamu = 'Všetky produkty v katalógu';
-    this.isLoadingZoznam = true;
-    this.zobrazeneProdukty = [];
-
-    try {
-      this.zobrazeneProdukty = await this.supabase.getVsetkyProduktyZoznam();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.isLoadingZoznam = false;
-    }
-  }
-
-  private scrollToList() {
-    // Použijeme setTimeout, aby sme počkali, kým Angular vykreslí *ngIf
-    setTimeout(() => {
-      if (this.zoznamElement) {
-        this.zoznamElement.nativeElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'  // Toto zabezpečí, že zoznam bude v strede/hore obrazovky
-        });
-      }
-    }, 100);
-  }
-
-  zavrietZoznam() {
-    this.nadpisZoznamu = '';
-    this.zobrazeneProdukty = [];
-  }
-
-  async zmenitId(produkt: any) {
-    const alert = await this.alertCtrl.create({
-      header: 'Pridať ID produktu',
-      subHeader: produkt.nazov,
-      inputs: [
-        {
-          name: 'noveId',
-          type: 'text',
-          placeholder: 'Naskenujte alebo zadajte ID',
-          value: produkt.vlastne_id || '' // Ak tam niečo je, predvyplníme to
-        }
-      ],
-      buttons: [
-        {
-          text: 'Zrušiť',
-          role: 'cancel'
-        },
-        {
-          text: 'Uložiť',
-          handler: async (data) => {
-            if (data.noveId) {
-              await this.ulozitNoveId(produkt.id, data.noveId);
-            }
-          }
-        }
-      ]
-    });
-
-    await alert.present();
-  }
-
-  async ulozitNoveId(id: number, noveId: string) {
-    try {
-      await this.supabase.aktualizovatVlastneId(id, noveId);
-
-      // Zobrazíme potvrdenie
-      const toast = await this.toastCtrl.create({
-        message: 'ID bolo uložené ✅',
-        duration: 2000,
-        color: 'success',
-        position: 'top'
-      });
-      toast.present();
-
-      // Obnovíme zoznamy a štatistiky
-      await this.obnovitStatistiky();
-
-      // Ak máme otvorený zoznam "bez ID", obnovíme ho tiež
-      if (this.nadpisZoznamu === 'Produkty bez vlastného ID') {
-        await this.zobrazitBezId();
-      } else if (this.nadpisZoznamu === 'Všetky produkty v katalógu') {
-        await this.zobrazitVsetky();
-      }
-
-    } catch (error) {
-      console.error(error);
-      const toast = await this.toastCtrl.create({
-        message: 'Chyba pri ukladaní ❌',
-        duration: 2000,
-        color: 'danger'
-      });
-      toast.present();
-    }
-  }
-}
-</file>
-
-<file path="src/app/components/nova-lokacia-modal/nova-lokacia-modal.component.html">
-<ion-header>
-  <ion-toolbar color="primary">
-    <ion-title>Nové Umiestnenie</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="zrusit()">Zavrieť</ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding">
-
-  <ion-segment [value]="typ" (ionChange)="zmenitTyp($event)" class="ion-margin-bottom">
-    <ion-segment-button value="sklad">
-      <ion-label>Iba Sklad</ion-label>
-    </ion-segment-button>
-    <ion-segment-button value="regal">
-      <ion-label>Nový Regál</ion-label>
-    </ion-segment-button>
-  </ion-segment>
-
-  <div class="form-container">
-    
-    <div *ngIf="typ === 'sklad'">
-      <ion-item fill="outline">
-        <ion-label position="floating">Názov skladu</ion-label>
-        <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Hlavný sklad"></ion-input>
-      </ion-item>
-      
-      <div class="info-text ion-padding-top">
-        <p>Vytvorí sa iba nová budova alebo miestnosť.</p>
-      </div>
-
-      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
-        Uložiť Sklad
-      </ion-button>
-    </div>
-
-    <div *ngIf="typ === 'regal'">
-      
-      <ion-list-header>
-        <ion-label>Regál bude patriť do:</ion-label>
-      </ion-list-header>
-
-      <ion-segment [(ngModel)]="zdrojSkladu" color="secondary" class="ion-margin-bottom">
-        <ion-segment-button value="existujuci">
-          <ion-label>Existujúci sklad</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="novy">
-          <ion-label>+ Nový sklad</ion-label>
-        </ion-segment-button>
-      </ion-segment>
-
-      <div *ngIf="zdrojSkladu === 'existujuci'">
-        <ion-item fill="outline" class="ion-margin-bottom">
-          <ion-label position="floating">Vyberte sklad</ion-label>
-          <ion-select [(ngModel)]="vybranySkladId" interface="popover" placeholder="Zoznam skladov">
-            <ion-select-option *ngFor="let s of sklady" [value]="s.id">
-              {{ s.nazov }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-      </div>
-
-      <div *ngIf="zdrojSkladu === 'novy'">
-        <ion-item fill="outline" class="ion-margin-bottom success-border">
-          <ion-label position="floating">Názov NOVÉHO skladu</ion-label>
-          <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Sklad B (Vytvorí sa automaticky)"></ion-input>
-        </ion-item>
-      </div>
-
-      <ion-item fill="outline">
-        <ion-label position="floating">Názov nového regálu</ion-label>
-        <ion-input [(ngModel)]="nazovRegalu" placeholder="Napr. Regál A1"></ion-input>
-      </ion-item>
-
-      <div class="info-text ion-padding-top">
-        <p *ngIf="zdrojSkladu === 'novy'">
-          <ion-icon name="information-circle-outline" style="vertical-align: bottom"></ion-icon>
-          Uložením sa vytvorí <strong>najprv sklad</strong> "{{ nazovSkladu || '...' }}" a do neho sa vloží regál.
-        </p>
-      </div>
-
-      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
-        Uložiť {{ zdrojSkladu === 'novy' ? 'Všetko' : 'Regál' }}
-      </ion-button>
-    </div>
-
-  </div>
-a
-</ion-content>
 </file>
 
 <file path="src/app/components/novy-produkt-modal/novy-produkt-modal.component.scss">
@@ -2702,206 +1886,529 @@ bootstrapApplication(AppComponent, {
 }
 </file>
 
-<file path="src/app/components/calculator-modal/calculator-modal.component.ts">
-import { Component, Input, OnInit } from '@angular/core';
+<file path="src/app/components/dashboard/dashboard.component.html">
+<div class="dashboard-container">
+  
+  <ion-card class="stat-card blue" button (click)="zobrazitVsetky()">
+    <ion-card-content>
+      <div class="icon-bg">
+        <ion-icon name="stats-chart-outline"></ion-icon>
+      </div>
+      <div class="stat-info">
+        <h2 *ngIf="!isLoadingStats">{{ stats.celkovo }}</h2>
+        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
+        <p>Všetky položky</p>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card class="stat-card orange" button (click)="zobrazitBezId()">
+    <div class="pulse-indicator" *ngIf="stats.bezId > 0"></div>
+    <ion-card-content>
+      <div class="icon-bg warning">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+      </div>
+      <div class="stat-info">
+        <h2 *ngIf="!isLoadingStats">{{ stats.bezId }}</h2>
+        <ion-spinner *ngIf="isLoadingStats" name="dots"></ion-spinner>
+        <p>Bez vlastného ID</p>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+</div>
+
+<ion-card class="inventory-expand-card">
+  
+  <div class="card-toggle-header" (click)="toggleInventury()">
+    <div class="header-left">
+      <ion-icon [name]="isInvExpanded ? 'chevron-down' : 'chevron-forward'" color="medium"></ion-icon>
+      <ion-label>
+        <h3>Prehľad inventúr</h3>
+        <p *ngIf="!isInvExpanded">Spolu zápisov: {{ stats.spocitaneGlobal }}</p>
+      </ion-label>
+    </div>
+    <ion-badge color="primary" mode="ios">{{ zoznamInventurStats.length }}</ion-badge>
+  </div>
+
+  <div class="card-expand-content" *ngIf="isInvExpanded">
+    <ion-list lines="full">
+      <ion-item *ngFor="let inv of zoznamInventurStats" button (click)="zobrazitDetailInventury(inv)">
+        <div slot="start" class="status-indicator" [class.open]="inv.stav === 'otvorena'"></div>
+        
+        <ion-label>
+          <h2>{{ inv.nazov }}</h2>
+          <p>{{ inv.stav === 'otvorena' ? 'Práve prebieha' : 'Uzavretá' }}</p>
+        </ion-label>
+
+        <div slot="end" class="count-box">
+          <strong>{{ inv.pocet }}</strong>
+          <span>položiek</span>
+        </div>
+      </ion-item>
+    </ion-list>
+    
+    <ion-button fill="clear" expand="block" size="small" (click)="zobrazitSpocitaneGlobal()">
+      <ion-icon name="time-outline" slot="start"></ion-icon>
+      Zobraziť celú históriu zápisov
+    </ion-button>
+  </div>
+</ion-card>
+
+<div #zoznamRef *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
+  
+  <div class="list-header">
+    <h3>{{ nadpisZoznamu }}</h3>
+    <ion-button fill="clear" size="small" color="medium" (click)="zavrietZoznam()">
+      <ion-icon slot="icon-only" name="close-circle-outline"></ion-icon>
+    </ion-button>
+  </div>
+
+  <div *ngIf="isLoadingZoznam" class="spinner-center">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
+
+  <ion-list *ngIf="!isLoadingZoznam" lines="full">
+    <ion-item *ngFor="let p of zobrazeneProdukty">
+      <ion-label>
+        <h2>{{ p.nazov }}</h2>
+        <p>Kategória: {{ p.kategoria || '-' }}</p>
+      </ion-label>
+      
+      <ion-badge color="warning" *ngIf="!p.vlastne_id" style="margin-right: 10px;">Chýba ID</ion-badge>
+      <ion-badge color="medium" *ngIf="p.vlastne_id" style="margin-right: 10px;">{{ p.vlastne_id }}</ion-badge>
+
+      <ion-badge color="primary" *ngIf="p.mnozstvo_ks !== undefined">{{ p.mnozstvo_ks }} ks</ion-badge>
+
+      <ion-button fill="clear" slot="end" (click)="zmenitId(p)">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+
+    <div *ngIf="zobrazeneProdukty.length === 0" class="empty-msg">
+      Žiadne položky na zobrazenie.
+    </div>
+  </ion-list>
+
+</div>
+</file>
+
+<file path="src/app/components/dashboard/dashboard.component.scss">
+/* HLAVNÝ KONTAJNER PRE HORNÉ KARTY */
+.dashboard-container {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  justify-content: space-between;
+}
+
+/* SPOLOČNÝ ŠTÝL PRE VŠETKY KARTY */
+.stat-card {
+  margin: 0;
+  flex: 1;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: visible;
+  border: none;
+
+  ion-card-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.8;
+    color: var(--ion-color-dark);
+  }
+
+  /* Farebné témy */
+  &.blue {
+    background: #f0f9ff;
+
+    .icon-bg {
+      background: #bae6fd;
+      color: #0284c7;
+    }
+
+    h2 {
+      color: #0c4a6e;
+    }
+  }
+
+  &.orange {
+    background: #fff7ed;
+
+    .icon-bg {
+      background: #fed7aa;
+      color: #ea580c;
+    }
+
+    h2 {
+      color: #7c2d12;
+    }
+  }
+}
+
+/* POZADIE IKONY V KARTÁCH */
+.icon-bg {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px; // Trošku modernejší tvar ako čistý kruh
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+/* --- NOVÁ ROZKLIKÁVACIA KARTA --- */
+.inventory-expand-card {
+  margin: 0 16px 16px 16px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+  background: white;
+  overflow: hidden;
+
+  .card-toggle-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+
+    &:active {
+      background: #f9f9f9;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ion-color-dark);
+      }
+
+      p {
+        margin: 2px 0 0 0;
+        font-size: 0.75rem;
+        color: #888;
+      }
+    }
+  }
+
+  .card-expand-content {
+    border-top: 1px solid #f5f5f5;
+    background: #fafafa;
+
+    ion-list {
+      padding: 0;
+      background: transparent;
+    }
+
+    ion-item {
+      --padding-start: 16px;
+      --inner-padding-end: 16px;
+      --min-height: 64px;
+      --background: transparent;
+    }
+  }
+}
+
+/* INDIKÁTORY V ZOZNAME INVENTÚR */
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  margin-right: 4px;
+
+  &.open {
+    background: #2dd36f;
+    box-shadow: 0 0 8px rgba(45, 211, 111, 0.4);
+  }
+}
+
+.count-box {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 1.1rem;
+    color: var(--ion-color-primary);
+    line-height: 1;
+  }
+
+  span {
+    font-size: 0.65rem;
+    color: #999;
+    font-weight: 500;
+  }
+}
+
+/* --- SPODNÝ ZOZNAM (DETAILE) --- */
+.internal-list-container {
+  background: white;
+  border-radius: 24px 24px 0 0;
+  margin-top: 8px;
+  padding: 8px 0 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f0f0f0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.list-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f2f2f2;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+}
+
+ion-list {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* POMOCNÉ TRIEDY */
+.pulse-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  z-index: 10;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.spinner-center,
+.empty-msg {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+}
+</file>
+
+<file path="src/app/components/dashboard/dashboard.component.ts">
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, ModalController } from '@ionic/angular';
+import { SupabaseService } from 'src/app/services/supabase.service';
 import { addIcons } from 'ionicons';
-import { cubeOutline, eyeOutline, eyeOffOutline } from 'ionicons/icons';
+import {
+  statsChartOutline, alertCircleOutline, refreshOutline,
+  closeCircleOutline, alertCircle, checkmarkCircleOutline,
+  createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline
+} from 'ionicons/icons';
+import { AlertController, ToastController } from '@ionic/angular';
+
+import {
+  IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
+  IonItem, IonLabel, IonBadge, IonButton
+} from '@ionic/angular/standalone';
 
 @Component({
-  selector: 'app-calculator-modal',
+  selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, IonicModule],
-  templateUrl: './calculator-modal.component.html',
-  styleUrls: ['./calculator-modal.component.scss'],
+  imports: [
+    CommonModule,
+    IonCard, IonCardContent, IonIcon, IonSpinner,
+    IonList, IonItem, IonLabel, IonBadge, IonButton
+  ],
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.scss'],
 })
-export class CalculatorModalComponent implements OnInit {
+export class DashboardComponent implements OnInit {
 
-  @Input() nazovProduktu: string = '';
-  @Input() aktualnyStav: number = 0;
-  @Input() balenie: number = 1;
+  // Globálne štatistiky katalógu
+  stats = { celkovo: 0, bezId: 0, spocitaneGlobal: 0 };
 
-  // Dve premenné pre zobrazenie
-  fullFormula: string = '';   // "10 + 5" (Skryté/Detail)
-  mainDisplay: string = '0';  // "5" (Hlavné)
+  // Zoznam všetkých inventúr s ich počtami
+  zoznamInventurStats: any[] = [];
 
-  zobrazitDetail: boolean = true
-  shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
+  isLoadingStats = true;
+  // 1. Pridaj premennú do triedy DashboardComponent
+  isInvExpanded: boolean = false;
 
-  private lastClickTime: number = 0;
+  // 2. Pridaj jednoduchú funkciu na prepínanie
+  toggleInventury() {
+    this.isInvExpanded = !this.isInvExpanded;
+  }
+  @ViewChild('zoznamRef') zoznamElement!: ElementRef;
+  zobrazeneProdukty: any[] = [];
+  nadpisZoznamu: string = '';
+  isLoadingZoznam = false;
 
-  constructor(private modalController: ModalController) {
-    addIcons({ cubeOutline, eyeOutline, eyeOffOutline });
+  constructor(
+    private supabase: SupabaseService,
+    private alertCtrl: AlertController,
+    private toastCtrl: ToastController
+  ) {
+    addIcons({
+      statsChartOutline, alertCircleOutline, refreshOutline,
+      closeCircleOutline, alertCircle, checkmarkCircleOutline,
+      createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline
+    });
   }
 
-  ngOnInit() {
-    // Inicializácia
-    this.mainDisplay = this.aktualnyStav.toString();
-    this.fullFormula = this.aktualnyStav.toString();
+  async ngOnInit() {
+    await this.obnovitStatistiky();
   }
 
-
-  stlacene(hodnota: string) {
-    // Debounce (proti dvojkliku)
-    const now = Date.now();
-    if (now - this.lastClickTime < 100) return;
-    this.lastClickTime = now;
-
-    const isOperator = ['+', '-', '*', '/'].includes(hodnota);
-
-    if (isOperator) {
-      this.handleOperator(hodnota);
-    } else {
-      this.handleNumber(hodnota);
-    }
-  }
-
-  handleNumber(num: string) {
-    // Ak sme práve stlačili operátor, alebo je tam 0, začíname nové číslo
-    if (this.shouldResetMain || this.mainDisplay === '0') {
-      if (num === '.') {
-        this.mainDisplay = '0.';
-      } else {
-        this.mainDisplay = num;
-      }
-      this.shouldResetMain = false;
-    } else {
-      // Inak pripájame (napr. 1 -> 12)
-      if (num === '.' && this.mainDisplay.includes('.')) return; // Iba jedna bodka
-      this.mainDisplay += num;
-    }
-
-    // Aktualizujeme aj vzorec na pozadí
-    // Ak bol posledný znak operátor, len pripájame. Ak číslo, tiež pripájame.
-    // Musíme ošetriť "0" na začiatku vzorca, ak sa prepisuje
-    if (this.fullFormula === '0' && num !== '.') {
-      this.fullFormula = num;
-    } else {
-      this.fullFormula += num;
-    }
-  }
-
-  handleOperator(op: string) {
-    // Ak je posledný znak vo vzorci už operátor, vymeníme ho
-    const lastChar = this.fullFormula.slice(-1);
-    if (['+', '-', '*', '/'].includes(lastChar)) {
-      this.fullFormula = this.fullFormula.slice(0, -1) + op;
-      return;
-    }
-
-    // Tu spravíme "priebežný výpočet" pre štandardný efekt kalkulačky
-    // Ale do vzorca len pridáme operátor
-    this.calculateResultInternal(); // Toto vypočíta aktuálny stav a dá ho do mainDisplay
-
-    this.fullFormula += op;
-    this.shouldResetMain = true; // Pri najbližšom čísle vymažeme mainDisplay
-  }
-
-  vymazat() {
-    this.mainDisplay = '0';
-    this.fullFormula = '0';
-    this.shouldResetMain = false;
-  }
-
-  zmazatJeden() {
-    // Mažeme z hlavného displeja
-    if (this.mainDisplay.length > 1) {
-      this.mainDisplay = this.mainDisplay.slice(0, -1);
-    } else {
-      this.mainDisplay = '0';
-      this.shouldResetMain = true; // Reset ak sme zmazali všetko
-    }
-
-    // Mažeme aj zo vzorca
-    if (this.fullFormula.length > 1) {
-      this.fullFormula = this.fullFormula.slice(0, -1);
-    } else {
-      this.fullFormula = '0';
-    }
-  }
-
-  // Pomocná funkcia na bezpečný výpočet reťazca
-  private evaluateString(str: string): number | null {
+  async obnovitStatistiky() {
+    this.isLoadingStats = true;
     try {
-      // Nahradíme vizuálne 'x' za '*' ak by tam bolo, hoci používame '*'
-      const safeCalc = str.replace(/x/g, '*');
-      // Ošetrenie pre neúplný výraz (napr "5+")
-      const lastChar = safeCalc.slice(-1);
-      if (['+', '-', '*', '/'].includes(lastChar)) return null;
+      // 1. Základné dáta katalógu
+      const katalog = await this.supabase.getStatistikyKatalogu();
+      const global = await this.supabase.getPocetSpocitanychGlobal();
 
-      const func = new Function('return ' + safeCalc);
-      return func();
+      this.stats = {
+        celkovo: katalog.celkovo,
+        bezId: katalog.bezId,
+        spocitaneGlobal: global
+      };
+
+      // 2. Načítame zoznam všetkých inventúr a ich progres (musíš mať túto funkciu v SupabaseService)
+      this.zoznamInventurStats = await this.supabase.getZoznamInventurSoStats();
+
     } catch (e) {
-      return null;
+      console.error('Chyba pri načítaní Dashboardu:', e);
+    } finally {
+      this.isLoadingStats = false;
     }
   }
 
-  // Interný výpočet pre priebežný stav (bez zmeny fullFormula na výsledok)
-  calculateResultInternal() {
-    const res = this.evaluateString(this.fullFormula);
-    if (res !== null) {
-      this.mainDisplay = res.toString();
+  // Zobrazenie detailného zoznamu pre konkrétnu inventúru
+  async zobrazitDetailInventury(inv: any) {
+    this.nadpisZoznamu = `Položky: ${inv.nazov}`;
+    this.isLoadingZoznam = true;
+    this.zobrazeneProdukty = [];
+
+    try {
+      // Stiahneme prvých 100 položiek danej inventúry
+      this.zobrazeneProdukty = await this.supabase.getPolozkyVInventure(inv.id, 0, 100);
+      this.scrollToList();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.isLoadingZoznam = false;
     }
   }
 
-  // Finálny výpočet (=)
-  vypocitat() {
-    const res = this.evaluateString(this.fullFormula);
-    if (res !== null) {
-      this.mainDisplay = res.toString();
-      this.fullFormula = res.toString(); // Reset vzorca na výsledok
-      this.shouldResetMain = true;       // Ak začne písať číslo, prepíše to
-    } else {
-      this.mainDisplay = 'Chyba';
-    }
+  async zobrazitSpocitaneGlobal() {
+    this.nadpisZoznamu = 'Všetky vykonané zápisy (História)';
+    this.isLoadingZoznam = true;
+    try {
+      const { data, error } = await this.supabase.supabase
+        .from('inventura_polozky')
+        .select(`id, mnozstvo, produkty:produkt_id ( nazov, vlastne_id )`)
+        .order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      this.zobrazeneProdukty = data.map((d: any) => ({
+        id: d.id, nazov: d.produkty?.nazov, vlastne_id: d.produkty?.vlastne_id, mnozstvo_ks: d.mnozstvo
+      }));
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
   }
 
-  potvrdit() {
-    // Pre istotu prepočítame všetko
-    const res = this.evaluateString(this.fullFormula);
+  async zobrazitBezId() {
+    this.nadpisZoznamu = 'Produkty bez vlastného ID';
+    this.isLoadingZoznam = true;
+    try {
+      this.zobrazeneProdukty = await this.supabase.getProduktyBezIdZoznam();
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
+  }
 
-    if (res !== null && !isNaN(res)) {
-      this.modalController.dismiss({ novyStav: res }, 'confirm');
-    } else {
-      // Ak je tam chyba alebo len číslo v mainDisplay
-      const simpleVal = parseFloat(this.mainDisplay);
-      if (!isNaN(simpleVal)) {
-        this.modalController.dismiss({ novyStav: simpleVal }, 'confirm');
+  async zobrazitVsetky() {
+    this.nadpisZoznamu = 'Všetky produkty v katalógu';
+    this.isLoadingZoznam = true;
+    try {
+      this.zobrazeneProdukty = await this.supabase.getVsetkyProduktyZoznam();
+      this.scrollToList();
+    } catch (e) { console.error(e); } finally { this.isLoadingZoznam = false; }
+  }
+
+  private scrollToList() {
+    setTimeout(() => {
+      if (this.zoznamElement) {
+        this.zoznamElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }
+    }, 150);
   }
 
-  zrusit() {
-    this.modalController.dismiss(null, 'cancel');
+  zavrietZoznam() {
+    this.nadpisZoznamu = '';
+    this.zobrazeneProdukty = [];
   }
 
-  pridatBalenie() {
-    // 1. FIX: Ak je aktuálna hodnota 0, nechceme násobiť (lebo 0 * x = 0),
-    // ale chceme hodnotu priamo nastaviť na veľkosť balenia.
-    if (this.fullFormula === '0' || this.fullFormula === '') {
-      this.fullFormula = this.balenie.toString();
-      this.mainDisplay = this.balenie.toString();
-      this.shouldResetMain = true;
-      return; // Končíme, ďalej už nenásobíme
-    }
-
-    // 2. Ak tam už nejaké číslo je, pokračujeme vašou pôvodnou logikou (násobenie)
-
-    // Najprv simulujeme stlačenie operátora krát
-    this.handleOperator('*');
-
-    // Potom pridáme číslo balenia do vzorca
-    this.fullFormula += this.balenie.toString();
-
-    // A hneď vypočítame výsledok
-    const res = this.evaluateString(this.fullFormula);
-    if (res !== null) {
-      this.mainDisplay = res.toString();
-      // Necháme fullFormula tak ako je (napr "5*12"), aby to bolo vidno v detaile
-      this.shouldResetMain = true;
-    }
-  }
+  async zmenitId(p: any) { /* Tvoja existujúca funkcia na zmenu ID */ }
+  async ulozitNoveId(id: number, noveId: string) { /* Tvoja existujúca funkcia */ }
 }
 </file>
 
@@ -3190,6 +2697,99 @@ export class CalculatorModalComponent implements OnInit {
 }
 </file>
 
+<file path="src/app/components/nova-lokacia-modal/nova-lokacia-modal.component.html">
+action-sheet<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Nové Umiestnenie</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="zrusit()">Zavrieť</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-segment [value]="typ" (ionChange)="zmenitTyp($event)" class="ion-margin-bottom">
+    <ion-segment-button value="sklad">
+      <ion-label>Iba Sklad</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="regal">
+      <ion-label>Nový Regál</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <div class="form-container">
+    
+    <div *ngIf="typ === 'sklad'">
+      <ion-item fill="outline">
+        <ion-label position="floating">Názov skladu</ion-label>
+        <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Hlavný sklad"></ion-input>
+      </ion-item>
+      
+      <div class="info-text ion-padding-top">
+        <p>Vytvorí sa iba nová budova alebo miestnosť.</p>
+      </div>
+
+      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
+        Uložiť Sklad
+      </ion-button>
+    </div>
+
+    <div *ngIf="typ === 'regal'">
+      
+      <ion-list-header>
+        <ion-label>Regál bude patriť do:</ion-label>
+      </ion-list-header>
+
+      <ion-segment [(ngModel)]="zdrojSkladu" color="secondary" class="ion-margin-bottom">
+        <ion-segment-button value="existujuci">
+          <ion-label>Existujúci sklad</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="novy">
+          <ion-label>+ Nový sklad</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+
+      <div *ngIf="zdrojSkladu === 'existujuci'">
+        <ion-item fill="outline" class="ion-margin-bottom">
+          <ion-label position="floating">Vyberte sklad</ion-label>
+          <ion-select [(ngModel)]="vybranySkladId" interface="popover" placeholder="Zoznam skladov">
+            <ion-select-option *ngFor="let s of sklady" [value]="s.id">
+              {{ s.nazov }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
+      <div *ngIf="zdrojSkladu === 'novy'">
+        <ion-item fill="outline" class="ion-margin-bottom success-border">
+          <ion-label position="floating">Názov NOVÉHO skladu</ion-label>
+          <ion-input [(ngModel)]="nazovSkladu" placeholder="Napr. Sklad B (Vytvorí sa automaticky)"></ion-input>
+        </ion-item>
+      </div>
+
+      <ion-item fill="outline">
+        <ion-label position="floating">Názov nového regálu</ion-label>
+        <ion-input [(ngModel)]="nazovRegalu" placeholder="Napr. Regál A1"></ion-input>
+      </ion-item>
+
+      <div class="info-text ion-padding-top">
+        <p *ngIf="zdrojSkladu === 'novy'">
+          <ion-icon name="information-circle-outline" style="vertical-align: bottom"></ion-icon>
+          Uložením sa vytvorí <strong>najprv sklad</strong> "{{ nazovSkladu || '...' }}" a do neho sa vloží regál.
+        </p>
+      </div>
+
+      <ion-button expand="block" class="ion-margin-top" (click)="ulozit()">
+        Uložiť {{ zdrojSkladu === 'novy' ? 'Všetko' : 'Regál' }}
+      </ion-button>
+    </div>
+
+  </div>
+a
+</ion-content>
+</file>
+
 <file path="src/app/home/home.page.scss">
 ion-content {
   --background: #f2f4f8; /* Moderná svetlošedá */
@@ -3313,124 +2913,6 @@ ion-content {
 }
 </file>
 
-<file path="src/global.scss">
-/*
- * App Global CSS
- */
-
-/* Fix pre farby inputov (aby boli viditeľné) */
-ion-input, ion-textarea {
-  --color: #000000 !important;
-  --placeholder-color: #666666 !important;
-}
-
-ion-item, ion-input, ion-label {
-  --color: #000000 !important;
-  color: #000000 !important;
-}
-
-ion-item {
-  --background: transparent !important;
-  --color: #000000 !important;
-}
- ion-content {
-  --padding-top: env(safe-area-inset-top);
-  --padding-bottom: env(safe-area-inset-bottom);
-  --padding-start: env(safe-area-inset-left);
-  --padding-end: env(safe-area-inset-right);
-}
-
-/* Core CSS required for Ionic components to work properly */
-@import "@ionic/angular/css/core.css";
-
-/* Basic CSS for apps built with Ionic */
-@import "@ionic/angular/css/normalize.css";
-@import "@ionic/angular/css/structure.css";
-@import "@ionic/angular/css/typography.css";
-@import "@ionic/angular/css/display.css";
-
-/* Optional CSS utils that can be commented out */
-@import "@ionic/angular/css/padding.css";
-@import "@ionic/angular/css/float-elements.css";
-@import "@ionic/angular/css/text-alignment.css";
-@import "@ionic/angular/css/text-transformation.css";
-@import "@ionic/angular/css/flex-utils.css";
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * VŠETKO ZAKOMENTOVANÉ = ŽIADNY TMAVÝ REŽIM
- */
-
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-/* @import '@ionic/angular/css/palettes/dark.system.css'; */ /* 👈 TOTO SOM ZAKOMENTOVAL */
-
-.alert-danger-button {
-    color: var(--ion-color-danger) !important;
-    font-weight: bold;
-}
-
-/* Vynútenie svetlého režimu NATVRDO */
-:root {
-  --ion-background-color: #ffffff !important;
-  --ion-background-color-rgb: 255, 255, 255 !important;
-
-  --ion-text-color: #000000 !important;
-  --ion-text-color-rgb: 0, 0, 0 !important;
-}
-
-body {
-  background-color: #ffffff !important;
-  color: #000000 !important;
-}
-
-/* Oprava inputov, aby boli viditeľné */
-ion-item, ion-input, ion-label {
-  --background: #ffffff !important;
-  --color: #000000 !important;
-  color: #000000 !important;
-}
-
-/* 👇👇👇 ŠPECIÁLNA OPRAVA PRE HESLO 👇👇👇 */
-
-/* Vynútenie čiernej farby pre password input */
-ion-input[type="password"],
-ion-input[type="password"] .native-input,
-input[type="password"] {
-  --color: #000000 !important;
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important; /* Toto je kľúčové pre Android */
-  opacity: 1 !important;
-}
-
-/* Ak používaš ikonku "oka" na zobrazenie hesla, zviditeľni ju */
-ion-input-password-toggle,
-.password-toggle-icon {
-  --color: #555555 !important;
-  color: #555555 !important;
-}
-
-/* Oprava, ak ti Android ponúka "Autofill" (žlté/modré pozadie) */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active  {
-    -webkit-box-shadow: 0 0 0 30px white inset !important;
-    -webkit-text-fill-color: black !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
-ion-toast {
-  --z-index: 10000;
-  margin-top: 50px; // Aby nebol úplne nalepený na vrchu pod status barom
-}
-.ion-page {
-  /* Prepíšeme 'space-between' na 'flex-start' (všetko začína hore) */
-  justify-content: flex-start !important;
-}
-</file>
-
 <file path="src/index.html">
 <!DOCTYPE html>
 <html lang="en">
@@ -3525,74 +3007,6 @@ export const routes: Routes = [
 
 
 ];
-</file>
-
-<file path="src/app/components/calculator-modal/calculator-modal.component.html">
-<ion-content class="ion-padding">
-  <div class="centered-content">
-  
-    <div class="info-section">
-      <div class="product-header" *ngIf="nazovProduktu">
-        {{ nazovProduktu }}
-      </div>
-
-     
-
-      <div class="display-container">
-        <div class="formula-text" *ngIf="zobrazitDetail">
-          {{ fullFormula }}
-        </div>
-        <div class="calculation-text" [class.has-detail]="zobrazitDetail">
-          {{ mainDisplay }}
-        </div>
-      </div>
-
-      <div class="balenie-btn-container" >
-        <ion-button expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()">
-          <ion-icon name="cube-outline" slot="start"></ion-icon>
-          <strong>Balenie (x{{ balenie }})</strong>
-        </ion-button>
-      </div>
-    </div> 
-    <div class="keypad-section">
-      <div class="keypad">
-        <div class="row">
-          <ion-button color="danger" (click)="vymazat()">C</ion-button>
-          <ion-button color="medium" (click)="zmazatJeden()">⌫</ion-button>
-          <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
-          <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
-        </div>
-    
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('7')">7</ion-button>
-          <ion-button color="light" (click)="stlacene('8')">8</ion-button>
-          <ion-button color="light" (click)="stlacene('9')">9</ion-button>
-          <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
-        </div>
-    
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('4')">4</ion-button>
-          <ion-button color="light" (click)="stlacene('5')">5</ion-button>
-          <ion-button color="light" (click)="stlacene('6')">6</ion-button>
-          <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
-        </div>
-    
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('1')">1</ion-button>
-          <ion-button color="light" (click)="stlacene('2')">2</ion-button>
-          <ion-button color="light" (click)="stlacene('3')">3</ion-button>
-          <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
-        </div>
-    
-        <div class="row bottom-row">
-          <ion-button color="light" (click)="stlacene('0')">0</ion-button>
-          <ion-button color="light" (click)="stlacene('.')">.</ion-button>
-          <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
-        </div>
-      </div>
-    </div>
-    </div>
-</ion-content>
 </file>
 
 <file path="src/app/components/novy-produkt-modal/novy-produkt-modal.component.html">
@@ -3737,83 +3151,145 @@ export const routes: Routes = [
 </ion-content>
 </file>
 
-<file path="src/app/pages/inventury-zoznam/inventury-zoznam.page.html">
-<ion-header [translucent]="true">
-  <ion-toolbar color="primary">
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/home"></ion-back-button>
-    </ion-buttons>
-    
-    <ion-title>Inventúry</ion-title>
-    
-    <ion-buttons slot="end">
-      <ion-button (click)="novaInventura()">
-        <ion-icon name="add" slot="icon-only"></ion-icon>
-      </ion-button>
-      <ion-button (click)="odhlasit()">
-        <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<file path="src/global.scss">
+/*
+ * App Global CSS
+ */
 
-<ion-content [fullscreen]="true">
+/* Fix pre farby inputov (aby boli viditeľné) */
+ion-input,
+ion-textarea {
+  --color: #000000 !important;
+  --placeholder-color: #666666 !important;
+}
 
-  <div *ngIf="isLoading" class="ion-text-center ion-padding" style="margin-top: 50px;">
-    <ion-spinner name="crescent" color="primary" style="transform: scale(1.5);"></ion-spinner>
-    <p style="margin-top: 15px; color: var(--ion-color-medium);">Načítavam zoznam...</p>
-  </div>
+ion-item,
+ion-input,
+ion-label {
+  --color: #000000 !important;
+  color: #000000 !important;
+}
 
-  <div *ngIf="!isLoading">
+ion-item {
+  --background: transparent !important;
+  --color: #000000 !important;
+}
 
-    <ion-list lines="full" *ngIf="zoznam.length > 0">
-      <ion-list-header>
-        <ion-label>História</ion-label>
-      </ion-list-header>
+ion-content {
+  --padding-top: env(safe-area-inset-top);
+  --padding-bottom: env(safe-area-inset-bottom);
+  --padding-start: env(safe-area-inset-left);
+  --padding-end: env(safe-area-inset-right);
+}
 
-      <ion-item *ngFor="let inv of zoznam">
-        <ion-label class="ion-text-wrap">
-          <h2>{{ inv.nazov }}</h2>
-          <p>Vytvorená: {{ inv.datum_vytvorenia | date:'dd.MM.yyyy' }}</p>
-          
-          <div *ngIf="inv.datum_uzavretia" class="status-badge closed">
-            <ion-icon name="checkmark-done-outline"></ion-icon> Uzavretá
-          </div>
-          <div *ngIf="!inv.datum_uzavretia" class="status-badge open">
-            Otvorená
-          </div>
-          
-          <div *ngIf="(inv.pocet_neznamych || 0) > 0"
-               (click)="$event.stopPropagation(); spravovatNezname(inv)"
-               style="margin-top: 8px; color: var(--ion-color-danger); font-size: 0.9em; display: flex; align-items: center; cursor: pointer;">
-            <ion-icon name="warning-outline" style="margin-right: 5px;"></ion-icon>
-            <strong>{{ inv.pocet_neznamych }} neznámych položiek</strong>
-          </div>
-        </ion-label>
-        
-        <div slot="end">
-          <ion-button *ngIf="!inv.datum_uzavretia" 
-                      color="warning" fill="outline" size="small"
-                      (click)="potvrditUzavretie(inv)">
-            Uzavrieť
-          </ion-button>
-          
-          <ion-button fill="clear" color="dark" (click)="otvoritMoznosti(inv)">
-            <ion-icon name="ellipsis-vertical" slot="icon-only"></ion-icon>
-          </ion-button>
-        </div>
-      </ion-item>
-    </ion-list>
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
 
-    <div *ngIf="zoznam.length === 0" class="ion-text-center ion-padding" style="margin-top: 50px; opacity: 0.6;">
-      <ion-icon name="document-text-outline" style="font-size: 64px; color: var(--ion-color-medium); margin-bottom: 16px;"></ion-icon>
-      <p>Zatiaľ žiadna inventúra.</p>
-      <ion-button fill="outline" (click)="novaInventura()">Vytvoriť prvú</ion-button>
-    </div>
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
 
-  </div>
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
 
-</ion-content>
+/**
+ * Ionic Dark Mode
+ * -----------------------------------------------------
+ * VŠETKO ZAKOMENTOVANÉ = ŽIADNY TMAVÝ REŽIM
+ */
+
+/* @import "@ionic/angular/css/palettes/dark.always.css"; */
+/* @import "@ionic/angular/css/palettes/dark.class.css"; */
+/* @import '@ionic/angular/css/palettes/dark.system.css'; */
+/* 👈 TOTO SOM ZAKOMENTOVAL */
+.force-toast-visible {
+  --z-index: 99999 !important;
+  z-index: 99999 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* Zabezpečí, aby bol toast viditeľný aj cez pozostatky modálu */
+  pointer-events: auto !important;
+}
+
+/* Oprava pre Ionic Overlays v mobilnom Chrome/Safari */
+.overlay-container {
+  z-index: 99999 !important;
+}
+
+.alert-danger-button {
+  color: var(--ion-color-danger) !important;
+  font-weight: bold;
+}
+
+/* Vynútenie svetlého režimu NATVRDO */
+:root {
+  --ion-background-color: #ffffff !important;
+  --ion-background-color-rgb: 255, 255, 255 !important;
+
+  --ion-text-color: #000000 !important;
+  --ion-text-color-rgb: 0, 0, 0 !important;
+}
+
+body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Oprava inputov, aby boli viditeľné */
+ion-item,
+ion-input,
+ion-label {
+  --background: #ffffff !important;
+  --color: #000000 !important;
+  color: #000000 !important;
+}
+
+/* 👇👇👇 ŠPECIÁLNA OPRAVA PRE HESLO 👇👇👇 */
+
+/* Vynútenie čiernej farby pre password input */
+ion-input[type="password"],
+ion-input[type="password"] .native-input,
+input[type="password"] {
+  --color: #000000 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  /* Toto je kľúčové pre Android */
+  opacity: 1 !important;
+}
+
+/* Ak používaš ikonku "oka" na zobrazenie hesla, zviditeľni ju */
+ion-input-password-toggle,
+.password-toggle-icon {
+  --color: #555555 !important;
+  color: #555555 !important;
+}
+
+/* Oprava, ak ti Android ponúka "Autofill" (žlté/modré pozadie) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: black !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+ion-toast {
+  --z-index: 10000;
+  margin-top: 50px; // Aby nebol úplne nalepený na vrchu pod status barom
+}
+
+.ion-page {
+  /* Prepíšeme 'space-between' na 'flex-start' (všetko začína hore) */
+  justify-content: flex-start !important;
+}
 </file>
 
 <file path="src/app/home/home.page.html">
@@ -3940,6 +3416,836 @@ export class HomePage implements OnInit {
     } else {
 
       this.router.navigate(['/inventory']);
+    }
+  }
+}
+</file>
+
+<file path="src/app/pages/inventury-zoznam/inventury-zoznam.page.html">
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home"></ion-back-button>
+    </ion-buttons>
+    
+    <ion-title>Inventúry</ion-title>
+    
+    <ion-buttons slot="end">
+      <ion-button (click)="novaInventura()">
+        <ion-icon name="add" slot="icon-only"></ion-icon>
+      </ion-button>
+      <ion-button (click)="odhlasit()">
+        <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+
+  <div *ngIf="isLoading" class="ion-text-center ion-padding" style="margin-top: 50px;">
+    <ion-spinner name="crescent" color="primary" style="transform: scale(1.5);"></ion-spinner>
+    <p style="margin-top: 15px; color: var(--ion-color-medium);">Načítavam zoznam...</p>
+  </div>
+
+  <div *ngIf="!isLoading">
+
+    <ion-list lines="full" *ngIf="zoznam.length > 0">
+      <ion-list-header>
+        <ion-label>História</ion-label>
+      </ion-list-header>
+
+      <ion-item *ngFor="let inv of zoznam">
+        <ion-label class="ion-text-wrap">
+          <h2>{{ inv.nazov }}</h2>
+          <p>Vytvorená: {{ inv.datum_vytvorenia | date:'dd.MM.yyyy' }}</p>
+          
+          <div *ngIf="inv.datum_uzavretia" class="status-badge closed">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Uzavretá
+          </div>
+          <div *ngIf="!inv.datum_uzavretia" class="status-badge open">
+            Otvorená
+          </div>
+          
+          <div *ngIf="(inv.pocet_neznamych || 0) > 0"
+               (click)="$event.stopPropagation(); spravovatNezname(inv)"
+               style="margin-top: 8px; color: var(--ion-color-danger); font-size: 0.9em; display: flex; align-items: center; cursor: pointer;">
+            <ion-icon name="warning-outline" style="margin-right: 5px;"></ion-icon>
+            <strong>{{ inv.pocet_neznamych }} neznámych položiek</strong>
+          </div>
+        </ion-label>
+        
+        <div slot="end">
+          <ion-button *ngIf="!inv.datum_uzavretia" 
+                      color="warning" fill="outline" size="small"
+                      (click)="potvrditUzavretie(inv)">
+            Uzavrieť
+          </ion-button>
+          
+          <ion-button *ngIf="inv.datum_uzavretia"
+                      color="success" fill="outline" size="small"
+                      (click)="znovuOtvorit(inv)">
+            <ion-icon name="reload" slot="start"></ion-icon>
+            Otvoriť
+          </ion-button>
+
+          <ion-button fill="clear" color="dark" (click)="otvoritMoznosti(inv)">
+            <ion-icon name="ellipsis-vertical" slot="icon-only"></ion-icon>
+          </ion-button>
+        </div>
+      </ion-item>
+    </ion-list>
+
+    <div *ngIf="zoznam.length === 0" class="ion-text-center ion-padding" style="margin-top: 50px; opacity: 0.6;">
+      <ion-icon name="document-text-outline" style="font-size: 64px; color: var(--ion-color-medium); margin-bottom: 16px;"></ion-icon>
+      <p>Zatiaľ žiadna inventúra.</p>
+      <ion-button fill="outline" (click)="novaInventura()">Vytvoriť prvú</ion-button>
+    </div>
+
+  </div>
+
+</ion-content>
+</file>
+
+<file path="src/app/services/export.service.ts">
+import { Injectable } from '@angular/core';
+import { addIcons } from 'ionicons';
+import { createOutline, printOutline } from 'ionicons/icons';
+import * as XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { fontRobotoRegular } from 'src/app/font';
+
+@Injectable({
+    providedIn: 'root'
+})
+export class ExportService {
+
+    constructor() {
+        addIcons({
+            'create-outline': createOutline,
+            'print-outline': printOutline
+        });
+    }
+
+    /**
+     * Pomocná funkcia: Pripraví a zoradí dáta
+     */
+    private pripravitData(data: any[]) {
+        const sId = data.filter(item => item['Product ID'] && String(item['Product ID']).trim() !== '');
+        const bezId = data.filter(item => !item['Product ID'] || String(item['Product ID']).trim() === '');
+
+        // 1. Zoradenie s ID (podľa ID)
+        sId.sort((a, b) => {
+            const idA = String(a['Product ID']).toLowerCase();
+            const idB = String(b['Product ID']).toLowerCase();
+            return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        // 2. Zoradenie bez ID (podľa Lokácie: Sklad -> Regál -> Produkt)
+        // Toto zabezpečí, že položky pôjdu za sebou tak, ako sú v regáloch
+        bezId.sort((a, b) => {
+            // A. Najprv podľa skladu
+            const skladA = String(a['Sklad'] || '').toLowerCase();
+            const skladB = String(b['Sklad'] || '').toLowerCase();
+            if (skladA !== skladB) return skladA.localeCompare(skladB);
+
+            // B. Potom podľa regálu (numericky, aby Regál 2 bol pred Regál 10)
+            const regalA = String(a['Regál'] || '').toLowerCase();
+            const regalB = String(b['Regál'] || '').toLowerCase();
+            const regalDiff = regalA.localeCompare(regalB, undefined, { numeric: true });
+            if (regalDiff !== 0) return regalDiff;
+
+            // C. Nakoniec podľa názvu produktu
+            return String(a['Produkt']).localeCompare(String(b['Produkt']));
+        });
+
+        return { sId, bezId };
+    }
+
+    // --- 1. EXCEL (KOMPLET - 2 Hárky) ---
+    public generovatExcelKomplet(data: any[], nazovInventury: string) {
+        const { sId, bezId } = this.pripravitData(data);
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        const wb = XLSX.utils.book_new();
+
+        if (sId.length > 0) {
+            const ws1 = XLSX.utils.json_to_sheet(sId);
+            XLSX.utils.book_append_sheet(wb, ws1, 'S Product ID');
+        }
+        if (bezId.length > 0) {
+            const ws2 = XLSX.utils.json_to_sheet(bezId);
+            XLSX.utils.book_append_sheet(wb, ws2, 'Bez ID');
+        }
+
+        XLSX.writeFile(wb, `Inventura_${cleanNazov}_KOMPLET.xlsx`);
+    }
+
+    // --- 2. EXCEL (LEN S ID) ---
+    public generovatExcelSId(data: any[], nazovInventury: string) {
+        const { sId } = this.pripravitData(data);
+        if (sId.length === 0) return false;
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sId);
+        XLSX.utils.book_append_sheet(wb, ws, 'S Product ID');
+
+        XLSX.writeFile(wb, `Inventura_${cleanNazov}_S_ID.xlsx`);
+        return true;
+    }
+
+    // --- 3. EXCEL (LEN BEZ ID) ---
+    public generovatExcelBezId(data: any[], nazovInventury: string) {
+        const { bezId } = this.pripravitData(data);
+        if (bezId.length === 0) return false;
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(bezId);
+        XLSX.utils.book_append_sheet(wb, ws, 'Bez ID');
+
+        XLSX.writeFile(wb, `Inventura_${cleanNazov}_BEZ_ID.xlsx`);
+        return true;
+    }
+
+    // --- PDF FUNKCIE (Ostávajú rovnaké) ---
+    public generovatPdfSId(data: any[], nazovInventury: string) {
+        const { sId } = this.pripravitData(data);
+        if (sId.length === 0) return false;
+
+        sId.sort((a: any, b: any) => {
+            const produktA = a['Produkt'] || '';
+            const produktB = b['Produkt'] || '';
+            return produktA.localeCompare(produktB);
+        });
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        this.createPdfFile(sId, nazovInventury, 'Položky s ID', `Inventura_${cleanNazov}_S_ID.pdf`);
+        return true;
+    }
+
+    public generovatPdfBezId(data: any[], nazovInventury: string) {
+        const { bezId } = this.pripravitData(data);
+        if (bezId.length === 0) return false;
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        this.createPdfFile(bezId, nazovInventury, 'Položky bez ID', `Inventura_${cleanNazov}_BEZ_ID.pdf`);
+        return true;
+    }
+
+    private createPdfFile(data: any[], nazovInventury: string, podnadpis: string, nazovSuboru: string) {
+        const doc = new jsPDF();
+        doc.addFileToVFS('Roboto-Regular.ttf', fontRobotoRegular);
+        doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+        doc.setFont('Roboto');
+
+        doc.setFontSize(18);
+        doc.text(`Inventúra: ${nazovInventury}`, 14, 20);
+        doc.setFontSize(14);
+        doc.text(podnadpis, 14, 30);
+
+        const bodyData = data.map((item: any) => [
+            item['Product ID'] || '-',
+            item['Produkt'],
+            String(item['Spočítané Množstvo']) + ' ' + (item['Jednotka'] || ''),
+            `${item['Sklad']} / ${item['Regál']}`
+        ]);
+
+        autoTable(doc, {
+            head: [['ID', 'Produkt', 'Množstvo', 'Lokácia']],
+            body: bodyData,
+            startY: 40,
+            styles: { font: 'Roboto', fontStyle: 'normal' },
+            headStyles: { fillColor: [41, 128, 185] }
+        });
+
+        doc.save(nazovSuboru);
+    }
+
+    public generovatPdfDvaStlpce(data: any[], nazovInventury: string) {
+        const { sId, bezId } = this.pripravitData(data); // Toto už dáta zoradí
+
+        if (sId.length === 0 && bezId.length === 0) return false;
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const doc = new jsPDF();
+
+        // Registrácia fontu
+        doc.addFileToVFS('Roboto-Regular.ttf', fontRobotoRegular);
+        doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+        doc.setFont('Roboto');
+
+        // 1. ČASŤ: POLOŽKY S ID
+        if (sId.length > 0) {
+            this.vygenerovatTabulku(doc, sId, `Inventúra: ${nazovInventury} (S ID Kódmi)`, true);
+        }
+
+        // 2. ČASŤ: POLOŽKY BEZ ID (Na novej strane)
+        if (bezId.length > 0) {
+            if (sId.length > 0) {
+                doc.addPage(); // Pridá novú stranu, ak sme už tlačili IDčkové
+            }
+            this.vygenerovatTabulku(doc, bezId, `Inventúra: ${nazovInventury} (Bez ID)`, false);
+        }
+
+        doc.save(`Inventura_${cleanNazov}_2col.pdf`);
+        return true;
+    }
+
+    // Pomocná metóda na vykreslenie tabuľky
+    private vygenerovatTabulku(doc: jsPDF, dataList: any[], nadpis: string, maId: boolean) {
+        // 1. Nadpis sekcie
+        doc.setFontSize(16);
+        doc.text(nadpis, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Dátum tlače: ${new Date().toLocaleDateString()}`, 14, 22);
+
+        // 2. Transformácia dát na 2 bloky po 4 stĺpcoch (Por., ID, Názov, Mn.)
+        const rows = [];
+        for (let i = 0; i < dataList.length; i += 2) {
+            const item1 = dataList[i];
+            const item2 = dataList[i + 1];
+
+            // Ľavá strana (Index je i + 1)
+            const rowData = [
+                (i + 1).toString(), // Poradie
+                item1['Product ID'] || (maId ? '-' : ''),
+                item1['Produkt'],
+                `${item1['Spočítané Množstvo']} ${item1['Jednotka'] || ''}`
+            ];
+
+            // Pravá strana (Index je i + 2)
+            if (item2) {
+                rowData.push(
+                    (i + 2).toString(), // Poradie
+                    item2['Product ID'] || (maId ? '-' : ''),
+                    item2['Produkt'],
+                    `${item2['Spočítané Množstvo']} ${item2['Jednotka'] || ''}`
+                );
+            } else {
+                // Ak chýba pravá položka, doplníme prázdne bunky (4 stĺpce)
+                rowData.push('', '', '', '');
+            }
+            rows.push(rowData);
+        }
+
+        // 3. Definícia hlavičky (8 stĺpcov)
+        // Používame 'as const' pre TypeScript
+        const styleLeft = { halign: 'left' as const, fontStyle: 'bold' as const };
+        const styleRight = { halign: 'right' as const, fontStyle: 'bold' as const };
+        const styleCenter = { halign: 'center' as const, fontStyle: 'bold' as const };
+
+        const hlava = [
+            { content: 'Por.', styles: styleCenter },
+            { content: 'ID', styles: styleLeft },
+            { content: 'Názov produktu', styles: styleLeft },
+            { content: 'Mn.', styles: styleRight },
+            // Stredová čiara
+            { content: 'Por.', styles: styleCenter },
+            { content: 'ID', styles: styleLeft },
+            { content: 'Názov produktu', styles: styleLeft },
+            { content: 'Mn.', styles: styleRight },
+        ];
+
+        // 4. Generovanie tabuľky
+        autoTable(doc, {
+            head: [hlava],
+            body: rows,
+            startY: 25,
+            theme: 'grid', // Mriežka pomôže zarovnaniu
+            styles: {
+                font: 'Roboto',
+                fontSize: 8, // Trochu menšie písmo, aby sa zmestilo 8 stĺpcov
+                cellPadding: 2,
+                overflow: 'ellipsize',
+                valign: 'middle',
+                lineWidth: 0.1,
+                lineColor: [200, 200, 200]
+            },
+            headStyles: {
+                fillColor: maId ? [41, 128, 185] : [192, 57, 43], // Modrá / Červená
+                textColor: 255,
+                lineWidth: 0.1,
+                lineColor: [50, 50, 50]
+            },
+            // Nastavenie šírok stĺpcov (spolu cca 180-190mm na A4)
+            columnStyles: {
+                // ĽAVÁ STRANA
+                0: { cellWidth: 10, halign: 'center' }, // Por.
+                1: { cellWidth: 22, fontStyle: 'bold' }, // ID
+                2: { cellWidth: 'auto' }, // Názov (zvyšok)
+                3: { cellWidth: 15, halign: 'right' }, // Mn.
+
+                // PRAVÁ STRANA (Identické)
+                4: { cellWidth: 10, halign: 'center' }, // Por.
+                5: { cellWidth: 22, fontStyle: 'bold' }, // ID
+                6: { cellWidth: 'auto' }, // Názov
+                7: { cellWidth: 15, halign: 'right' }  // Mn.
+            },
+
+
+
+        });
+    }
+
+    // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
+    public generovatTlacovuZostavu(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
+
+        const aoaData: any[][] = [];
+
+        // Vloženie 4 čistých prázdnych riadkov (Riadky 1-4 v Exceli)
+        aoaData.push([]);
+        aoaData.push([]);
+        aoaData.push([]);
+        aoaData.push([]);
+
+        // Presná hlavička (Riadok 5 v Exceli)
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // --- AGREGÁCIA DAT (zlučovanie rovnakých ID) ---
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            const existujucaPolozka = akumulator.find(
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+
+            return akumulator;
+        }, []);
+
+        // --- MAPOVANIE DO AOA ---
+        zluceneData.forEach((item: any) => {
+
+            // 1. Získame ID a ubezpečíme sa, že z neho nezostane string so zalomením (\n) z čítačky
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
+            aoaData.push([
+                cisteProductID || '',                // A (0) - ID (Istota, že je to čisté Number pre import)
+                '',                                  // B (1) - CISLO
+                '',               // C (2) - NAZOV (Presne ako v tvojom kóde)
+                '',              // D (3) - MJ (Presne ako v tvojom kóde)
+                '',                                  // E (4) - EAN
+                '',                                  // F (5) - CENA
+                '',                                  // G (6) - PREDPOKLADANE MNOZSTVO
+                item['Spočítané Množstvo'] || 0      // H (7) - FYZICKE MNOZSTVO
+            ]);
+        });
+
+        // Vytvorenie hárku
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // --- FORMÁTOVANIE A ŠTÝLOVANIE BUNIEK ---
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+
+                    if (!cell) continue;
+
+                    // Inicializácia objektu štýlov, ak neexistuje
+                    if (!cell.s) cell.s = {};
+
+                    // 1. FORMÁT ČÍSEL (.z)
+                    if (R < 5) {
+                        // Riadky 1-5 (Indexy 0 až 4)
+                        cell.z = 'General';
+                    } else {
+                        // Od riadku 6 (Index 5 a vyššie)
+                        if (C >= 0 && C <= 4) {
+                            cell.z = '0'; // A, B, C, D, E
+                        } else if (C === 5) {
+                            cell.z = '0.0000'; // F
+                        } else if (C === 6 || C === 7) {
+                            cell.z = '0.000'; // G, H
+                        }
+                    }
+
+                    // 2. TUČNÉ PÍSMO (.s.font) - Iba riadok 5 (Index 4)
+                    if (R === 4) {
+                        if (!cell.s.font) cell.s.font = {};
+                        cell.s.font.bold = true;
+                    }
+
+                    // 3. ZAROVNANIE (.s.alignment) - Od riadku 5 (Index 4) nadol
+                    if (R >= 4) {
+                        // Stĺpce A(0), B(1), F(5), G(6), H(7)
+                        if (C === 0 || C === 1 || C === 5 || C === 6 || C === 7) {
+                            if (!cell.s.alignment) cell.s.alignment = {};
+                            cell.s.alignment.horizontal = 'center';
+                            cell.s.alignment.vertical = 'center'; // Pridávam aj vertikálne centrovanie pre lepší vizuál
+                        }
+                    }
+                }
+            }
+        }
+
+        // Vytvorenie zošita a vloženie hárku (Iba raz)
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
+
+        // Vyčistenie názvu (Iba raz)
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        // --- Browser-safe stiahnutie súboru bez Node.js (fs/stream) ---
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        downloadLink.download = `Tlacova_zostava_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href); // Uvoľnenie pamäte
+        // -------------------------------------------------------------------------
+
+        return true;
+    }
+
+}
+</file>
+
+<file path="src/app/components/calculator-modal/calculator-modal.component.html">
+<ion-content class="ion-padding">
+  <div class="centered-content">
+  
+    <div class="info-section">
+      <div class="product-header" *ngIf="nazovProduktu">
+        {{ nazovProduktu }}
+        <span style="font-weight: normal; opacity: 0.7;">({{ jednotka }})</span>
+      </div>
+
+     
+
+      <div class="display-container">
+        <div class="formula-text" *ngIf="zobrazitDetail">
+          {{ fullFormula }}
+        </div>
+        <div class="calculation-text" [class.has-detail]="zobrazitDetail">
+          {{ mainDisplay }}
+        </div>
+      </div>
+
+      <div class="balenie-btn-container" style="display: flex; gap: 8px;">
+        
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()" style="flex: 1;">
+          <ion-icon name="cube-outline" slot="start"></ion-icon>
+          <strong>Balenie (x{{ balenie }})</strong>
+        </ion-button>
+
+        <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()" style="flex: 1;">
+          <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+          Pridať balenie
+        </ion-button>
+
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()">
+          <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+        </ion-button>
+        
+      </div>
+    </div> 
+    <div class="keypad-section">
+      <div class="keypad">
+        <div class="row">
+          <ion-button color="danger" (click)="vymazat()">C</ion-button>
+          <ion-button color="medium" (click)="zmazatJeden()">⌫</ion-button>
+          <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
+          <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
+        </div>
+    
+        <div class="row">
+          <ion-button color="light" (click)="stlacene('7')">7</ion-button>
+          <ion-button color="light" (click)="stlacene('8')">8</ion-button>
+          <ion-button color="light" (click)="stlacene('9')">9</ion-button>
+          <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
+        </div>
+    
+        <div class="row">
+          <ion-button color="light" (click)="stlacene('4')">4</ion-button>
+          <ion-button color="light" (click)="stlacene('5')">5</ion-button>
+          <ion-button color="light" (click)="stlacene('6')">6</ion-button>
+          <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
+        </div>
+    
+        <div class="row">
+          <ion-button color="light" (click)="stlacene('1')">1</ion-button>
+          <ion-button color="light" (click)="stlacene('2')">2</ion-button>
+          <ion-button color="light" (click)="stlacene('3')">3</ion-button>
+          <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
+        </div>
+    
+        <div class="row bottom-row">
+          <ion-button color="light" (click)="stlacene('0')">0</ion-button>
+          <ion-button color="light" (click)="stlacene('.')">.</ion-button>
+          <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
+        </div>
+      </div>
+    </div>
+    </div>
+</ion-content>
+</file>
+
+<file path="src/app/components/calculator-modal/calculator-modal.component.ts">
+import { Component, Input, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { IonicModule, ModalController, AlertController } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+// >>> UPRAVENÉ: Pridaná ikona createOutline <<<
+import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
+
+@Component({
+  selector: 'app-calculator-modal',
+  standalone: true,
+  imports: [CommonModule, IonicModule],
+  templateUrl: './calculator-modal.component.html',
+  styleUrls: ['./calculator-modal.component.scss'],
+})
+export class CalculatorModalComponent implements OnInit {
+
+  @Input() nazovProduktu: string = '';
+  @Input() aktualnyStav: number = 0;
+  @Input() balenie: number = 1;
+  @Input() jednotka: string = 'ks'; //
+  povodnneBalenie: number = 1;
+  // Dve premenné pre zobrazenie
+  fullFormula: string = '';   // "10 + 5" (Skryté/Detail)
+  mainDisplay: string = '0';  // "5" (Hlavné)
+
+  zobrazitDetail: boolean = true
+  shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
+
+  private lastClickTime: number = 0;
+
+  constructor(private modalController: ModalController, private alertCtrl: AlertController) {
+    addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
+  }
+  ngOnInit() {
+    this.balenie = this.balenie || 1;
+    this.povodnneBalenie = this.balenie; // Zapamätáme si úvodnú hodnotu
+
+    const pociatocnyStav = this.aktualnyStav || 0;
+    this.mainDisplay = pociatocnyStav.toString();
+    this.fullFormula = pociatocnyStav.toString();
+  }
+  // >>> PRIDANÁ METÓDA: Rýchla zmena balenia <<<
+  async zmenitVelkostBalenia() {
+    const alert = await this.alertCtrl.create({
+      header: 'Veľkosť balenia',
+      message: 'Zadajte, koľko kusov je v jednom balení:',
+      inputs: [
+        {
+          name: 'noveBalenie',
+          type: 'number',
+          value: this.balenie > 1 ? this.balenie : '',
+          placeholder: 'Napr. 12',
+          min: 1
+        }
+      ],
+      buttons: [
+        { text: 'Zrušiť', role: 'cancel' },
+        {
+          text: 'Uložiť',
+          handler: (data) => {
+            // Nahradíme čiarku za bodku (aby fungovalo "0,5" aj "0.5")
+            const textHodnota = data.noveBalenie.replace(',', '.');
+            // Použijeme parseFloat pre podporu desatinných čísel
+            const cislo = parseFloat(textHodnota);
+
+            // Prijímame všetko väčšie ako 0 (teda aj 0.5, 0.1 atď.)
+            if (!isNaN(cislo) && cislo > 0) {
+              this.balenie = cislo;
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  stlacene(hodnota: string) {
+    // Debounce (proti dvojkliku)
+    const now = Date.now();
+    if (now - this.lastClickTime < 100) return;
+    this.lastClickTime = now;
+
+    const isOperator = ['+', '-', '*', '/'].includes(hodnota);
+
+    if (isOperator) {
+      this.handleOperator(hodnota);
+    } else {
+      this.handleNumber(hodnota);
+    }
+  }
+
+  handleNumber(num: string) {
+    // Ak sme práve stlačili operátor, alebo je tam 0, začíname nové číslo
+    if (this.shouldResetMain || this.mainDisplay === '0') {
+      if (num === '.') {
+        this.mainDisplay = '0.';
+      } else {
+        this.mainDisplay = num;
+      }
+      this.shouldResetMain = false;
+    } else {
+      // Inak pripájame (napr. 1 -> 12)
+      if (num === '.' && this.mainDisplay.includes('.')) return; // Iba jedna bodka
+      this.mainDisplay += num;
+    }
+
+    // Aktualizujeme aj vzorec na pozadí
+    // Ak bol posledný znak operátor, len pripájame. Ak číslo, tiež pripájame.
+    // Musíme ošetriť "0" na začiatku vzorca, ak sa prepisuje
+    if (this.fullFormula === '0' && num !== '.') {
+      this.fullFormula = num;
+    } else {
+      this.fullFormula += num;
+    }
+  }
+
+  handleOperator(op: string) {
+    // Ak je posledný znak vo vzorci už operátor, vymeníme ho
+    const lastChar = this.fullFormula.slice(-1);
+    if (['+', '-', '*', '/'].includes(lastChar)) {
+      this.fullFormula = this.fullFormula.slice(0, -1) + op;
+      return;
+    }
+
+    // Tu spravíme "priebežný výpočet" pre štandardný efekt kalkulačky
+    // Ale do vzorca len pridáme operátor
+    this.calculateResultInternal(); // Toto vypočíta aktuálny stav a dá ho do mainDisplay
+
+    this.fullFormula += op;
+    this.shouldResetMain = true; // Pri najbližšom čísle vymažeme mainDisplay
+  }
+
+  vymazat() {
+    this.mainDisplay = '0';
+    this.fullFormula = '0';
+    this.shouldResetMain = false;
+  }
+
+  zmazatJeden() {
+    // Mažeme z hlavného displeja
+    if (this.mainDisplay.length > 1) {
+      this.mainDisplay = this.mainDisplay.slice(0, -1);
+    } else {
+      this.mainDisplay = '0';
+      this.shouldResetMain = true; // Reset ak sme zmazali všetko
+    }
+
+    // Mažeme aj zo vzorca
+    if (this.fullFormula.length > 1) {
+      this.fullFormula = this.fullFormula.slice(0, -1);
+    } else {
+      this.fullFormula = '0';
+    }
+  }
+
+  // Pomocná funkcia na bezpečný výpočet reťazca
+  private evaluateString(str: string): number | null {
+    try {
+      // Nahradíme vizuálne 'x' za '*' ak by tam bolo, hoci používame '*'
+      const safeCalc = str.replace(/x/g, '*');
+      // Ošetrenie pre neúplný výraz (napr "5+")
+      const lastChar = safeCalc.slice(-1);
+      if (['+', '-', '*', '/'].includes(lastChar)) return null;
+
+      const func = new Function('return ' + safeCalc);
+      return func();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Interný výpočet pre priebežný stav (bez zmeny fullFormula na výsledok)
+  calculateResultInternal() {
+    const res = this.evaluateString(this.fullFormula);
+    if (res !== null) {
+      this.mainDisplay = res.toString();
+    }
+  }
+
+  // Finálny výpočet (=)
+  vypocitat() {
+    const res = this.evaluateString(this.fullFormula);
+    if (res !== null) {
+      this.mainDisplay = res.toString();
+      this.fullFormula = res.toString(); // Reset vzorca na výsledok
+      this.shouldResetMain = true;       // Ak začne písať číslo, prepíše to
+    } else {
+      this.mainDisplay = 'Chyba';
+    }
+  }
+
+  potvrdit() {
+    const res = this.evaluateString(this.fullFormula);
+
+    let vysledok = 0;
+    if (res !== null && !isNaN(res)) {
+      vysledok = res;
+    } else {
+      const simpleVal = parseFloat(this.mainDisplay);
+      if (!isNaN(simpleVal)) vysledok = simpleVal;
+    }
+
+    // Ak sa balenie zmenilo oproti databáze, pošleme ho rodičovi na uloženie
+    const noveBaleniePreDb = this.balenie !== this.povodnneBalenie ? this.balenie : null;
+
+    this.modalController.dismiss({
+      novyStav: vysledok,
+      balenie: this.balenie
+    }, 'confirm');
+  }
+
+  zrusit() {
+    this.modalController.dismiss(null, 'cancel');
+  }
+
+  pridatBalenie() {
+    // 1. FIX: Ak je aktuálna hodnota 0, nechceme násobiť (lebo 0 * x = 0),
+    // ale chceme hodnotu priamo nastaviť na veľkosť balenia.
+    if (this.fullFormula === '0' || this.fullFormula === '') {
+      this.fullFormula = this.balenie.toString();
+      this.mainDisplay = this.balenie.toString();
+      this.shouldResetMain = true;
+      return; // Končíme, ďalej už nenásobíme
+    }
+
+    // 2. Ak tam už nejaké číslo je, pokračujeme vašou pôvodnou logikou (násobenie)
+
+    // Najprv simulujeme stlačenie operátora krát
+    this.handleOperator('*');
+
+    // Potom pridáme číslo balenia do vzorca
+    this.fullFormula += this.balenie.toString();
+
+    // A hneď vypočítame výsledok
+    const res = this.evaluateString(this.fullFormula);
+    if (res !== null) {
+      this.mainDisplay = res.toString();
+      // Necháme fullFormula tak ako je (napr "5*12"), aby to bolo vidno v detaile
+      this.shouldResetMain = true;
     }
   }
 }
@@ -4192,6 +4498,34 @@ export class NovyProduktModalComponent implements OnInit {
 // Pozadie celej stránky
 .bg-gray {
   --background: #f4f5f8;
+}
+
+.super-toast {
+  z-index: 999999 !important;
+}
+
+
+
+/* --- Úprava prepínača v hlavičke --- */
+.custom-header-toggle {
+  /* Jemné odsadenie od textu zľava */
+  padding-left: 10px;
+
+  /* 1. STAV: ZAPNUTÝ (TRUE) */
+  --background-checked: #ffffff;
+  /* Pozadie prepínača bude biele */
+  --handle-background-checked: var(--ion-color-primary);
+  /* Gulička bude modrá (vo farbe hlavičky) */
+
+  /* 2. STAV: VYPNUTÝ (FALSE) */
+  --background: rgba(255, 255, 255, 0.4);
+  /* Pozadie bude polopriesvitné biele, aby ladilo s modrou hlavičkou */
+  --handle-background: #ffffff;
+  /* Gulička ostane biela */
+
+  /* Voliteľné: Veľkosť prepínača (odkomentuj, ak ho chceš menší/väčší) */
+  /* padding: 0; */
+  /* transform: scale(0.9); */
 }
 
 ion-searchbar.custom-searchbar {
@@ -4620,7 +4954,7 @@ import { addIcons } from 'ionicons';
 import {
   add, logOutOutline, checkmarkDoneOutline,
   ellipsisVertical, documentTextOutline, gridOutline,
-  trashOutline, closeOutline, warningOutline, closeCircle
+  trashOutline, closeOutline, warningOutline, closeCircle, reload
 } from 'ionicons/icons';
 import { DoplnitIdModalComponent } from 'src/app/components/doplnit-id-modal/doplnit-id-modal.component';
 import { ModalController } from '@ionic/angular';
@@ -4663,7 +4997,8 @@ export class InventuryZoznamPage implements OnInit {
       gridOutline,
       trashOutline,
       closeOutline,
-      closeCircle
+      closeCircle,
+      reload
     });
   }
 
@@ -4703,8 +5038,9 @@ export class InventuryZoznamPage implements OnInit {
       this.isLoading = true;
       await this.supabase.vytvoritInventuru(nazov);
       await this.nacitajZoznam();
-    } catch (e) {
+    } catch (e: any) {
       this.isLoading = false;
+      this.toast(e.message, 'danger');
     }
   }
 
@@ -4720,11 +5056,53 @@ export class InventuryZoznamPage implements OnInit {
   async vykonatUzavretie(id: number) {
     try {
       this.isLoading = true;
+      const user = await this.supabase.getCurrentUser();
+      if (!user) {
+        this.toast('Nepodarilo sa overiť prihlásenie. Skúste sa prosím prihlásiť znova.', 'danger');
+        this.navCtrl.navigateRoot('/login');
+        this.isLoading = false;
+        return;
+      }
       await this.supabase.uzavrietInventuru(id);
       await this.nacitajZoznam();
-    } catch (e) {
+    } catch (e: any) {
       this.isLoading = false;
+      this.toast(e.message, 'danger');
     }
+  }
+
+  async znovuOtvorit(inv: Inventura) {
+    const alert = await this.alertCtrl.create({
+      header: 'Znovu otvoriť inventúru?',
+      message: 'Naozaj chcete znovu otvoriť túto inventúru?',
+      buttons: [
+        'Zrušiť',
+        {
+          text: 'Áno, otvoriť',
+          handler: async () => {
+            try {
+              this.isLoading = true;
+              const user = await this.supabase.getCurrentUser();
+              if (!user) {
+                this.toast('Nepodarilo sa overiť prihlásenie. Skúste sa prosím prihlásiť znova.', 'danger');
+                this.navCtrl.navigateRoot('/login');
+                this.isLoading = false;
+                return;
+              }
+              await this.supabase.znovuOtvoritInventuru(inv.id);
+              await this.nacitajZoznam();
+              this.toast('Inventúra bola znovu otvorená.', 'success');
+            } catch (e: any) {
+              this.isLoading = false;
+              this.toast(e.message, 'danger');
+            } finally {
+              this.isLoading = false;
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
   }
 
   async zmazat(inv: Inventura) {
@@ -4751,43 +5129,49 @@ export class InventuryZoznamPage implements OnInit {
     const actionSheet = await this.actionSheetCtrl.create({
       header: `Možnosti: ${inv.nazov}`,
       buttons: [
+
         {
-          text: 'Doplniť chýbajúce ID (Formulár)',
-          icon: 'create-outline',
-          handler: () => {
-            this.otvoritFormularBezId(inv);
-          }
+          text: 'Špeciálna Tlačová zostava (.xls)',
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
         },
-        {
-          text: 'PDF Kompaktné (2 stĺpce)',
-          icon: 'print-outline',
-          handler: () => { this.spustitExport(inv, 'pdf_2col'); }
-        },
-        {
-          text: 'Excel (Kompletný - 2 hárky)',
-          icon: 'grid-outline',
-          handler: () => { this.spustitExport(inv, 'excel_komplet'); }
-        },
+        // {
+        //   text: 'Doplniť chýbajúce ID (Formulár)',
+        //   icon: 'create-outline',
+        //   handler: () => {
+        //     this.otvoritFormularBezId(inv);
+        //   }
+        // },
+        // {
+        //   text: 'PDF Kompaktné (2 stĺpce)',
+        //   icon: 'print-outline',
+        //   handler: () => { this.spustitExport(inv, 'pdf_2col'); }
+        // },
+        // {
+        //   text: 'Excel (Kompletný - 2 hárky)',
+        //   icon: 'grid-outline',
+        //   handler: () => { this.spustitExport(inv, 'excel_komplet'); }
+        // },
         {
           text: 'Excel (Len s ID)',
           icon: 'grid-outline',
           handler: () => { this.spustitExport(inv, 'excel_id'); }
         },
-        {
-          text: 'Excel (Len bez ID)',
-          icon: 'grid-outline',
-          handler: () => { this.spustitExport(inv, 'excel_noid'); }
-        },
+        // {
+        //   text: 'Excel (Len bez ID)',
+        //   icon: 'grid-outline',
+        //   handler: () => { this.spustitExport(inv, 'excel_noid'); }
+        // },
         {
           text: 'PDF (Len s ID)',
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'pdf_id'); }
         },
-        {
-          text: 'PDF (Len bez ID)',
-          icon: 'document-text-outline',
-          handler: () => { this.spustitExport(inv, 'pdf_noid'); }
-        },
+        // {
+        //   text: 'PDF (Len bez ID)',
+        //   icon: 'document-text-outline',
+        //   handler: () => { this.spustitExport(inv, 'pdf_noid'); }
+        // },
         {
           text: 'Zmazať inventúru',
           role: 'destructive',
@@ -4819,6 +5203,9 @@ export class InventuryZoznamPage implements OnInit {
       let uspech = true;
 
       switch (typ) {
+        case 'tlacova_zostava':
+          uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
+          break;
         case 'excel_komplet':
           this.exportService.generovatExcelKomplet(data, inv.nazov);
           break;
@@ -4858,7 +5245,7 @@ export class InventuryZoznamPage implements OnInit {
   }
 
   async toast(msg: string, color: string) {
-    const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'bottom' });
+    const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'top' });
     t.present();
   }
 
@@ -4880,46 +5267,87 @@ export class InventuryZoznamPage implements OnInit {
 </file>
 
 <file path="src/app/pages/inventory/inventory.component.html">
+<!-- ========================= HEADER =============================== -->
 <ion-header class="ion-no-border">
+
+  <!-- ===== Horná lišta: tlačidlá späť, názov a aktívna inventúra ===== -->
   <ion-toolbar color="primary">
     <ion-buttons slot="start">
+      <!-- Tlačidlo späť -->
       <ion-back-button defaultHref="/home" text=""></ion-back-button>
     </ion-buttons>
+
+    <!-- Názov stránky -->
     <ion-title>Inventúra</ion-title>
-    
+
     <ion-buttons slot="end">
+
+      <!-- Aktívna inventúra – chip vpravo -->
       <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
       </ion-chip>
 
-      <ion-button (click)="toggleReorder()" 
-                  *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
-                  color="light">
-        <ion-icon slot="icon-only" [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'"></ion-icon>
+      <!-- Tlačidlo na prepinanie reordering režimu -->
+      <ion-button 
+        (click)="toggleReorder()"
+        *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
+        color="light">
+        <ion-icon slot="icon-only" 
+          [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'">
+        </ion-icon>
       </ion-button>
+
     </ion-buttons>
   </ion-toolbar>
 
+  <!-- ===== Prepínač režimov zobrazenia (segmented control) ===== -->
   <ion-toolbar color="primary" class="toolbar-segment">
     <ion-segment [value]="rezimZobrazenia" (ionChange)="zmenitRezim($event)" mode="ios">
       <ion-segment-button value="regal">
         <ion-label>Po Regáloch</ion-label>
       </ion-segment-button>
+
       <ion-segment-button value="global">
         <ion-label>Všetky</ion-label>
       </ion-segment-button>
+
+      <!-- Zobrazenie iba hotových položiek inventúry -->
       <ion-segment-button value="v_inventure" *ngIf="aktivnaInventura">
         <ion-label>Hotové</ion-label>
       </ion-segment-button>
     </ion-segment>
   </ion-toolbar>
 
+  <!-- ===== Prepínač "zobraziť všetky položky zo skladu" ===== -->
+  <ion-toolbar 
+    color="primary" 
+    *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" 
+    class="fade-in" 
+    style="--min-height: 45px;">
+    
+    <ion-item color="primary" lines="none" style="--padding-start: 16px; --inner-padding-end: 16px;">
+      <ion-label class="ionlabel-text" style="color: white; font-size: 0.85rem; white-space: normal; opacity: 0.9;">
+        Zobraziť všetky položky zo skladu
+      </ion-label>
+
+      <ion-toggle class="custom-header-toggle"
+                  mode="ios"
+                  [(ngModel)]="zobrazitVsetkoVRegaloch"
+                  (ionChange)="obnovitZoznamPodlaRezimu()"
+                  color="light">
+      </ion-toggle>
+    </ion-item>
+  </ion-toolbar>
+
+
+  <!-- ========================= FILTER PANEL ========================= -->
   <div class="filter-panel">
     
+    <!-- ===== Reset filtrov (zobrazí sa len ak sú filtre aktívne) ===== -->
     <div class="ion-padding-horizontal reset-container" 
-          style="display: flex; justify-content: center; width: 100%;"
-          *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
+         style="display: flex; justify-content: center; width: 100%;"
+         *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
       
       <ion-chip color="danger" mode="ios" (click)="zrusitFiltre()">
         <ion-icon name="close-circle"></ion-icon>
@@ -4927,11 +5355,13 @@ export class InventuryZoznamPage implements OnInit {
       </ion-chip>
     </div>
 
+    <!-- ===== Výber skladu a regálu ===== -->
     <div class="select-row fade-in">
-      
+
+      <!-- Výber skladu -->
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-          <span class="input-label" style="margin-bottom: 0;">Sklad</span>
+          <span class="input-label">Sklad</span>
         </div>
         
         <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
@@ -4939,35 +5369,40 @@ export class InventuryZoznamPage implements OnInit {
                       [(ngModel)]="vybranySkladId" 
                       (ionChange)="priZmeneSkladu()"
                       [disabled]="rezimZobrazenia === 'global'">
-             <ion-select-option *ngFor="let s of sklady" [value]="s.id">
-               {{ s.nazov }}
-             </ion-select-option>
+            <ion-select-option *ngFor="let s of sklady" [value]="s.id">
+              {{ s.nazov }}
+            </ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
       </div>
 
+      <!-- Výber regálu -->
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-          <span class="input-label" style="margin-bottom: 0;">Regál</span>
+          <span class="input-label">Regál</span>
         </div>
         
-        <div class="custom-input-box" [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
+        <div class="custom-input-box" 
+             [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
           <ion-select placeholder="Vyberte" interface="action-sheet"
                       [(ngModel)]="vybranyRegalId" 
                       (ionChange)="priZmeneRegalu()"  
                       [disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
-             <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">
-               {{ r.nazov }}
-             </ion-select-option>
+            <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">
+              {{ r.nazov }}
+            </ion-select-option>
           </ion-select>
           <ion-icon name="caret-down-outline"></ion-icon>
         </div>
       </div>
     </div>
+
+    <!-- ===== Search + Filter kategórií ===== -->
+    <div *ngIf="(rezimZobrazenia === 'regal' && (vybranyRegalId || zobrazitVsetkoVRegaloch)) || rezimZobrazenia !== 'regal'" 
+         class="search-row fade-in">
       
-    <div *ngIf="(rezimZobrazenia === 'regal' && vybranyRegalId) || rezimZobrazenia !== 'regal'" class="search-row fade-in">
-      
+      <!-- Fulltext vyhľadávanie -->
       <ion-searchbar 
         placeholder="Hľadať produkt..."
         [(ngModel)]="searchQuery"
@@ -4977,35 +5412,43 @@ export class InventuryZoznamPage implements OnInit {
         class="custom-searchbar">
       </ion-searchbar>
 
+      <!-- Výber kategórie -->
       <div class="filter-btn-wrapper">
         <div class="icon-box">
           <ion-icon name="filter-outline"></ion-icon>
           <ion-select interface="action-sheet" 
                       [(ngModel)]="filterKategoria" 
                       (ionChange)="zmenitFilterKategorie($event)">
-             <ion-select-option value="vsetky">Všetky</ion-select-option>
-             <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
-               {{ k }}
-             </ion-select-option>
+            <ion-select-option value="vsetky">Všetky</ion-select-option>
+            <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
+              {{ k }}
+            </ion-select-option>
           </ion-select>
         </div>
       </div>
     </div>
-  </div>
+
+  </div> <!-- /filter-panel -->
 </ion-header>
 
+
+<!-- ========================= CONTENT =============================== -->
 <ion-content #content [fullscreen]="true" class="bg-gray">
 
+  <!-- ===== Refresh (ťahnutie dole) ===== -->
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content></ion-refresher-content>
   </ion-refresher>
 
+  <!-- ===== Loading stav ===== -->
   <div class="center-content" *ngIf="isLoading">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
     <p>Načítavam...</p>
   </div>
 
-  <div *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId && !isLoading" class="center-content empty-state fade-in">
+  <!-- ===== Empty state: nevybraný regál v režime "Regál" ===== -->
+  <div *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId && !zobrazitVsetkoVRegaloch && !isLoading" 
+       class="center-content empty-state fade-in">
     <div class="circle-icon">
       <ion-icon name="arrow-up-outline"></ion-icon>
     </div>
@@ -5013,112 +5456,164 @@ export class InventuryZoznamPage implements OnInit {
     <p>Hore vyberte Sklad a Regál pre zobrazenie tovaru.</p>
   </div>
 
-  <div *ngIf="filtrovaneZasoby.length === 0 && !isLoading && (vybranyRegalId || rezimZobrazenia !== 'regal')" class="center-content empty-state fade-in">
+  <!-- ===== Empty state: žiadne výsledky ===== -->
+  <div *ngIf="
+      filtrovaneZasoby.length === 0 
+      && !isLoading 
+      && (vybranyRegalId || zobrazitVsetkoVRegaloch || rezimZobrazenia !== 'regal')"
+      class="center-content empty-state fade-in">
+
     <div class="circle-icon green-icon">
-      <ion-icon [name]="rezimZobrazenia === 'v_inventure' ? 'checkmark-done-outline' : 'search-outline'"></ion-icon>
+      <ion-icon [name]="rezimZobrazenia === 'v_inventure' 
+          ? 'checkmark-done-outline' 
+          : 'search-outline'">
+      </ion-icon>
     </div>
+
     <h3 *ngIf="rezimZobrazenia === 'v_inventure'">Zatiaľ nič zapísané</h3>
     <h3 *ngIf="rezimZobrazenia !== 'v_inventure'">Žiadne položky</h3>
     
-    <p *ngIf="rezimZobrazenia === 'v_inventure'">V tejto inventúre ste ešte nepotvrdili žiadny tovar.</p>
-    <p *ngIf="rezimZobrazenia !== 'v_inventure'">Nenašli sa žiadne produkty zodpovedajúce filtru.</p>
+    <p *ngIf="rezimZobrazenia === 'v_inventure'">
+      V tejto inventúre ste ešte nepotvrdili žiadny tovar.
+    </p>
+    <p *ngIf="rezimZobrazenia !== 'v_inventure'">
+      Nenašli sa žiadne produkty zodpovedajúce filtru.
+    </p>
   </div>
 
+
+  <!-- ========================= ZOZNAM KARIET PRODUKTOV ========================= -->
   <div class="cards-list" *ngIf="!isLoading">
-    
+
+    <!-- Zoznam produktov -->
     <ion-list style="background: transparent;" lines="none">
-      
+
+      <!-- Reordering skupina -->
       <ion-reorder-group [disabled]="isReorderDisabled" (ionItemReorder)="doReorder($event)">
-        
+
+        <!-- Položky zoznamu -->
         <ion-item *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
                   class="transparent-item"
                   style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
 
+          <!-- ===== KARTA PRODUKTU ===== -->
           <ion-card [id]="'polozka-' + z.id" class="product-card" style="width: 100%; margin: 5px 12px;">
             <ion-card-content>
+              
               <div class="card-container">
 
+                <!-- ===== ĽAVÁ ČASŤ – ID, názov, umiestnenie, kategórie ===== -->
                 <div class="card-left">
+
+                  <!-- Interné ID produktu -->
                   <div class="icon-placeholder" [class.done]="z.v_inventure">
-                    <ion-icon [name]="z.v_inventure ? 'checkmark-circle' : 'cube-outline'"></ion-icon>
+                    <span 
+                      style="font-weight: 400; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 2px;"
+                      [style.color]="z.v_inventure ? '#118023' : 'var(--ion-color-medium)'">
+                      {{ z.interne_id || '?' }}
+                    </span>
                   </div>
-                  
+
                   <div class="info">
+
+                    <!-- Názov + otvorenie detailu -->
                     <div (click)="otvoritUpravu(z)">
                       <h3>{{ z.nazov }}</h3>
                     </div>
 
+                    <!-- Umiestnenie -->
+                    <p *ngIf="z.umiestnenie || z.regal_nazov" 
+                       class="loc" 
+                       style="margin-top: 2px; margin-bottom: 4px;">
+                      <ion-icon name="location-outline"></ion-icon> 
+                      {{ z.umiestnenie ? z.umiestnenie : (z.sklad_nazov + ' | ' + z.regal_nazov) }}
+                    </p>
+
+                    <!-- Kategória a balenie -->
                     <div class="meta">
                       <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
                       <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
                     </div>
-                    
+
+                    <!-- Text že je zapísané v inventúre -->
                     <p *ngIf="z.v_inventure" class="done-text">
                       <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
-                    </p>
-                    
-                    <p *ngIf="z.umiestnenie" class="loc">
-                      <ion-icon name="location-outline"></ion-icon> {{ z.umiestnenie }}
                     </p>
                   </div>
                 </div>
 
+                <!-- ===== PRAVÁ ČASŤ – množstvo (badge) ===== -->
                 <div class="qty-box" (click)="otvoritUpravu(z)">
                   <ion-badge 
-                      [color]="aktivnaInventura 
-                              ? (z.v_inventure 
-                                ? ($any(z).spocitane_mnozstvo == z.mnozstvo_ks ? 'success' : 'warning') 
-                                : 'light') 
-                              : 'light'" 
-                      class="big-badge">
+                    [color]="aktivnaInventura 
+                      ? (z.v_inventure 
+                          ? ($any(z).spocitane_mnozstvo == z.mnozstvo_ks ? 'success' : 'warning') 
+                          : 'light')
+                      : 'light'"
+                    class="big-badge">
                     {{ aktivnaInventura ? ($any(z).spocitane_mnozstvo || 0) : z.mnozstvo_ks }}
+                    {{ z.jednotka || 'ks' }}
                   </ion-badge>
                 </div>
 
+                <!-- ===== Akcie (presun, editácia, odstránenie) ===== -->
                 <div class="info-actions">
                   <span class="action-icons" *ngIf="isReorderDisabled">
-                    <ion-button fill="clear" size="small" (click)="upravitProduktDetail(z); $event.stopPropagation()">
-                        <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
+
+                    <!-- Presun produktu -->
+                    <ion-button fill="clear" size="small"
+                                (click)="zobrazitPresunSklad(z, $event)"
+                                title="Presunúť">
+                      <ion-icon name="arrow-redo-outline" style="font-size: 1.2rem; color: var(--ion-color-tertiary);"></ion-icon>
                     </ion-button>
-                    
+
+                    <!-- Úprava produktu -->
+                    <ion-button *ngIf="jeAdmin" fill="clear" size="small" 
+                                (click)="upravitProduktDetail(z); $event.stopPropagation()">
+                      <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
+                    </ion-button>
+
+                    <!-- Odstránenie -->
                     <ion-icon 
-                      *ngIf="(jeAdmin || rezimZobrazenia === 'v_inventure') && (z.id > 0 || z.v_inventure)"
-                      name="trash-outline" color="danger" class="trash-icon"
+                      *ngIf="jeAdmin || rezimZobrazenia === 'v_inventure'"
+                      name="trash-outline" 
+                      color="danger" 
+                      class="trash-icon"
                       (click)="zmazatPolozku(z, $event)">
                     </ion-icon>
                   </span>
 
+                  <!-- Reorder icon -->
                   <ion-reorder slot="end" *ngIf="!isReorderDisabled">
-                     <ion-icon name="menu-outline" size="large" color="medium" style="margin-left: 10px;"></ion-icon>
+                    <ion-icon name="menu-outline" size="large" color="medium" style="margin-left: 10px;"></ion-icon>
                   </ion-reorder>
-
                 </div>
 
-              </div> 
+              </div>
             </ion-card-content>
           </ion-card>
-
         </ion-item>
 
       </ion-reorder-group>
     </ion-list>
   </div>
 
-         
-
+  <!-- ===== Infinite scroll pre hotové položky ===== -->
   <ion-infinite-scroll 
-      *ngIf="rezimZobrazenia === 'v_inventure'" 
-      threshold="100px" 
-      (ionInfinite)="nacitatDalsieHotove($event)">
-      
+    *ngIf="rezimZobrazenia === 'v_inventure'" 
+    threshold="100px" 
+    (ionInfinite)="nacitatDalsieHotove($event)">
+    
     <ion-infinite-scroll-content
       loadingSpinner="bubbles"
       loadingText="Načítavam ďalšie...">
     </ion-infinite-scroll-content>
   </ion-infinite-scroll>
 
+
+  <!-- ===== FAB tlačidlo (nový produkt) ===== -->
   <ion-fab 
-    *ngIf="isReorderDisabled" 
+    *ngIf="isReorderDisabled && jeAdmin"
     #draggableFab
     vertical="bottom" 
     horizontal="end" 
@@ -5128,11 +5623,23 @@ export class InventuryZoznamPage implements OnInit {
     (touchmove)="onDragMove($event)"
     (touchend)="onDragEnd()"
     style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
-    
+
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
   </ion-fab>
+
+  <!-- ===== Toast notifikácie ===== -->
+  <ion-toast
+    [isOpen]="toastState.isOpen"
+    [message]="toastState.message"
+    [color]="toastState.color"
+    [duration]="1000"
+    position="top"
+    mode="ios"
+    class="force-toast-visible"
+    (didDismiss)="toastState.isOpen = false">
+  </ion-toast>
 
 </ion-content>
 </file>
@@ -5163,6 +5670,7 @@ export interface Regal {
 export interface SkladovaZasobaView {
     id: number;
     produkt_id: number;
+    interne_id?: string;
     nazov: string;
     ean?: string;
     kategoria: string;
@@ -5175,6 +5683,9 @@ export interface SkladovaZasobaView {
     jednotka?: string;
     sklad_id?: number;
     spocitane_mnozstvo?: number;
+    regal_nazov?: string;
+    sklad_nazov?: string;
+    vlastne_id?: string;
 }
 
 export interface Inventura {
@@ -5241,6 +5752,7 @@ export class SupabaseService {
         produkt:produkty (
           id,
           nazov,
+          interne_id,
           ean,
           balenie_ks,
           jednotka,       
@@ -5259,6 +5771,7 @@ export class SupabaseService {
         return data.map((item: any) => ({
             id: item.id,
             produkt_id: item.produkt?.id,
+            interne_id: item.produkt?.interne_id,
             nazov: item.produkt?.nazov,
             ean: item.produkt?.ean,
             jednotka: item.produkt?.jednotka || 'ks',
@@ -5279,7 +5792,7 @@ export class SupabaseService {
         mnozstvo_ks,
         regal_id,
         produkt:produkty (
-          id, nazov, ean, balenie_ks, jednotka, kategorie(nazov)
+          id, nazov, ean, Interne_id, balenie_ks, jednotka, kategorie(nazov)
         ),
         regal:regaly (
           id, nazov,
@@ -5292,6 +5805,7 @@ export class SupabaseService {
         const sformatovaneData: SkladovaZasobaView[] = data.map((item: any) => ({
             id: item.id,
             produkt_id: item.produkt?.id,
+            interne_id: item.produkt?.Interne_id,
             nazov: item.produkt?.nazov || 'Neznámy',
             ean: item.produkt?.ean,
             kategoria: item.produkt?.kategorie?.nazov || 'Bez kategórie',
@@ -5326,6 +5840,7 @@ export class SupabaseService {
             vysledok.push({
                 id: 0,
                 produkt_id: prod.id,
+                interne_id: prod.Interne_id,
                 nazov: prod.nazov,
                 ean: prod.ean,
                 jednotka: prod.jednotka,
@@ -5411,6 +5926,20 @@ export class SupabaseService {
 
 
     async vytvoritInventuru(nazov: string) {
+        const { data: otvorena, error: otvorenaError } = await this.supabase
+            .from('inventury')
+            .select('id')
+            .eq('stav', 'otvorena')
+            .maybeSingle();
+    
+        if (otvorenaError) {
+            throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
+        }
+    
+        if (otvorena) {
+            throw new Error('Nemôžete vytvoriť novú inventúru, pretože iná inventúra je už otvorená.');
+        }
+        
         const { data, error } = await this.supabase
             .from('inventury')
             .insert({ nazov: nazov, stav: 'otvorena' })
@@ -5467,10 +5996,11 @@ export class SupabaseService {
 
         return zoznam;
     }
-    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number) {
+    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number, balenie: number) {
         const user = await this.getCurrentUserDetails();
 
-        const { error } = await this.supabase
+        // 1. KROK: Zapíšeme množstvo do inventúry (tu balenie_ks neuvádzame, lebo tam nie je)
+        const { error: invError } = await this.supabase
             .from('inventura_polozky')
             .upsert({
                 inventura_id: inventuraId,
@@ -5482,74 +6012,19 @@ export class SupabaseService {
                 created_at: new Date().toISOString()
             }, { onConflict: 'inventura_id, produkt_id, regal_id' });
 
-        if (error) throw error;
+        if (invError) throw invError;
+
+        // 2. KROK: Aktualizujeme balenie priamo v tabuľke PRODUKTY
+        const { error: prodError } = await this.supabase
+            .from('produkty')
+            .update({ balenie_ks: balenie }) // Tu stĺpec balenie_ks máš
+            .eq('id', produktId);
+
+        if (prodError) throw prodError;
+
         return true;
     }
 
-    // async getPolozkyVInventure(inventuraId: number): Promise<SkladovaZasobaView[]> {
-    //     const { data, error } = await this.supabase
-    //         .from('inventura_polozky')
-    //         .select(`
-    //             id,
-    //             mnozstvo,
-    //             produkt_id,
-    //             regal_id,
-    //             regaly:regal_id (
-    //                 nazov,
-    //                 sklad_id,      
-    //                 sklady ( nazov ) 
-    //             ),
-    //             produkty:produkt_id ( 
-    //                 nazov, 
-    //                 balenie_ks, 
-    //                 ean, 
-    //                 jednotka,
-    //                 kategorie ( nazov ) 
-    //             )
-    //         `)
-    //         .eq('inventura_id', inventuraId);
-
-    //     if (error) {
-    //         console.error('❌ Chyba načítania inventúry:', error);
-    //         throw error;
-    //     }
-
-    //     return (data as any[]).map(d => {
-    //         const regalObj = d.regaly;
-    //         const produktObj = d.produkty;
-
-
-    //         const skladData = regalObj?.sklady;
-    //         const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || 'Sklad';
-
-
-    //         const skladId = regalObj?.sklad_id;
-
-
-    //         const katData = produktObj?.kategorie;
-    //         const nazovKategorie = (Array.isArray(katData) ? katData[0]?.nazov : katData?.nazov) || 'Bez kategórie';
-
-    //         return {
-    //             id: d.id,
-    //             produkt_id: d.produkt_id,
-    //             regal_id: d.regal_id,
-    //             sklad_id: skladId,
-
-    //             mnozstvo_ks: d.mnozstvo,
-    //             nazov: produktObj?.nazov || 'Neznámy produkt',
-    //             ean: produktObj?.ean,
-    //             balenie_ks: produktObj?.balenie_ks || 1,
-    //             jednotka: produktObj?.jednotka || 'ks',
-
-    //             kategoria: nazovKategorie,
-
-    //             v_inventure: true,
-    //             umiestnenie: `${nazovSkladu} - ${regalObj?.nazov || 'Regál'}`
-    //         };
-    //     });
-    // }
-
-    // Súbor: src/app/services/supabase.service.ts
 
     async getPolozkyVInventure(inventuraId: number, od: number, do_poctu: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
@@ -5557,15 +6032,14 @@ export class SupabaseService {
             .select(`
             id, mnozstvo, created_at, produkt_id, regal_id,
             regaly:regal_id ( nazov, sklad_id, sklady ( nazov ) ),
-            produkty:produkt_id ( nazov, balenie_ks, ean, jednotka, kategorie ( nazov ) )
+            produkty:produkt_id ( nazov, balenie_ks, ean, jednotka, Interne_id, vlastne_id, kategorie ( nazov ) )
         `)
             .eq('inventura_id', inventuraId)
             .order('created_at', { ascending: false })
-            .range(od, do_poctu); // 🔥 TOTO JE KĽÚČOVÉ - Stránkovanie
+            .range(od, do_poctu);
 
         if (error) throw error;
 
-        // Mapovanie dát (rovnaké ako predtým)
         return (data as any[]).map(d => {
             const regalObj = d.regaly;
             const produktObj = d.produkty;
@@ -5576,6 +6050,9 @@ export class SupabaseService {
             return {
                 id: d.id,
                 produkt_id: d.produkt_id,
+                /* 👇 PRIDANÉ MAPOVANIE 👇 */
+                interne_id: produktObj?.Interne_id,
+                vlastne_id: produktObj?.vlastne_id,
                 regal_id: d.regal_id,
                 sklad_id: regalObj?.sklad_id,
                 mnozstvo_ks: d.mnozstvo,
@@ -5595,6 +6072,34 @@ export class SupabaseService {
             p_inventura_id: inventuraId
         });
         if (error) throw error;
+    }
+
+    async znovuOtvoritInventuru(inventuraId: number) {
+        // 1. Check if any other inventory is open
+        const { data: otvorena, error: otvorenaError } = await this.supabase
+            .from('inventury')
+            .select('id')
+            .eq('stav', 'otvorena')
+            .neq('id', inventuraId) // check for other inventories
+            .maybeSingle();
+    
+        if (otvorenaError) {
+            throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
+        }
+    
+        if (otvorena) {
+            throw new Error('Nemôžete otvoriť túto inventúru, pretože iná inventúra je už otvorená.');
+        }
+    
+        // 2. Re-open the selected inventory
+        const { error } = await this.supabase
+            .from('inventury')
+            .update({ stav: 'otvorena', datum_uzavretia: null })
+            .eq('id', inventuraId);
+    
+        if (error) {
+            throw error;
+        }
     }
 
     async zmazatInventuru(id: number) {
@@ -5635,6 +6140,7 @@ export class SupabaseService {
         produkt:produkty (
           nazov,
           vlastne_id,
+          Interne_id,
           balenie_ks,
           jednotka,
           kategoria:kategorie ( nazov )
@@ -5651,6 +6157,7 @@ export class SupabaseService {
         return data.map((item: any) => ({
             'Produkt': item.produkt?.nazov || 'Neznámy',
             'Product ID': item.produkt?.vlastne_id || '',
+            'Interné ID': item.produkt?.Interne_id || '',
             'Kategória': item.produkt?.kategoria?.nazov || '',
             'Sklad': item.regal?.sklad?.nazov || '',
             'Regál': item.regal?.nazov || '',
@@ -5658,6 +6165,8 @@ export class SupabaseService {
             'Balenie': item.produkt?.balenie_ks || 1,
             'Spočítané Množstvo': item.mnozstvo
         }));
+
+
     }
 
 
@@ -6147,6 +6656,85 @@ export class SupabaseService {
         return { data, error };
     }
 
+    async presunutPolozku(zasobaId: number, produktId: number, novyRegalId: number, mnozstvoNaPresun: number) {
+        const { data: existujuca, error: checkError } = await this.supabase
+            .from('skladove_zasoby')
+            .select('id, mnozstvo_ks')
+            .eq('produkt_id', produktId)
+            .eq('regal_id', novyRegalId)
+            .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        if (existujuca) {
+            const noveMnozstvo = Number(existujuca.mnozstvo_ks) + Number(mnozstvoNaPresun);
+
+            await this.supabase
+                .from('skladove_zasoby')
+                .update({ mnozstvo_ks: noveMnozstvo, updated_at: new Date().toISOString() })
+                .eq('id', existujuca.id);
+
+            await this.supabase
+                .from('skladove_zasoby')
+                .delete()
+                .eq('id', zasobaId);
+        } else {
+            const { error: updateError } = await this.supabase
+                .from('skladove_zasoby')
+                .update({
+                    regal_id: novyRegalId,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', zasobaId);
+
+            if (updateError) throw updateError;
+        }
+    }
+
+    // V SupabaseService nahraď pôvodnú funkciu touto verziou
+    async getPocetSpocitanychGlobal(): Promise<number> {
+        // Pýtame sa priamo na počet všetkých riadkov v tabuľke inventura_polozky
+        const { count, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('*', { count: 'exact', head: true });
+
+        if (error) {
+            console.error('Chyba pri získavaní globálnych štatistík:', error);
+            return 0;
+        }
+        return count || 0;
+    }
+
+    async getStatsPreInventuru(inventuraId: number): Promise<number> {
+        const { count, error } = await this.supabase
+            .from('inventura_polozky')
+            .select('*', { count: 'exact', head: true })
+            .eq('inventura_id', inventuraId);
+        return count || 0;
+    }
+    async getZoznamInventurSoStats() {
+        // Tento dotaz vytiahne inventúry a k nim počet riadkov z tabuľky inventura_polozky
+        const { data, error } = await this.supabase
+            .from('inventury')
+            .select(`
+      id, 
+      nazov, 
+      stav, 
+      datum_vytvorenia,
+      inventura_polozky(count)
+    `)
+            .order('datum_vytvorenia', { ascending: false });
+
+        if (error) throw error;
+
+        return data.map((inv: any) => ({
+            id: inv.id,
+            nazov: inv.nazov,
+            stav: inv.stav,
+            datum: inv.datum_vytvorenia,
+            pocet: inv.inventura_polozky[0]?.count || 0
+        }));
+    }
 }
 </file>
 
@@ -6161,7 +6749,7 @@ import {
 } from '@ionic/angular';
 
 import {
-  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController,
+  IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController, IonToggle,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonChip,
   IonItem, IonSelect, IonSelectOption, IonSearchbar, IonSpinner,
   IonList, IonCard, IonFab, IonFabButton,
@@ -6170,6 +6758,7 @@ import {
   IonInfiniteScrollContent,
   // >>> PRIDANÉ: Komponenty pre Drag & Drop <<<
   IonReorderGroup, IonReorder
+  , IonToast
 } from '@ionic/angular/standalone';
 
 import { addIcons } from 'ionicons';
@@ -6180,7 +6769,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -6208,7 +6797,8 @@ import { Subscription } from 'rxjs';
     IonList,
     IonItem,
     IonReorderGroup,
-    IonReorder
+    IonReorder,
+    IonToggle, IonToast
   ],
   providers: [
     ModalController,
@@ -6245,7 +6835,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   vybranySkladId: number | null = null;
   vybranyRegalId: number | null = null;
   isLoading = false;
-
+  toastState = {
+    isOpen: false,    // Premenované z isToastOpen na isOpen
+    message: '',      // Premenované z toastMessage na message
+    color: 'success'  // Premenované z toastColor na color
+  };
   searchQuery: string = '';
   filterKategoria: string = 'vsetky';
 
@@ -6256,6 +6850,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   // >>> PRIDANÉ: Premenná pre stav reorder módu <<<
   isReorderDisabled: boolean = true;
+
+  // Nový prepínač pre zobrazenie položiek
+  zobrazitVsetkoVRegaloch: boolean = true;
 
   private ulozenyStavRegal = {
     skladId: null as number | null,
@@ -6278,7 +6875,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
       settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
       createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline
     });
   }
 
@@ -6448,22 +7045,27 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       else {
         let hladatSkladId = null;
         let hladatRegalId = null;
-
-
-
         let textPreServer = this.searchQuery;
 
+
         if (this.rezimZobrazenia === 'regal') {
-          if (!this.vybranyRegalId) {
+          // Kontrola, či nezobrazujeme prázdny stav
+          if (!this.vybranyRegalId && !this.zobrazitVsetkoVRegaloch) {
             this.filtrovaneZasoby = [];
+            this.zasoby = [];
             this.isLoading = false;
             return;
           }
+
           hladatSkladId = this.vybranySkladId;
-          hladatRegalId = this.vybranyRegalId;
 
+          // >>> ZMENA: Zabezpečíme, že na server ide ID regálu, inak null
+          hladatRegalId = this.vybranyRegalId ? this.vybranyRegalId : null;
 
-          textPreServer = '';
+          // Ak je vybraný konkrétny regál, hľadáme iba lokálne (nepoľeme searchQuery na server)
+          if (this.vybranyRegalId) {
+            textPreServer = '';
+          }
         }
 
 
@@ -6519,11 +7121,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.searchQuery = event.target.value;
 
 
-    if (this.rezimZobrazenia === 'v_inventure' || this.rezimZobrazenia === 'regal') {
+    if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
       this.aplikovatFiltre();
-    }
-
-    else {
+    } else {
       this.obnovitZoznamPodlaRezimu();
     }
   }
@@ -6655,23 +7255,23 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.aplikovatFiltre();
     }
     else if (this.rezimZobrazenia === 'regal') {
-      this.zasoby = [];
-      this.filtrovaneZasoby = [];
+      // >>> ZMENA: Nahradené tvrdé vymazanie volaním centrálnej obnovy <<<
+      // Zabezpečí stiahnutie všetkých položiek skladu, ak je prepínač zapnutý
+      await this.obnovitZoznamPodlaRezimu();
     }
   }
 
   async priZmeneRegalu() {
     console.log('📍 Zmena regálu na ID:', this.vybranyRegalId);
-    // >>> PRIDANÉ: Reset reorderu pri zmene regálu <<<
     this.isReorderDisabled = true;
+
+
 
     await this.nacitajKategoriePreFilter();
 
     if (this.rezimZobrazenia === 'v_inventure') {
-
       this.aplikovatFiltre();
     } else {
-
       await this.obnovitZoznamPodlaRezimu();
     }
   }
@@ -6736,7 +7336,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           // ... (kód ostáva rovnaký) ...
           id: zasoba.produkt_id,
           nazov: zasoba.nazov,
-          vlastne_id: zasoba.ean || '',
+          vlastne_id: zasoba.vlastne_id || '',
           jednotka: zasoba.jednotka,
           balenie_ks: zasoba.balenie_ks,
           kategoria: zasoba.kategoria,
@@ -6814,24 +7414,28 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
+    console.log('✏️ Kliknutie na položku:', zasoba.nazov);
 
-    // >>> PRIDANÉ: Ak práve meníme poradie, zakážeme klikanie na položky <<<
-    if (!this.isReorderDisabled) {
-      return;
-    }
+    // 1. Ak prebieha inventúra, rovno zadávame množstvo (preskakujeme výber lokácie)
+    if (this.aktivnaInventura) {
 
-    if (
-      (this.rezimZobrazenia === 'regal' && this.vybranyRegalId) ||
-      (this.rezimZobrazenia === 'v_inventure')
-    ) {
+      const cielovyRegal = zasoba.regal_id || this.vybranyRegalId;
 
+      if (!cielovyRegal) {
+        this.zobrazToast('Táto položka nemá priradený regál. Priradte ju najprv na regál.', 'warning');
+        return;
+      }
 
+      // Poistka: Zabezpečíme, aby objekt 'zasoba' určite mal regal_id pre metódu ulozitZmenu()
+      zasoba.regal_id = cielovyRegal;
+
+      // Spúšťame priamo modálne okno na zadanie množstva
       await this.spustitKalkulacku(zasoba);
+
     }
+    // 2. Ak neprebieha inventúra, otvoríme bežný detail produktu pre úpravu vlastností
     else {
-
-
-      await this.vybratSkladPreZapis(zasoba);
+      this.upravitProduktDetail(zasoba);
     }
   }
 
@@ -6941,34 +7545,33 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       cssClass: 'my-custom-modal',
       componentProps: {
         nazovProduktu: zasoba.nazov,
-        // aktualnyStav: zasoba.mnozstvo_ks,
         aktualnyStav: this.aktivnaInventura
           ? ((zasoba as any).spocitane_mnozstvo ?? 0)
           : zasoba.mnozstvo_ks,
-        balenie: zasoba.balenie_ks
+        balenie: zasoba.balenie_ks,
+        jednotka: zasoba.jednotka || 'ks'
       }
     });
 
     await modal.present();
-    const { data, role } = await modal.onWillDismiss();
 
-    if (role === 'confirm') {
+    // 🔴 ZMENA 1: Zmenené z onWillDismiss na onDidDismiss
+    const { data, role } = await modal.onDidDismiss();
+
+    if (role === 'confirm' && data) {
       const novyStav = data.novyStav;
+      const balenieZModalu = data.balenie; // <<< PRIDAJ TENTO RIADOK
 
-
-      await this.ulozitZmenu(zasoba, novyStav);
+      // A sem pridaj treti parameter:
+      await this.ulozitZmenu(zasoba, novyStav, balenieZModalu);
 
       this.cdr.detectChanges();
 
-
-      if (this.rezimZobrazenia === 'global') {
-
-      }
     } else {
       this.idPolozkyPreScroll = null;
     }
   }
-  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number) {
+  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number) {
     // 1. Prevedieme vstup na číslo
     let suroveCislo = Number(novyStavInput);
 
@@ -6978,10 +7581,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    // 3. 🔥 ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA 🔥
-    // (Math.round(X * 100) / 100) je štandardný trik pre peniaze a váhu
+    // 3. ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA
     const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
-
 
     let cielovyRegalId = zasoba.regal_id || this.vybranyRegalId;
     const cielovyProduktId = zasoba.produkt_id;
@@ -6991,40 +7592,55 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}`);
+    // >>> KĽÚČOVÝ BOD: Príprava balenia pre zápis <<<
+    const finalBalenie = balenie ?? zasoba.balenie_ks ?? 1;
+
+    console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}, Balenie: ${finalBalenie}`);
 
     try {
-
-
+      const jednotka = zasoba.jednotka || 'ks';
 
       if (zasoba.id === 0) {
+        // A) Nová zásoba na regáli
         await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
-        this.zobrazToast(`Vytvorené: ${novyStav} ks`, 'success');
+
         if (this.aktivnaInventura) {
-          await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
+          // Voláme servis s 5 argumentmi
+          await this.supabaseService.zapisatDoInventury(
+            this.aktivnaInventura.id,
+            zasoba.produkt_id,
+            cielovyRegalId,
+            novyStav,
+            finalBalenie
+          );
         }
+        this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
       } else {
+        // B) Existujúca zásoba
         if (this.aktivnaInventura) {
           if (novyStav > 0) {
-            await this.supabaseService.zapisatDoInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav);
-            this.zobrazToast(`Zapísané: ${novyStav} ks`, 'primary');
+            // Voláme servis s 5 argumentmi
+            await this.supabaseService.zapisatDoInventury(
+              this.aktivnaInventura.id,
+              zasoba.produkt_id,
+              cielovyRegalId,
+              novyStav,
+              finalBalenie
+            );
+            this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success');
           } else {
             await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
-            this.zobrazToast('Vymazané', 'medium');
+            this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
           }
         } else {
+          // Bežná aktualizácia skladu (mimo inventúry)
           await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
-          this.zobrazToast(`Aktualizované: ${novyStav} ks`, 'success');
+          this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
         }
       }
 
-
-
-
+      // Obnova zoznamu a scroll späť na položku
       await this.obnovitZoznamPodlaRezimu();
-
-
-
 
       const najdenaPolozka = this.filtrovaneZasoby.find(z =>
         z.produkt_id === cielovyProduktId &&
@@ -7032,39 +7648,34 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       );
 
       if (najdenaPolozka) {
-        console.log('📍 Položka nájdená v zozname, Nové ID:', najdenaPolozka.id);
-
-
         this.idPolozkyPreScroll = najdenaPolozka.id;
-
-
         this.cdr.detectChanges();
-
-
         setTimeout(() => {
           this.skrolovatNaZapamatanuPolozku();
         }, 150);
-
-      } else {
-        console.warn('⚠️ Položka sa v novom zozname nenašla (filtre?).');
       }
 
     } catch (error: any) {
       console.error('❌ Chyba pri zápise:', error);
-      alert('CHYBA: ' + error.message);
+      this.zobrazToast('Chyba pri ukladaní: ' + error.message, 'danger');
     }
   }
 
-  async zobrazToast(sprava: string, farba: string) {
-    const toast = await this.toastController.create({
-      message: sprava,
-      duration: 2000,
-      color: farba,
-      position: 'top',
-      mode: 'ios',
-      cssClass: 'top-toast'
-    });
-    await toast.present();
+  zobrazToast(sprava: string, farba: string) {
+    console.log('🔔 Spúšťam toast cez šablónu:', sprava);
+
+    // Resetujeme stav (ak by bol náhodou otvorený iný)
+    this.toastState.isOpen = false;
+
+    // Malý timeout zabezpečí, že Angular si všimne zmenu a toast sa "preblikne"
+    setTimeout(() => {
+      this.toastState.message = sprava;
+      this.toastState.color = farba;
+      this.toastState.isOpen = true;
+
+      // Vynútime prekreslenie pre istotu
+      this.cdr.detectChanges();
+    }, 100);
   }
 
   prihlasitOdberZmien() {
@@ -7094,6 +7705,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         zasoba.mnozstvo_ks = 0;
       } else {
         zasoba.mnozstvo_ks = novyZaznam.mnozstvo;
+        (zasoba as any).spocitane_mnozstvo = novyZaznam.mnozstvo; // Pridané
         zasoba.v_inventure = true;
       }
     } else if (typUdalosti === 'INSERT') {
@@ -7109,25 +7721,31 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   async zmazatPolozku(zasoba: SkladovaZasobaView, event: Event) {
     event.stopPropagation();
+
+    // 🔥 BEZPEČNOSTNÁ POISTKA: Ak nie je admin a nie je v inventúre, zablokuj to
+    if (!this.jeAdmin && this.rezimZobrazenia !== 'v_inventure') {
+      this.zobrazToast('Nemáte oprávnenie na vymazanie tovaru zo skladu.', 'danger');
+      return;
+    }
     if (this.rezimZobrazenia !== 'v_inventure' && zasoba.id === 0 && !zasoba.v_inventure) {
       this.zobrazToast('Túto položku nie je možné zmazať (nie je na sklade).', 'warning');
       return;
     }
     let nadpis = 'Potvrdenie';
     let textSpravy = 'Naozaj chcete vykonať túto akciu?';
-    let tlacidloText = 'OK';
+    let Potvrdit = 'OK';
     let cssClass = '';
     const nazovProduktu = zasoba.nazov || 'túto položku';
 
     if (this.rezimZobrazenia === 'v_inventure') {
       nadpis = 'Zrušiť inventúrny zápis?';
       textSpravy = `Naozaj chcete odstrániť "${nazovProduktu}" zo zoznamu spočítaných položiek?\n\n(Tovar ostane v databáze, len sa vymaže z tejto inventúry)`;
-      tlacidloText = 'Zrušiť zápis';
+      Potvrdit = 'Zrušiť zápis';
       cssClass = 'alert-button-cancel';
     } else {
       nadpis = 'Odstrániť tovar?';
       textSpravy = `Naozaj chcete kompletne odstrániť "${nazovProduktu}" z tohto umiestnenia?\n\n(Vymaže sa zo skladu aj z inventúry)`;
-      tlacidloText = 'Odstrániť';
+      Potvrdit = 'Odstrániť';
       cssClass = 'alert-button-delete';
     }
 
@@ -7138,7 +7756,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       buttons: [
         { text: 'Zrušiť', role: 'cancel', cssClass: 'secondary' },
         {
-          text: 'tlacidloText',
+          text: 'Potvrdit',
           role: 'destructive',
           cssClass: cssClass,
           handler: async () => {
@@ -7240,33 +7858,64 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   trackByZasoby(index: number, item: SkladovaZasobaView): number {
     return item.id;
   }
+
   aplikovatFiltre() {
     console.log('🔍 Aplikujem lokálne filtre...');
 
-
     let data = [...this.zasoby];
 
+    // 1. Filter pre regály a automatické zotriedenie
+    if (this.rezimZobrazenia === 'regal') {
+      if (this.vybranyRegalId) {
+        // Ak je vybraný konkrétny regál, ukážeme len ten
+        data = data.filter(z => z.regal_id === this.vybranyRegalId);
+      }
+      else if (this.zobrazitVsetkoVRegaloch) {
+        // >>> ZMENA: Ak nie je vybraný regál, ukážeme len položky, ktoré MAJÚ priradený nejaký regál
+        data = data.filter(z => z.regal_id != null);
 
-    if (this.searchQuery) {
-      const q = this.odstranitDiakritiku(this.searchQuery);
-      data = data.filter(z => {
-        const nazov = this.odstranitDiakritiku(z.nazov || '');
-        const ean = (z.ean || '').toLowerCase();
-        return nazov.includes(q) || ean.includes(q);
-      });
+        // >>> BONUS (UX/Performance): Zotriedime položky podľa názvu regálu, aby išli pekne za sebou
+        data.sort((a, b) => {
+          const regalA = a.regal_nazov || '';
+          const regalB = b.regal_nazov || '';
+          return regalA.localeCompare(regalB);
+        });
+      }
     }
 
-
-    if (this.filterKategoria && this.filterKategoria !== 'vsetky') {
-      data = data.filter(z => z.kategoria === this.filterKategoria);
-    }
-
-
+    // 2. Filter pre inventúru
     if (this.rezimZobrazenia === 'v_inventure') {
       if (this.vybranySkladId) data = data.filter(z => z.sklad_id === this.vybranySkladId);
       if (this.vybranyRegalId) data = data.filter(z => z.regal_id === this.vybranyRegalId);
     }
 
+    // 3. Filter pre kategóriu
+    if (this.filterKategoria && this.filterKategoria !== 'vsetky') {
+      data = data.filter(z => z.kategoria === this.filterKategoria);
+    }
+
+    // 4. Textové vyhľadávanie
+    if (this.searchQuery) {
+      // search input zbavíme diakritiky a dáme na malé písmená
+      const q = this.odstranitDiakritiku(this.searchQuery).toLowerCase();
+
+      data = data.filter(z => {
+        // Textové polia
+        const nazov = this.odstranitDiakritiku(z.nazov || '').toLowerCase();
+        const ean = (z.ean || '').toLowerCase();
+        const vlastneId = (z.vlastne_id || '').toLowerCase();
+
+        // Číselné IDčka prevedené na string pre potreby fulltextu
+        const idZasoby = String(z.id || '');
+        const idProduktu = String(z.produkt_id || '');
+
+        return nazov.includes(q) ||
+          ean.includes(q) ||
+          vlastneId.includes(q) ||
+          idZasoby.includes(q) ||
+          idProduktu.includes(q);
+      });
+    }
 
     this.filtrovaneZasoby = data;
   }
@@ -7363,6 +8012,135 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         this.zobrazToast('Chyba pri ukladaní poradia', 'danger');
       }
     });
+  }
+
+  // 1. KROK: Výber cieľového skladu (Pridaná možnosť odstránenia)
+  async zobrazitPresunSklad(zasoba: SkladovaZasobaView, event: Event) {
+    if (event) event.stopPropagation();
+
+
+
+    this.isLoading = true;
+    const sklady = await this.supabaseService.getSklady();
+    this.isLoading = false;
+    this.cdr.detectChanges(); // Poistka pre UI
+
+    const alert = await this.alertController.create({
+      header: 'Presunúť položku',
+      subHeader: `Kam chcete presunúť "${zasoba.nazov}"?`,
+      inputs: sklady.map(s => ({
+        type: 'radio',
+        label: s.nazov,
+        value: s.id
+      })),
+      buttons: [
+        { text: 'Zrušiť', role: 'cancel' },
+        {
+          // >>> PRIDANÉ: Možnosť odstrániť položku z regálu priamo odtiaľto <<<
+          text: 'Vymazať z regálu',
+          role: 'destructive',
+          cssClass: zasoba.id === 0 ? 'd-none' : '',
+          handler: () => {
+            if (zasoba.id > 0) this.zmazatPolozku(zasoba, new Event('click'));
+          }
+        },
+        {
+          text: 'Ďalej',
+          handler: (skladId) => {
+            if (skladId) {
+              this.zobrazitPresunRegal(zasoba, skladId);
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  // 2. KROK: Výber regálu v danom sklade
+  async zobrazitPresunRegal(zasoba: SkladovaZasobaView, skladId: number) {
+    this.isLoading = true;
+    const regaly = await this.supabaseService.getRegaly(skladId);
+    this.isLoading = false;
+    this.cdr.detectChanges();
+
+    if (regaly.length === 0) {
+      this.zobrazToast('Vybraný sklad nemá žiadne regály.', 'warning');
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'Vyberte cieľový regál',
+      inputs: regaly.map(r => ({
+        type: 'radio',
+        label: r.nazov,
+        value: r.id
+      })),
+      buttons: [
+        { text: 'Späť', handler: () => this.zobrazitPresunSklad(zasoba, new Event('click')) },
+        {
+          text: 'Presunúť',
+          handler: (novyRegalId) => {
+            if (novyRegalId) {
+              if (novyRegalId === zasoba.regal_id) {
+                this.zobrazToast('Položka sa už nachádza na tomto regáli.', 'warning');
+                return false; // Necháme alert otvorený
+              }
+
+              // >>> ZMENA: Presunuli sme asynchrónnu logiku mimo alert handleru <<<
+              this.vykonatPresun(zasoba, novyRegalId);
+            }
+            return true;
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
+    this.isLoading = true;
+    this.cdr.detectChanges();
+
+    try {
+      // 1. ZADEFINUJEME PREMENNÚ 'balenie', ktorú vytiahneme zo zásoby (aby zmizla chyba)
+      const balenie = zasoba.balenie_ks || 1;
+
+      // 2. Logika pre samotný presun v sklade
+      if (zasoba.id > 0) {
+        await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+        this.zobrazToast('Položka úspešne presunutá.', 'success');
+      } else {
+        await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
+        this.zobrazToast('Produkt bol úspešne priradený na regál.', 'success');
+      }
+
+      // 3. Presun v inventúre (ak nejaká beží)
+      if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
+        const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
+
+        // Najprv zmažeme starý záznam
+        await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
+
+        // A TU VOLÁME SERVIS S 5 ARGUMENTMI (použijeme tú premennú 'balenie' z bodu 1)
+        await this.supabaseService.zapisatDoInventury(
+          this.aktivnaInventura.id,
+          zasoba.produkt_id,
+          novyRegalId,
+          spocitane,
+          balenie // <<< TERAZ UŽ BUDE FUNGOVAŤ, LEBO JE DEFINOVANÁ VYŠŠIE
+        );
+      }
+
+      await this.obnovitZoznamPodlaRezimu();
+
+    } catch (error: any) {
+      console.error('Chyba pri presune/priradení:', error);
+      this.zobrazToast('Nepodarilo sa vykonať akciu.', 'danger');
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
   }
 
 }

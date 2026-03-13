@@ -72,3 +72,8 @@ Thumbs.db
 # Ignoruj moje tajné kľúče
 src/environments/environment.ts
 src/environments/environment.prod.ts
+
+# [PRIDANÉ] Špecifické exporty a reporty projektu
+repomix-output.xml
+
+schema_structure.sql

@@ -368,12 +368,17 @@ export class SupabaseService {
         if (invError) throw invError;
 
         // 2. KROK: Aktualizujeme balenie priamo v tabuľke PRODUKTY
-        const { error: prodError } = await this.supabase
+        const { data: updatedProduct, error: prodError } = await this.supabase
             .from('produkty')
-            .update({ balenie_ks: balenie }) // Tu stĺpec balenie_ks máš
-            .eq('id', produktId);
+            .update({ balenie_ks: balenie })
+            .eq('id', produktId)
+            .select();
 
         if (prodError) throw prodError;
+
+        if (!updatedProduct || updatedProduct.length === 0) {
+            throw new Error('Balenie produktu sa nepodarilo aktualizovať. Skontrolujte oprávnenia (RLS).');
+        }
 
         return true;
     }
@@ -588,12 +593,17 @@ export class SupabaseService {
     }
 
     async updateProdukt(id: number, data: any) {
-        const { error } = await this.supabase
+        const { data: updatedData, error } = await this.supabase
             .from('produkty')
             .update(data)
-            .eq('id', id);
+            .eq('id', id)
+            .select();
 
         if (error) throw error;
+
+        if (!updatedData || updatedData.length === 0) {
+            throw new Error('Produkt sa nepodarilo aktualizovať. Skontrolujte oprávnenia (RLS).');
+        }
     }
 
 
@@ -813,25 +823,48 @@ export class SupabaseService {
         offset: number = 0
     ) {
 
-        const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', {
-            p_sklad_id: skladId,
-            p_regal_id: regalId,
-            p_kategoria: kategoria === 'vsetky' ? null : kategoria,
+        let query = this.supabase
+            .from('skladova_zasoba_view')
+            .select('*');
 
-            p_stredisko_id: null, // <<< TOTO TU CHÝBALO (Musíme poslať aspoň null)
+        if (skladId) {
+            query = query.eq('sklad_id', skladId);
+        }
+        if (regalId) {
+            query = query.eq('regal_id', regalId);
+        }
+        if (kategoria && kategoria !== 'vsetky') {
+            query = query.eq('kategoria', kategoria);
+        }
+    
+        if (search && search !== '') {
+            const cleanedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
+            const ilikePattern = `%${cleanedSearch}%`;
+            query = query.or(
+                `nazov.ilike.${ilikePattern},` +
+                `ean.ilike.${ilikePattern},` +
+                `vlastne_id.ilike.${ilikePattern},` +
+                `interne_id::text.ilike.${ilikePattern},` +
+                `id::text.ilike.${ilikePattern},` +
+                `produkt_id::text.ilike.${ilikePattern}`
+            );
+        }
 
-            p_search: search,
-            p_limit: limit,
+        const rangeEnd = offset + limit - 1;
 
-            p_offset: offset // <<< TOTO SOM OPRAVIL (Mal si tam 0, takže by nefungoval scroll)
-        });
+        query = query
+            .order('poradie', { ascending: true })
+            .order('nazov', { ascending: true })
+            .range(offset, rangeEnd < offset ? offset : rangeEnd);
+
+        const { data, error } = await query;
 
         if (error) {
-            console.error('Chyba RPC:', error);
+            console.error('Chyba pri getZasobyFiltrovaneServer:', error);
             throw error;
         }
 
-        return data || [];
+        return (data as SkladovaZasobaView[]) || [];
     }
 
 
