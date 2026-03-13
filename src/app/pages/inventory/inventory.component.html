@@ -13,6 +13,20 @@
 
     <ion-buttons slot="end">
 
+        
+      <ion-toggle class="custom-header-toggle"
+                  mode="ios"
+                  [(ngModel)]="zobrazitVsetkoVRegaloch"
+                  (ionChange)="obnovitZoznamPodlaRezimu()"
+                  color="light">
+      </ion-toggle>
+     
+
+
+
+ <ion-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" fill="clear" color="light" slot="start" style="margin-left: -10px; margin-right: 5px;">
+        <ion-icon slot="icon-only" name="mic" style="font-size: 1.6rem;"></ion-icon>
+      </ion-button>
       <!-- Aktívna inventúra – chip vpravo -->
       <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
@@ -51,12 +65,14 @@
   </ion-toolbar>
 
   <!-- ===== Prepínač "zobraziť všetky položky zo skladu" ===== -->
-  <ion-toolbar 
+   <ion-toolbar 
     color="primary" 
     *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" 
-    class="fade-in" 
+    class="fade-in tollbar-segment" 
     style="--min-height: 45px;">
+
     
+
     <ion-item color="primary" lines="none" style="--padding-start: 16px; --inner-padding-end: 16px;">
       <ion-label class="ionlabel-text" style="color: white; font-size: 0.85rem; white-space: normal; opacity: 0.9;">
         Zobraziť všetky položky zo skladu
@@ -68,8 +84,13 @@
                   (ionChange)="obnovitZoznamPodlaRezimu()"
                   color="light">
       </ion-toggle>
+     
+
+       
     </ion-item>
-  </ion-toolbar>
+
+   
+  </ion-toolbar> 
 
 
   <!-- ========================= FILTER PANEL ========================= -->
@@ -355,9 +376,7 @@
     (touchend)="onDragEnd()"
     style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
 
-<ion-fab-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" color="tertiary">
-      <ion-icon name="mic"></ion-icon>
-    </ion-fab-button>
+
 
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
       <ion-icon name="add"></ion-icon>

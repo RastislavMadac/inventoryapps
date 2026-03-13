@@ -279,31 +279,90 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   private spracujHlasovyVstup(text: string) {
-    const cleanText = text.toLowerCase().trim().replace('potvrdiť', '').trim();
+    // 1. PRED-SPRACOVANIE: Vyčistíme text a pripravíme desatinnú logiku
+    let spracovanyText = text.toLowerCase().trim()
+      .replace('potvrdiť', '')
+      .replace('ok', '')
+      .replace('uložiť', '')
+      .replace('celých', '.')
+      .replace('celé', '.')
+      .replace('celá', '.')
+      .replace('čiarka', '.')
+      .replace(',', '.') // Prevod "10,5" na "10.5"
+      .trim();
 
-    // 1. Skonvertujeme text na číslo
-    let cislo = parseInt(cleanText, 10);
+    // 2. RÝCHLY PARSING: Ak prehliadač vrátil priamo cifry (napr. "2500.5")
+    let vysledneCislo = parseFloat(spracovanyText);
 
-    // Ak prekladač vrátil text namiesto čísla (napr. "päť")
-    if (isNaN(cislo)) {
-      const slovenskeCislovky: { [key: string]: number } = {
-        'nula': 0, 'jeden': 1, 'jedna': 1, 'dva': 2, 'dve': 2, 'tri': 3,
-        'štyri': 4, 'päť': 5, 'šesť': 6, 'sedem': 7, 'osem': 8, 'deväť': 9, 'desať': 10,
-        'jedenásť': 11, 'dvanásť': 12, 'pätnásť': 15, 'dvadsať': 20, 'päťdesiat': 50
+    // 3. SLOVNÍK (MAPA): Slovenský jazyk do 5000
+    if (isNaN(vysledneCislo)) {
+      const mapa: { [key: string]: number } = {
+        // Jednotky a špecifické tvary
+        'nula': 0, 'jeden': 1, 'jedna': 1, 'dva': 2, 'dve': 2, 'tri': 3, 'štyri': 4, 'päť': 5, 'šesť': 6, 'sedem': 7, 'osem': 8, 'deväť': 9,
+        // Násť
+        'desať': 10, 'jedenásť': 11, 'dvanásť': 12, 'trinásť': 13, 'štrnásť': 14, 'pätnásť': 15, 'šestnásť': 16, 'sedemnásť': 17, 'osemnásť': 18, 'devätnásť': 19,
+        // Desiatky
+        'dvadsať': 20, 'tridsať': 30, 'štyridsať': 40, 'päťdesiat': 50, 'šesťdesiat': 60, 'sedemdesiat': 70, 'osemdesiat': 80, 'deväťdesiat': 90,
+        // Stovky
+        'sto': 100, 'dvesto': 200, 'tristo': 300, 'štyristo': 400, 'päťsto': 500, 'šesťsto': 600, 'sedemsto': 700, 'osemsto': 800, 'deväťsto': 900,
+        // Tisíce (do 5000)
+        'tisíc': 1000, 'jedentisíc': 1000, 'dvetisíc': 2000, 'tritisíc': 3000, 'štyritisíc': 4000, 'päťtisíc': 5000
       };
-      cislo = slovenskeCislovky[cleanText] ?? null;
+
+      // Spracovanie desatinných miest cez bodku
+      if (spracovanyText.includes('.')) {
+        const casti = spracovanyText.split('.');
+        const celaCast = this.prelozSlovaNaCislo(casti[0], mapa);
+        const desatinnaCast = this.prelozSlovaNaCislo(casti[1], mapa);
+
+        if (celaCast !== null && desatinnaCast !== null) {
+          // Skombinujeme celú a desatinnú časť (napr. "2" + "." + "5")
+          vysledneCislo = parseFloat(`${celaCast}.${desatinnaCast}`);
+        }
+      } else {
+        // Len celé číslo
+        vysledneCislo = this.prelozSlovaNaCislo(spracovanyText, mapa) ?? NaN;
+      }
     }
 
-    // 2. Ak sme rozpoznali platné číslo, vložíme ho do kalkulačky
-    if (cislo !== null) {
-      this.mainDisplay = cislo.toString();
-      this.fullFormula = cislo.toString();
-      this.shouldResetMain = true; // Ak by používateľ začal naťukávať niečo iné, číslo sa prepíše
+    // 4. ZÁPIS DO KALKULAČKY A LOGIKA POTVRDENIA
+    if (!isNaN(vysledneCislo)) {
+      this.mainDisplay = vysledneCislo.toString();
+      this.fullFormula = vysledneCislo.toString();
+      this.shouldResetMain = true; // Pri ťuknutí na tlačidlo sa displej premaže
 
-      // Auto-potvrdenie: Ak používateľ povedal napr. "päť potvrdiť"
-      if (text.toLowerCase().includes('potvrdiť') || text.toLowerCase().includes('ok')) {
+      // Automatické potvrdenie (ak zaznie klúčové slovo)
+      const originalText = text.toLowerCase();
+      if (originalText.includes('potvrdiť') || originalText.includes('ok') || originalText.includes('uložiť')) {
         this.potvrdit();
       }
     }
+  }
+
+  /**
+   * Pomocná funkcia: Rozbije reťazec slov na pole a sčíta ich hodnoty z mapy
+   */
+  private prelozSlovaNaCislo(veta: string, mapa: any): number | null {
+    const slova = veta.trim().split(/\s+/); // Rozdelenie podľa medzier
+    let suma = 0;
+    let nasloSaAsponJednoSlovo = false;
+
+    for (const slovo of slova) {
+      if (mapa[slovo] !== undefined) {
+        suma += mapa[slovo];
+        nasloSaAsponJednoSlovo = true;
+      } else {
+        // Kontrola, či slovo nie je priamo číslo (napr. "2 tisíc")
+        const p = parseInt(slovo, 10);
+        if (!isNaN(p)) {
+          // Ak je to 1-9 a nasleduje "tisíc", spracujeme to ako násobok (napr. "2 tisíc")
+          // Ale v našej mape už máme "dvetisíc", tak toto je skôr poistka
+          suma += p;
+          nasloSaAsponJednoSlovo = true;
+        }
+      }
+    }
+
+    return nasloSaAsponJednoSlovo ? suma : null;
   }
 }
