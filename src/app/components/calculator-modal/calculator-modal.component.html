@@ -7,8 +7,6 @@
         <span style="font-weight: normal; opacity: 0.7;">({{ jednotka }})</span>
       </div>
 
-     
-
       <div class="display-container">
         <div class="formula-text" *ngIf="zobrazitDetail">
           {{ fullFormula }}
@@ -19,7 +17,6 @@
       </div>
 
       <div class="balenie-btn-container" style="display: flex; gap: 8px;">
-        
         <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()" style="flex: 1;">
           <ion-icon name="cube-outline" slot="start"></ion-icon>
           <strong>Balenie (x{{ balenie }})</strong>
@@ -33,9 +30,22 @@
         <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()">
           <ion-icon slot="icon-only" name="create-outline"></ion-icon>
         </ion-button>
-        
       </div>
     </div> 
+
+    <div *ngIf="speechService.isSupported" class="voice-section ion-text-center ion-padding-vertical">
+      
+      <div *ngIf="pocuva" style="color: var(--ion-color-tertiary); display: flex; align-items: center; justify-content: center; gap: 8px; animation: pulse 1.5s infinite;">
+        <ion-icon name="mic" style="font-size: 1.5rem;"></ion-icon> 
+        <span>Počúvam množstvo...</span>
+      </div>
+
+      <ion-button *ngIf="!pocuva" fill="clear" color="tertiary" (click)="spustiPocuvanie()">
+        <ion-icon slot="start" name="mic"></ion-icon>
+        Znova nadiktovať
+      </ion-button>
+    </div>
+
     <div class="keypad-section">
       <div class="keypad">
         <div class="row">
@@ -71,7 +81,4 @@
           <ion-button color="light" (click)="stlacene('.')">.</ion-button>
           <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
         </div>
-      </div>
-    </div>
-    </div>
-</ion-content>
+      </div> </div> </div> </ion-content>

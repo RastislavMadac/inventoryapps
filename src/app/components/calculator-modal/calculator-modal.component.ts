@@ -5,7 +5,7 @@ import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
-
+import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service'; // <<< PRIDANÁ SLUŽBA
 @Component({
   selector: 'app-calculator-modal',
   standalone: true,
@@ -29,11 +29,12 @@ export class CalculatorModalComponent implements OnInit {
   shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
 
   private lastClickTime: number = 0;
-
+  pocuva: boolean = false;
   constructor(
-    private modalController: ModalController, 
+    private modalController: ModalController,
     private alertCtrl: AlertController,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    public speechService: SpeechRecognitionService
   ) {
     addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
   }
@@ -250,6 +251,59 @@ export class CalculatorModalComponent implements OnInit {
       this.mainDisplay = res.toString();
       // Necháme fullFormula tak ako je (napr "5*12"), aby to bolo vidno v detaile
       this.shouldResetMain = true;
+    }
+  }
+
+  async ionViewWillEnter() {
+    if (this.speechService.isSupported) {
+      await this.spustiPocuvanie();
+    }
+  }
+
+  // Odstránime počúvanie pri zavretí okna, aby nebežalo na pozadí
+  ionViewWillLeave() {
+    this.speechService.stopListening();
+  }
+
+  async spustiPocuvanie() {
+    this.pocuva = true;
+    try {
+      const rozpoznanyText = await this.speechService.startListening();
+      this.spracujHlasovyVstup(rozpoznanyText);
+    } catch (error) {
+      console.warn('Počúvanie prerušené', error);
+      // Ak používateľ stlačí manuálne číslo na kalkulačke, API to často zruší
+    } finally {
+      this.pocuva = false;
+    }
+  }
+
+  private spracujHlasovyVstup(text: string) {
+    const cleanText = text.toLowerCase().trim().replace('potvrdiť', '').trim();
+
+    // 1. Skonvertujeme text na číslo
+    let cislo = parseInt(cleanText, 10);
+
+    // Ak prekladač vrátil text namiesto čísla (napr. "päť")
+    if (isNaN(cislo)) {
+      const slovenskeCislovky: { [key: string]: number } = {
+        'nula': 0, 'jeden': 1, 'jedna': 1, 'dva': 2, 'dve': 2, 'tri': 3,
+        'štyri': 4, 'päť': 5, 'šesť': 6, 'sedem': 7, 'osem': 8, 'deväť': 9, 'desať': 10,
+        'jedenásť': 11, 'dvanásť': 12, 'pätnásť': 15, 'dvadsať': 20, 'päťdesiat': 50
+      };
+      cislo = slovenskeCislovky[cleanText] ?? null;
+    }
+
+    // 2. Ak sme rozpoznali platné číslo, vložíme ho do kalkulačky
+    if (cislo !== null) {
+      this.mainDisplay = cislo.toString();
+      this.fullFormula = cislo.toString();
+      this.shouldResetMain = true; // Ak by používateľ začal naťukávať niečo iné, číslo sa prepíše
+
+      // Auto-potvrdenie: Ak používateľ povedal napr. "päť potvrdiť"
+      if (text.toLowerCase().includes('potvrdiť') || text.toLowerCase().includes('ok')) {
+        this.potvrdit();
+      }
     }
   }
 }
