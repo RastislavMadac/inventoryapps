@@ -7,30 +7,50 @@
   z-index: 999999 !important;
 }
 
+.header-controls-wrapper {
+  display: flex;
+  /* Aktivuje flexbox */
+  flex-direction: row;
+  /* Zoradenie vedľa seba (default) */
+  justify-content: center;
+  /* Vycentrovanie celej skupiny na stred */
+  align-items: center;
+  /* Vertikálne zarovnanie na stred */
+  gap: 150px;
+  /* Definícia medzery (gab) medzi prvkami */
+  width: 100%;
+  padding: 5px 0;
+}
+
+.mic-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  margin: 0;
+
+  ion-icon {
+    font-size: 1.6rem;
+  }
+}
+
 .tollbar-segment {
   display: none;
 }
 
-/* --- Úprava prepínača v hlavičke --- */
 .custom-header-toggle {
-  /* Jemné odsadenie od textu zľava */
-  padding-left: 10px;
+  margin: 0;
+  padding: 0;
 
-  /* 1. STAV: ZAPNUTÝ (TRUE) */
+  /* Nastavenia farieb, ktoré si mal */
   --background-checked: #ffffff;
-  /* Pozadie prepínača bude biele */
   --handle-background-checked: var(--ion-color-primary);
-  /* Gulička bude modrá (vo farbe hlavičky) */
-
-  /* 2. STAV: VYPNUTÝ (FALSE) */
   --background: rgba(255, 255, 255, 0.4);
-  /* Pozadie bude polopriesvitné biele, aby ladilo s modrou hlavičkou */
   --handle-background: #ffffff;
-  /* Gulička ostane biela */
+}
 
-  /* Voliteľné: Veľkosť prepínača (odkomentuj, ak ho chceš menší/väčší) */
-  /* padding: 0; */
-  /* transform: scale(0.9); */
+/* Zabezpečíme, aby toolbar nepridával fixné paddingy pre sloty */
+ion-toolbar {
+  --padding-start: 8px;
+  --padding-end: 8px;
 }
 
 ion-searchbar.custom-searchbar {

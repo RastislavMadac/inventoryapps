@@ -13,39 +13,50 @@
 
     <ion-buttons slot="end">
 
-        
-      <ion-toggle class="custom-header-toggle"
-                  mode="ios"
-                  [(ngModel)]="zobrazitVsetkoVRegaloch"
-                  (ionChange)="obnovitZoznamPodlaRezimu()"
-                  color="light">
-      </ion-toggle>
-     
-
-
-
- <ion-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" fill="clear" color="light" slot="start" style="margin-left: -10px; margin-right: 5px;">
-        <ion-icon slot="icon-only" name="mic" style="font-size: 1.6rem;"></ion-icon>
-      </ion-button>
-      <!-- Aktívna inventúra – chip vpravo -->
+         <!-- Aktívna inventúra – chip vpravo -->
       <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
       </ion-chip>
-
-      <!-- Tlačidlo na prepinanie reordering režimu -->
-      <ion-button 
-        (click)="toggleReorder()"
-        *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
-        color="light">
-        <ion-icon slot="icon-only" 
-          [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'">
-        </ion-icon>
-      </ion-button>
-
+     
     </ion-buttons>
   </ion-toolbar>
 
+  <ion-toolbar color="primary">
+  <div class="header-controls-wrapper">
+    
+    <ion-button 
+      *ngIf="speechService.isSupported" 
+      (click)="vyhladatHlasom()" 
+      fill="clear" 
+      color="light" 
+      class="mic-btn">
+      <ion-icon slot="icon-only" name="mic"></ion-icon>
+    </ion-button>
+
+    <ion-toggle 
+      class="custom-header-toggle"
+      mode="ios"
+      [(ngModel)]="zobrazitVsetkoVRegaloch"
+      (ionChange)="obnovitZoznamPodlaRezimu()"
+      color="light">
+    </ion-toggle>
+
+    <ion-button 
+      (click)="toggleReorder()"
+      *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
+      color="light"
+      fill="clear">
+      <ion-icon slot="icon-only" 
+        [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'">
+      </ion-icon>
+    </ion-button>
+
+  </div>
+</ion-toolbar>
+    
+ 
+ 
   <!-- ===== Prepínač režimov zobrazenia (segmented control) ===== -->
   <ion-toolbar color="primary" class="toolbar-segment">
     <ion-segment [value]="rezimZobrazenia" (ionChange)="zmenitRezim($event)" mode="ios">
