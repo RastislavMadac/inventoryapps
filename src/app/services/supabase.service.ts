@@ -284,15 +284,15 @@ export class SupabaseService {
             .select('id')
             .eq('stav', 'otvorena')
             .maybeSingle();
-    
+
         if (otvorenaError) {
             throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
         }
-    
+
         if (otvorena) {
             throw new Error('Nemôžete vytvoriť novú inventúru, pretože iná inventúra je už otvorená.');
         }
-        
+
         const { data, error } = await this.supabase
             .from('inventury')
             .insert({ nazov: nazov, stav: 'otvorena' })
@@ -440,21 +440,21 @@ export class SupabaseService {
             .eq('stav', 'otvorena')
             .neq('id', inventuraId) // check for other inventories
             .maybeSingle();
-    
+
         if (otvorenaError) {
             throw new Error('Chyba pri kontrole otvorených inventúr: ' + otvorenaError.message);
         }
-    
+
         if (otvorena) {
             throw new Error('Nemôžete otvoriť túto inventúru, pretože iná inventúra je už otvorená.');
         }
-    
+
         // 2. Re-open the selected inventory
         const { error } = await this.supabase
             .from('inventury')
             .update({ stav: 'otvorena', datum_uzavretia: null })
             .eq('id', inventuraId);
-    
+
         if (error) {
             throw error;
         }
@@ -814,6 +814,59 @@ export class SupabaseService {
     }
 
 
+    // async getZasobyFiltrovaneServer(
+    //     skladId: number | null,
+    //     regalId: number | null,
+    //     kategoria: string | null,
+    //     search: string,
+    //     limit: number = 50,
+    //     offset: number = 0
+    // ) {
+
+    //     let query = this.supabase
+    //         .from('skladova_zasoba_view')
+    //         .select('*');
+
+    //     if (skladId) {
+    //         query = query.eq('sklad_id', skladId);
+    //     }
+    //     if (regalId) {
+    //         query = query.eq('regal_id', regalId);
+    //     }
+    //     if (kategoria && kategoria !== 'vsetky') {
+    //         query = query.eq('kategoria', kategoria);
+    //     }
+
+    //     if (search && search !== '') {
+    //         const cleanedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    //         const ilikePattern = `%${cleanedSearch}%`;
+    //         query = query.or(
+    //             `nazov.ilike.${ilikePattern},` +
+    //             `ean.ilike.${ilikePattern},` +
+    //             `vlastne_id.ilike.${ilikePattern},` +
+    //             `interne_id::text.ilike.${ilikePattern},` +
+    //             `id::text.ilike.${ilikePattern},` +
+    //             `produkt_id::text.ilike.${ilikePattern}`
+    //         );
+    //     }
+
+    //     const rangeEnd = offset + limit - 1;
+
+    //     query = query
+    //         .order('poradie', { ascending: true })
+    //         .order('nazov', { ascending: true })
+    //         .range(offset, rangeEnd < offset ? offset : rangeEnd);
+
+    //     const { data, error } = await query;
+
+    //     if (error) {
+    //         console.error('Chyba pri getZasobyFiltrovaneServer:', error);
+    //         throw error;
+    //     }
+
+    //     return (data as SkladovaZasobaView[]) || [];
+    // }
+
     async getZasobyFiltrovaneServer(
         skladId: number | null,
         regalId: number | null,
@@ -822,51 +875,41 @@ export class SupabaseService {
         limit: number = 50,
         offset: number = 0
     ) {
+        // Pripravíme parametre presne podľa tvojej SQL (RPC) funkcie
+        const params: any = {
+            p_sklad_id: skladId || null,
+            p_regal_id: regalId || null,
+            p_stredisko_id: null, // Stredisko tu aktuálne nevyužívame
+            p_limit: limit,
+            p_offset: offset
+        };
 
-        let query = this.supabase
-            .from('skladova_zasoba_view')
-            .select('*');
-
-        if (skladId) {
-            query = query.eq('sklad_id', skladId);
-        }
-        if (regalId) {
-            query = query.eq('regal_id', regalId);
-        }
+        // Kategória (ak je "vsetky", pošleme do SQL null)
         if (kategoria && kategoria !== 'vsetky') {
-            query = query.eq('kategoria', kategoria);
-        }
-    
-        if (search && search !== '') {
-            const cleanedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
-            const ilikePattern = `%${cleanedSearch}%`;
-            query = query.or(
-                `nazov.ilike.${ilikePattern},` +
-                `ean.ilike.${ilikePattern},` +
-                `vlastne_id.ilike.${ilikePattern},` +
-                `interne_id::text.ilike.${ilikePattern},` +
-                `id::text.ilike.${ilikePattern},` +
-                `produkt_id::text.ilike.${ilikePattern}`
-            );
+            params.p_kategoria = kategoria;
+        } else {
+            params.p_kategoria = null;
         }
 
-        const rangeEnd = offset + limit - 1;
+        // Vyhľadávanie
+        if (search && search.trim() !== '') {
+            // Nemusíme robiť replace znakov, o to sa postará ILIKE a unaccent priamo v SQL
+            params.p_search = search.trim();
+        } else {
+            params.p_search = null;
+        }
 
-        query = query
-            .order('poradie', { ascending: true })
-            .order('nazov', { ascending: true })
-            .range(offset, rangeEnd < offset ? offset : rangeEnd);
-
-        const { data, error } = await query;
+        // Volanie uloženej procedúry (RPC) v Supabase
+        const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', params);
 
         if (error) {
-            console.error('Chyba pri getZasobyFiltrovaneServer:', error);
+            console.error('❌ Chyba pri getZasobyFiltrovaneServer (RPC):', error);
             throw error;
         }
 
+        // Databáza nám vráti už správne prefiltrované a zoradené dáta
         return (data as SkladovaZasobaView[]) || [];
     }
-
 
 
     async getKategoriePreFilter(regalId: number | null): Promise<string[]> {

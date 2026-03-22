@@ -1,24 +1,17 @@
-<!-- ========================= HEADER =============================== -->
 <ion-header class="ion-no-border">
 
-  <!-- ===== Horná lišta: tlačidlá späť, názov a aktívna inventúra ===== -->
   <ion-toolbar color="primary">
     <ion-buttons slot="start">
-      <!-- Tlačidlo späť -->
       <ion-back-button defaultHref="/home" text=""></ion-back-button>
     </ion-buttons>
 
-    <!-- Názov stránky -->
     <ion-title>Inventúra</ion-title>
 
     <ion-buttons slot="end">
-
-         <!-- Aktívna inventúra – chip vpravo -->
-      <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
+         <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
       </ion-chip>
-     
     </ion-buttons>
   </ion-toolbar>
 
@@ -56,9 +49,7 @@
 </ion-toolbar>
     
  
- 
-  <!-- ===== Prepínač režimov zobrazenia (segmented control) ===== -->
-  <ion-toolbar color="primary" class="toolbar-segment">
+ <ion-toolbar color="primary" class="toolbar-segment">
     <ion-segment [value]="rezimZobrazenia" (ionChange)="zmenitRezim($event)" mode="ios">
       <ion-segment-button value="regal">
         <ion-label>Po Regáloch</ion-label>
@@ -68,21 +59,17 @@
         <ion-label>Všetky</ion-label>
       </ion-segment-button>
 
-      <!-- Zobrazenie iba hotových položiek inventúry -->
       <ion-segment-button value="v_inventure" *ngIf="aktivnaInventura">
         <ion-label>Hotové</ion-label>
       </ion-segment-button>
     </ion-segment>
   </ion-toolbar>
 
-  <!-- ===== Prepínač "zobraziť všetky položky zo skladu" ===== -->
-   <ion-toolbar 
+  <ion-toolbar 
     color="primary" 
     *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" 
     class="fade-in tollbar-segment" 
     style="--min-height: 45px;">
-
-    
 
     <ion-item color="primary" lines="none" style="--padding-start: 16px; --inner-padding-end: 16px;">
       <ion-label class="ionlabel-text" style="color: white; font-size: 0.85rem; white-space: normal; opacity: 0.9;">
@@ -95,19 +82,12 @@
                   (ionChange)="obnovitZoznamPodlaRezimu()"
                   color="light">
       </ion-toggle>
-     
-
-       
     </ion-item>
-
-   
   </ion-toolbar> 
 
 
-  <!-- ========================= FILTER PANEL ========================= -->
   <div class="filter-panel">
     
-    <!-- ===== Reset filtrov (zobrazí sa len ak sú filtre aktívne) ===== -->
     <div class="ion-padding-horizontal reset-container" 
          style="display: flex; justify-content: center; width: 100%;"
          *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
@@ -118,10 +98,8 @@
       </ion-chip>
     </div>
 
-    <!-- ===== Výber skladu a regálu ===== -->
     <div class="select-row fade-in">
 
-      <!-- Výber skladu -->
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label">Sklad</span>
@@ -140,7 +118,6 @@
         </div>
       </div>
 
-      <!-- Výber regálu -->
       <div class="select-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
           <span class="input-label">Regál</span>
@@ -161,11 +138,9 @@
       </div>
     </div>
 
-    <!-- ===== Search + Filter kategórií ===== -->
     <div *ngIf="(rezimZobrazenia === 'regal' && (vybranyRegalId || zobrazitVsetkoVRegaloch)) || rezimZobrazenia !== 'regal'" 
          class="search-row fade-in">
       
-      <!-- Fulltext vyhľadávanie -->
       <ion-searchbar 
         placeholder="Hľadať produkt..."
         [(ngModel)]="searchQuery"
@@ -175,7 +150,6 @@
         class="custom-searchbar">
       </ion-searchbar>
 
-      <!-- Výber kategórie -->
       <div class="filter-btn-wrapper">
         <div class="icon-box">
           <ion-icon name="filter-outline"></ion-icon>
@@ -191,25 +165,20 @@
       </div>
     </div>
 
-  </div> <!-- /filter-panel -->
-</ion-header>
+  </div> </ion-header>
 
 
-<!-- ========================= CONTENT =============================== -->
 <ion-content #content [fullscreen]="true" class="bg-gray">
 
-  <!-- ===== Refresh (ťahnutie dole) ===== -->
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content></ion-refresher-content>
   </ion-refresher>
 
-  <!-- ===== Loading stav ===== -->
   <div class="center-content" *ngIf="isLoading">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
     <p>Načítavam...</p>
   </div>
 
-  <!-- ===== Empty state: nevybraný regál v režime "Regál" ===== -->
   <div *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId && !zobrazitVsetkoVRegaloch && !isLoading" 
        class="center-content empty-state fade-in">
     <div class="circle-icon">
@@ -219,7 +188,6 @@
     <p>Hore vyberte Sklad a Regál pre zobrazenie tovaru.</p>
   </div>
 
-  <!-- ===== Empty state: žiadne výsledky ===== -->
   <div *ngIf="
       filtrovaneZasoby.length === 0 
       && !isLoading 
@@ -245,30 +213,23 @@
   </div>
 
 
-  <!-- ========================= ZOZNAM KARIET PRODUKTOV ========================= -->
   <div class="cards-list" *ngIf="!isLoading">
 
-    <!-- Zoznam produktov -->
     <ion-list style="background: transparent;" lines="none">
 
-      <!-- Reordering skupina -->
       <ion-reorder-group [disabled]="isReorderDisabled" (ionItemReorder)="doReorder($event)">
 
-        <!-- Položky zoznamu -->
         <ion-item *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
                   class="transparent-item"
                   style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
 
-          <!-- ===== KARTA PRODUKTU ===== -->
           <ion-card [id]="'polozka-' + z.id" class="product-card" style="width: 100%; margin: 5px 12px;">
             <ion-card-content>
               
               <div class="card-container">
 
-                <!-- ===== ĽAVÁ ČASŤ – ID, názov, umiestnenie, kategórie ===== -->
                 <div class="card-left">
 
-                  <!-- Interné ID produktu -->
                   <div class="icon-placeholder" [class.done]="z.v_inventure">
                     <span 
                       style="font-weight: 400; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 2px;"
@@ -279,12 +240,10 @@
 
                   <div class="info">
 
-                    <!-- Názov + otvorenie detailu -->
                     <div (click)="otvoritUpravu(z)">
                       <h3>{{ z.nazov }}</h3>
                     </div>
 
-                    <!-- Umiestnenie -->
                     <p *ngIf="z.umiestnenie || z.regal_nazov" 
                        class="loc" 
                        style="margin-top: 2px; margin-bottom: 4px;">
@@ -292,20 +251,17 @@
                       {{ z.umiestnenie ? z.umiestnenie : (z.sklad_nazov + ' | ' + z.regal_nazov) }}
                     </p>
 
-                    <!-- Kategória a balenie -->
                     <div class="meta">
                       <span class="badge-cat">{{ z.kategoria || 'Bez kat.' }}</span>
                       <span *ngIf="z.balenie_ks > 0" class="badge-pack">📦 {{ z.balenie_ks }}</span>
                     </div>
 
-                    <!-- Text že je zapísané v inventúre -->
                     <p *ngIf="z.v_inventure" class="done-text">
                       <ion-icon name="checkmark-done-outline"></ion-icon> Zapísané
                     </p>
                   </div>
                 </div>
 
-                <!-- ===== PRAVÁ ČASŤ – množstvo (badge) ===== -->
                 <div class="qty-box" (click)="otvoritUpravu(z)">
                   <ion-badge 
                     [color]="aktivnaInventura 
@@ -319,24 +275,20 @@
                   </ion-badge>
                 </div>
 
-                <!-- ===== Akcie (presun, editácia, odstránenie) ===== -->
                 <div class="info-actions">
                   <span class="action-icons" *ngIf="isReorderDisabled">
 
-                    <!-- Presun produktu -->
                     <ion-button fill="clear" size="small"
                                 (click)="zobrazitPresunSklad(z, $event)"
                                 title="Presunúť">
                       <ion-icon name="arrow-redo-outline" style="font-size: 1.2rem; color: var(--ion-color-tertiary);"></ion-icon>
                     </ion-button>
 
-                    <!-- Úprava produktu -->
                     <ion-button *ngIf="jeAdmin" fill="clear" size="small" 
                                 (click)="upravitProduktDetail(z); $event.stopPropagation()">
                       <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
                     </ion-button>
 
-                    <!-- Odstránenie -->
                     <ion-icon 
                       *ngIf="jeAdmin || rezimZobrazenia === 'v_inventure'"
                       name="trash-outline" 
@@ -346,22 +298,22 @@
                     </ion-icon>
                   </span>
 
-                  <!-- Reorder icon -->
-                  <ion-reorder slot="end" *ngIf="!isReorderDisabled">
-                    <ion-icon name="menu-outline" size="large" color="medium" style="margin-left: 10px;"></ion-icon>
-                  </ion-reorder>
-                </div>
+                  </div>
 
               </div>
             </ion-card-content>
           </ion-card>
+
+          <ion-reorder slot="end" *ngIf="!isReorderDisabled">
+            <ion-icon name="menu-outline" size="large" color="medium" style="margin-right: 15px;"></ion-icon>
+          </ion-reorder>
+
         </ion-item>
 
       </ion-reorder-group>
     </ion-list>
   </div>
 
-  <!-- ===== Infinite scroll pre hotové položky ===== -->
   <ion-infinite-scroll 
     *ngIf="rezimZobrazenia === 'v_inventure'" 
     threshold="100px" 
@@ -374,7 +326,6 @@
   </ion-infinite-scroll>
 
 
-  <!-- ===== FAB tlačidlo (nový produkt) ===== -->
   <ion-fab 
     *ngIf="isReorderDisabled && jeAdmin"
     #draggableFab
@@ -387,14 +338,11 @@
     (touchend)="onDragEnd()"
     style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
 
-
-
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
   </ion-fab>
 
-  <!-- ===== Toast notifikácie ===== -->
   <ion-toast
     [isOpen]="toastState.isOpen"
     [message]="toastState.message"

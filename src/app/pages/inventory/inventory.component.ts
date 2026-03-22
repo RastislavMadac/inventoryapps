@@ -1085,8 +1085,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
   odstranitDiakritiku(text: string): string {
     if (!text) return '';
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    // Odstráni diakritiku, prehodí na malé písmená a zmení 'y' na 'i'
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/y/g, 'i');
   }
+
+
 
   async otvoritNovuLokaciu() {
     const modal = await this.modalCtrl.create({
@@ -1134,14 +1137,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     // 1. Filter pre regály a automatické zotriedenie
     if (this.rezimZobrazenia === 'regal') {
       if (this.vybranyRegalId) {
-        // Ak je vybraný konkrétny regál, ukážeme len ten
         data = data.filter(z => z.regal_id === this.vybranyRegalId);
       }
       else if (this.zobrazitVsetkoVRegaloch) {
-        // >>> ZMENA: Ak nie je vybraný regál, ukážeme len položky, ktoré MAJÚ priradený nejaký regál
         data = data.filter(z => z.regal_id != null);
-
-        // >>> BONUS (UX/Performance): Zotriedime položky podľa názvu regálu, aby išli pekne za sebou
         data.sort((a, b) => {
           const regalA = a.regal_nazov || '';
           const regalB = b.regal_nazov || '';
@@ -1163,24 +1162,26 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
     // 4. Textové vyhľadávanie
     if (this.searchQuery) {
-      // search input zbavíme diakritiky a dáme na malé písmená
-      const q = this.odstranitDiakritiku(this.searchQuery).toLowerCase();
+      // Hľadaný výraz očistíme (odstráni diakritiku, dá na malé písmená, y -> i)
+      const q = this.odstranitDiakritiku(this.searchQuery);
 
       data = data.filter(z => {
-        // Textové polia
-        const nazov = this.odstranitDiakritiku(z.nazov || '').toLowerCase();
-        const ean = (z.ean || '').toLowerCase();
-        const vlastneId = (z.vlastne_id || '').toLowerCase();
+        // Textové polia (musia prejsť rovnakou premenou y->i ako hľadaný výraz)
+        const nazov = this.odstranitDiakritiku(z.nazov || '');
+        const vlastneId = this.odstranitDiakritiku(z.vlastne_id || '');
 
-        // Číselné IDčka prevedené na string pre potreby fulltextu
+        // Kódy a čísla (EAN spravidla nemá 'y', stačí lowercase)
+        const ean = (z.ean || '').toLowerCase();
         const idZasoby = String(z.id || '');
         const idProduktu = String(z.produkt_id || '');
+        const interneId = String(z.interne_id || ''); // 🔥 TOTO TI CHÝBALO
 
         return nazov.includes(q) ||
-          ean.includes(q) ||
           vlastneId.includes(q) ||
+          ean.includes(q) ||
           idZasoby.includes(q) ||
-          idProduktu.includes(q);
+          idProduktu.includes(q) ||
+          interneId.includes(q); // 🔥 PRIDANÉ POROVNANIE
       });
     }
 
@@ -1254,33 +1255,26 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async doReorder(ev: CustomEvent<ItemReorderEventDetail>) {
     console.log('Presúvam z', ev.detail.from, 'na', ev.detail.to);
 
-    // 1. Zmena v lokálnom poli (filtrovaneZasoby)
-    const itemToMove = this.filtrovaneZasoby.splice(ev.detail.from, 1)[0];
-    this.filtrovaneZasoby.splice(ev.detail.to, 0, itemToMove);
+    // 1. Necháme Ionic, aby bezpečne zmutoval a vrátil preusporiadané pole
+    this.filtrovaneZasoby = ev.detail.complete(this.filtrovaneZasoby);
 
-    // 2. Musíme aktualizovať aj hlavné pole 'zasoby', aby sa to po refreshi nestratilo
-    // Keďže nemáme filtre, indexy by mali sedieť, ale pre istotu nájdeme index v hlavnom poli
-    // (Zjednodušenie: ak nie sú filtre, zasoby === filtrovaneZasoby referenčne, ak nie, musíme to ošetriť)
+    // 2. Synchronizujeme to do nášho hlavného poľa (aby sa pri scrollovaní stav nestratil)
     this.zasoby = [...this.filtrovaneZasoby];
 
-    // 3. Dokončenie vizuálnej operácie
-    ev.detail.complete();
-
-    // 4. Odoslanie na server
+    // 3. Vytvoríme payload pre databázu podľa nového indexu
     const updates = this.filtrovaneZasoby.map((item, index) => ({
       id: item.id,
       poradie: index
     }));
 
-    // Optimisticky nečakáme na await, ale logujeme chyby
+    // 4. Asynchrónne odošleme na Supabase
     this.supabaseService.ulozPoradieZasob(updates).then(({ error }) => {
       if (error) {
         console.error('Chyba pri ukladaní poradia:', error);
-        this.zobrazToast('Chyba pri ukladaní poradia', 'danger');
+        this.zobrazToast('Chyba pri ukladaní poradia na server.', 'danger');
       }
     });
   }
-
   // 1. KROK: Výber cieľového skladu (Pridaná možnosť odstránenia)
   async zobrazitPresunSklad(zasoba: SkladovaZasobaView, event: Event) {
     if (event) event.stopPropagation();
