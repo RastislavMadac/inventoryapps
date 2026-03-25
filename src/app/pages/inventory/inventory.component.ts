@@ -1483,11 +1483,31 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
       } catch (error) {
-        console.warn('Hlasová slučka error:', error);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // --- SPRACOVANIE CHÝB Z MIKROFÓNU ---
+
+        if (error === 'no-speech') {
+          // Web Speech API po chvíli ticha mikrofón automaticky vyplo.
+          // Keďže isVoiceModeActive je stále true, neurobíme nič iné, 
+          // len malú pauzu a cyklus while() okamžite mikrofón znovu zapne.
+          if (this.isVoiceModeActive) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        else if (error === 'not-allowed') {
+          // Prehliadač zablokoval prístup k mikrofónu
+          this.zobrazToast('Prístup k mikrofónu bol zamietnutý.', 'danger');
+          this.isVoiceModeActive = false;
+          this.ukoncitiSpresnovanie();
+        }
+        else {
+          // Akákoľvek iná chyba (napr. výpadok internetu pri rozpoznávaní)
+          console.warn('Hlasová slučka zachytila chybu:', error);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
     }
   }
+
 
   /**
    * Pomocná metóda na návrat do pôvodného stavu

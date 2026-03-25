@@ -38,40 +38,51 @@ export class SpeechRecognitionService {
     /**
      * Spustí počúvanie a vráti rozpoznaný text
      */
+    /**
+        * Spustí počúvanie a vráti rozpoznaný text
+        */
     async startListening(): Promise<string> {
         if (!this.isSupported) {
             throw new Error('Rozpoznávanie reči nie je vo vašom prehliadači podporované.');
         }
 
         return new Promise((resolve, reject) => {
-            // Úspešné rozpoznanie
+            let handled = false; // Poistka, aby sme nevolali resolve/reject viackrát
+
+            // 1. Úspešné rozpoznanie
             this.recognition.onresult = (event: any) => {
                 const rozpoznanyText = event.results[0][0].transcript;
-                // Vrátime výsledok do Angular zóny
+                handled = true;
                 this.zone.run(() => resolve(rozpoznanyText));
             };
 
-            // Spracovanie chýb (napr. používateľ nič nepovedal, alebo zamietol mikrofón)
+            // 2. Spracovanie chýb (napr. zamietnutý mikrofón)
             this.recognition.onerror = (event: any) => {
+                handled = true;
                 console.error('Chyba rozpoznávania reči:', event.error);
                 this.zone.run(() => reject(event.error));
             };
 
-            // Ukončenie počúvania (aj keď sa nič nenašlo)
+            // 3. Ukončenie počúvania (aj keď sa nič nenašlo)
             this.recognition.onend = () => {
-                // Tu môžeme pridať logiku pre prípadné reštartovanie, ak by bolo treba
+                if (!handled) {
+                    // Prehliadač vypol mikrofón (napr. pre ticho), ale nemáme výsledok.
+                    // Musíme odmietnuť Promise, aby sa slučka v komponente odsekla a mohla pretočiť.
+                    handled = true;
+                    this.zone.run(() => reject('no-speech'));
+                }
             };
 
             try {
-                // Prehliadač si sám vyžiada povolenie na mikrofón pri prvom spustení
                 this.recognition.start();
             } catch (error) {
-                // Catch block ak by sa metóda start() zavolala viackrát naraz
-                reject(error);
+                if (!handled) {
+                    handled = true;
+                    reject(error);
+                }
             }
         });
     }
-
     /**
      * Manuálne zastavenie mikrofónu
      */
