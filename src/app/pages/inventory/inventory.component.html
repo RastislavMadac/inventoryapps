@@ -190,28 +190,33 @@
   </div>
 
   <div *ngIf="
-      filtrovaneZasoby.length === 0 
-      && !isLoading 
-      && (vybranyRegalId || zobrazitVsetkoVRegaloch || rezimZobrazenia !== 'regal')"
-      class="center-content empty-state fade-in">
+       filtrovaneZasoby.length === 0 
+       && !isLoading 
+       && !isRefiningSearch
+       && (vybranyRegalId || zobrazitVsetkoVRegaloch || rezimZobrazenia !== 'regal')"
+       class="center-content empty-state fade-in">
 
     <div class="circle-icon green-icon">
-      <ion-icon [name]="rezimZobrazenia === 'v_inventure' 
-          ? 'checkmark-done-outline' 
-          : 'search-outline'">
-      </ion-icon>
+      <ion-icon [name]="rezimZobrazenia === 'v_inventure' ? 'checkmark-done-outline' : 'search-outline'"></ion-icon>
     </div>
-
     <h3 *ngIf="rezimZobrazenia === 'v_inventure'">Zatiaľ nič zapísané</h3>
     <h3 *ngIf="rezimZobrazenia !== 'v_inventure'">Žiadne položky</h3>
-    
-    <p *ngIf="rezimZobrazenia === 'v_inventure'">
-      V tejto inventúre ste ešte nepotvrdili žiadny tovar.
-    </p>
-    <p *ngIf="rezimZobrazenia !== 'v_inventure'">
-      Nenašli sa žiadne produkty zodpovedajúce filtru.
-    </p>
+    <p>Nenašli sa žiadne produkty zodpovedajúce filtru.</p>
   </div>
+
+  <div *ngIf="isRefiningSearch && !isLoading" class="refinement-container fade-in">
+    <ion-item color="tertiary" lines="none" class="refinement-item">
+      <ion-icon name="mic" slot="start" class="pulsing-mic-small"></ion-icon>
+      <ion-label>
+        <h3 style="font-weight: 600;">Spresnite výber hlasom</h3>
+        <p style="color: rgba(255,255,255,0.8);">Nájdených {{ filtrovaneZasoby.length }} produktov</p>
+      </ion-label>
+      <ion-button slot="end" fill="clear" color="light" (click)="ukoncitiSpresnovanie()">
+        <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </div>
+
 
 
   <div class="cards-list" *ngIf="!isLoading">

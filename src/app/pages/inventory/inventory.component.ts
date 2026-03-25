@@ -28,7 +28,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -106,6 +106,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   pocetNacitanych = 0;
   velkostStranky = 50; // Koľko sťahovať naraz
   vsetkyHotoveNacitane = false; // Či sme už na konci
+  // Pridaj k ostatným premenným
+  isRefiningSearch: boolean = false;
+  subsetZasob: SkladovaZasobaView[] = [];
 
   // >>> PRIDANÉ: Premenná pre stav reorder módu <<<
   isReorderDisabled: boolean = true;
@@ -131,12 +134,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     public speechService: SpeechRecognitionService
   ) {
     // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
-    addIcons({
-      clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
-      settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
-      createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline, mic, micOutline
-    });
+    addIcons({ clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline });
   }
 
   ngOnInit() {
@@ -1413,16 +1411,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
   async vyhladatHlasom() {
     if (this.isVoiceModeActive) {
-      // Vypnutie módu
       this.isVoiceModeActive = false;
+      this.ukoncitiSpresnovanie(); // Resetujeme filtre a režim spresňovania
       this.speechService.stopListening();
       this.zobrazToast('Hlasové vyhľadávanie ukončené.', 'medium');
       return;
     }
-
-    // Zapnutie módu
-    this.isVoiceModeActive = true;
-    this.zobrazToast('Hlasový režim aktívny. Počúvam...', 'tertiary');
     this.spustitHlasovuSlucku();
   }
 
@@ -1432,58 +1426,70 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   private async spustitHlasovuSlucku() {
     while (this.isVoiceModeActive) {
       try {
-        // 1. Čakáme na hlasový vstup
-        const hladanyNazov = await this.speechService.startListening();
+        const hlasovyVstup = await this.speechService.startListening();
+        if (!this.isVoiceModeActive || !hlasovyVstup) continue;
 
-        // Ak používateľ počas počúvania mód vypol, prerušíme cyklus
-        if (!this.isVoiceModeActive) break;
+        const vstupOčistený = this.odstranitDiakritiku(hlasovyVstup).toLowerCase();
 
-        if (!hladanyNazov) continue;
+        // --- LOGIKA ROZHODOVANIA ---
 
-        const hladanyLower = this.odstranitDiakritiku(hladanyNazov).toLowerCase();
+        if (this.isRefiningSearch) {
+          // A) Sme v režime spresňovania (používateľ vyberá z už zobrazených zhôd)
+          const najdenyVSubsete = this.subsetZasob.find(p =>
+            this.odstranitDiakritiku(p.nazov || '').toLowerCase().includes(vstupOčistený)
+          );
 
-        // 2. Hľadáme produkt
-        const najdenyProdukt = this.zasoby.find(p => {
-          const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
-          return nazov.includes(hladanyLower) || (p.ean && p.ean.includes(hladanyLower));
-        });
-
-        if (najdenyProdukt) {
-          this.zobrazToast(`Našiel som: ${najdenyProdukt.nazov}`, 'success');
-
-          // 3. Otvoríme kalkulačku. 
-          // Await tu pozastaví bežiacu slučku, kým sa modal nezatvorí!
-          await this.spustitKalkulacku(najdenyProdukt);
-
-          // 4. Modal sa zatvoril. Ak je mód stále aktívny, chvíľu počkáme a ideme znova.
-          if (this.isVoiceModeActive) {
-            await new Promise(resolve => setTimeout(resolve, 800)); // Kratučká pauza na nadýchnutie
-            this.zobrazToast('Počúvam ďalší produkt...', 'tertiary');
+          if (najdenyVSubsete) {
+            this.ukoncitiSpresnovanie();
+            await this.spustitKalkulacku(najdenyVSubsete);
+          } else {
+            this.zobrazToast(`V zozname zhôd som "${hlasovyVstup}" nenašiel. Skúste znova.`, 'warning');
           }
+
         } else {
-          this.zobrazToast(`Produkt "${hladanyNazov}" nebol nájdený.`, 'warning');
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Dlhšia pauza na prečítanie toastu
+          // B) Bežné hľadanie v celom zozname
+          const vsetkyZhody = this.zasoby.filter(p => {
+            const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
+            return nazov.includes(vstupOčistený) || (p.ean && p.ean.includes(vstupOčistený));
+          });
+
+          if (vsetkyZhody.length === 1) {
+            // Našli sme presne jeden kus - hneď otvárame
+            await this.spustitKalkulacku(vsetkyZhody[0]);
+          }
+          else if (vsetkyZhody.length > 1) {
+            // Našli sme viac zhôd - prepíname do režimu spresňovania
+            this.isRefiningSearch = true;
+            this.subsetZasob = vsetkyZhody;
+
+            // Aktualizujeme UI, aby používateľ videl, z čoho si môže vybrať
+            this.filtrovaneZasoby = vsetkyZhody;
+            this.cdr.detectChanges();
+
+            this.zobrazToast(`Našiel som ${vsetkyZhody.length} zhôd. Povedzte konkrétny názov.`, 'tertiary');
+          }
+          else {
+            this.zobrazToast(`Produkt "${hlasovyVstup}" nebol nájdený.`, 'warning');
+          }
         }
+
+        // Krátka pauza pred ďalším počúvaním
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
       } catch (error) {
-        console.warn('Hlasový cyklus zachytil udalosť/chybu:', error);
-
-        // Ošetrenie stavov z Web Speech API
-        if (error === 'not-allowed') {
-          this.zobrazToast('Nemáte povolený mikrofón.', 'danger');
-          this.isVoiceModeActive = false; // Tvrdé vypnutie
-        } else if (error === 'aborted') {
-          // Používateľ alebo systém manuálne zastavil nahrávanie
-          this.isVoiceModeActive = false;
-        } else if (error === 'no-speech') {
-          // Ticho (nič nepovedal). Ak je mód zapnutý, cyklus sa jednoducho zopakuje
-          if (this.isVoiceModeActive) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        } else {
-          // Iná chyba, chvíľu počkáme, aby sa cyklus "nezbláznil" z rýchlych opakovaní
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        console.warn('Hlasová slučka error:', error);
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
+  }
+
+  /**
+   * Pomocná metóda na návrat do pôvodného stavu
+   */
+  public ukoncitiSpresnovanie() {
+    this.isRefiningSearch = false;
+    this.subsetZasob = [];
+    this.aplikovatFiltre();
+    this.cdr.detectChanges();
   }
 }
