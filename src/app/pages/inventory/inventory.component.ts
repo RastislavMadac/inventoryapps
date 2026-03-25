@@ -1411,12 +1411,18 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
   async vyhladatHlasom() {
     if (this.isVoiceModeActive) {
+      // Vypnutie módu
       this.isVoiceModeActive = false;
-      this.ukoncitiSpresnovanie(); // Resetujeme filtre a režim spresňovania
+      this.ukoncitiSpresnovanie();
       this.speechService.stopListening();
       this.zobrazToast('Hlasové vyhľadávanie ukončené.', 'medium');
       return;
     }
+
+    // 🔥 TOTO TI CHÝBALO: Zapnutie módu a úvodný toast
+    this.isVoiceModeActive = true;
+    this.zobrazToast('Hlasový režim aktívny. Počúvam...', 'tertiary');
+
     this.spustitHlasovuSlucku();
   }
 
