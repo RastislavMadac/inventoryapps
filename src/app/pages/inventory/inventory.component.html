@@ -18,14 +18,15 @@
   <ion-toolbar color="primary">
   <div class="header-controls-wrapper">
     
-    <ion-button 
-      *ngIf="speechService.isSupported" 
-      (click)="vyhladatHlasom()" 
-      fill="clear" 
-      color="light" 
-      class="mic-btn">
-      <ion-icon slot="icon-only" name="mic"></ion-icon>
-    </ion-button>
+   <ion-button 
+  *ngIf="speechService.isSupported" 
+  (click)="vyhladatHlasom()" 
+  fill="clear" 
+  [color]="isVoiceModeActive ? 'danger' : 'light'" 
+  [class.pulsing-mic]="isVoiceModeActive"
+  class="mic-btn">
+  <ion-icon slot="icon-only" [name]="isVoiceModeActive ? 'mic' : 'mic-outline'"></ion-icon>
+</ion-button>
 
     <ion-toggle 
       class="custom-header-toggle"

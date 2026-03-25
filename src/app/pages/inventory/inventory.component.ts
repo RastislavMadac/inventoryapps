@@ -28,7 +28,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline, mic
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -85,7 +85,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   regaly: Regal[] = [];
   filtrovaneRegaly: Regal[] = [];
 
-
+  isVoiceModeActive: boolean = false;
   aktivnaInventura: Inventura | null = null;
   private idPolozkyPreScroll: number | null = null;
   zasoby: SkladovaZasobaView[] = [];
@@ -135,7 +135,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       clipboardOutline, closeCircle, addCircleOutline, caretDownOutline, filterOutline,
       settingsOutline, arrowUpOutline, trashOutline, checkmarkDoneOutline, locationOutline,
       createOutline, add, searchOutline, addOutline, cubeOutline, listOutline,
-      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline, mic
+      checkmarkCircle, timeOutline, reorderFourOutline, menuOutline, checkmarkCircleOutline, arrowRedoOutline, mic, micOutline
     });
   }
 
@@ -215,6 +215,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   ionViewWillLeave() {
+    // 1. Zastavenie hlasového vyhľadávania
+    this.isVoiceModeActive = false; // Preruší bežiacu 'while' slučku
+    if (this.speechService) {
+      this.speechService.stopListening(); // Natvrdo vypne mikrofón
+    }
+
+    // 2. Zrušenie odberu real-time zmien
     if (this.realtimeSubscription) {
       this.realtimeSubscription.unsubscribe();
       this.realtimeSubscription = null;
@@ -1405,32 +1412,78 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
   // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
   async vyhladatHlasom() {
-    try {
-      this.zobrazToast('Počúvam názov produktu...', 'tertiary');
+    if (this.isVoiceModeActive) {
+      // Vypnutie módu
+      this.isVoiceModeActive = false;
+      this.speechService.stopListening();
+      this.zobrazToast('Hlasové vyhľadávanie ukončené.', 'medium');
+      return;
+    }
 
-      // Voláme našu PWA službu (Web Speech API)
-      const hladanyNazov = await this.speechService.startListening();
+    // Zapnutie módu
+    this.isVoiceModeActive = true;
+    this.zobrazToast('Hlasový režim aktívny. Počúvam...', 'tertiary');
+    this.spustitHlasovuSlucku();
+  }
 
-      if (!hladanyNazov) return;
+  /**
+   * Nekonečný cyklus, ktorý beží, kým je mód aktívny
+   */
+  private async spustitHlasovuSlucku() {
+    while (this.isVoiceModeActive) {
+      try {
+        // 1. Čakáme na hlasový vstup
+        const hladanyNazov = await this.speechService.startListening();
 
-      const hladanyLower = this.odstranitDiakritiku(hladanyNazov).toLowerCase();
+        // Ak používateľ počas počúvania mód vypol, prerušíme cyklus
+        if (!this.isVoiceModeActive) break;
 
-      // Hľadáme zhodu v lokálnom poli načítaných zásob
-      const najdenyProdukt = this.zasoby.find(p => {
-        const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
-        return nazov.includes(hladanyLower) || (p.ean && p.ean.includes(hladanyLower));
-      });
+        if (!hladanyNazov) continue;
 
-      if (najdenyProdukt) {
-        this.zobrazToast(`Našiel som: ${najdenyProdukt.nazov}`, 'success');
-        // Prechádzame na KROK 2 - Otvorenie kalkulačky (tvoja existujúca metóda)
-        await this.spustitKalkulacku(najdenyProdukt);
-      } else {
-        this.zobrazToast(`Produkt "${hladanyNazov}" nebol nájdený.`, 'warning');
+        const hladanyLower = this.odstranitDiakritiku(hladanyNazov).toLowerCase();
+
+        // 2. Hľadáme produkt
+        const najdenyProdukt = this.zasoby.find(p => {
+          const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
+          return nazov.includes(hladanyLower) || (p.ean && p.ean.includes(hladanyLower));
+        });
+
+        if (najdenyProdukt) {
+          this.zobrazToast(`Našiel som: ${najdenyProdukt.nazov}`, 'success');
+
+          // 3. Otvoríme kalkulačku. 
+          // Await tu pozastaví bežiacu slučku, kým sa modal nezatvorí!
+          await this.spustitKalkulacku(najdenyProdukt);
+
+          // 4. Modal sa zatvoril. Ak je mód stále aktívny, chvíľu počkáme a ideme znova.
+          if (this.isVoiceModeActive) {
+            await new Promise(resolve => setTimeout(resolve, 800)); // Kratučká pauza na nadýchnutie
+            this.zobrazToast('Počúvam ďalší produkt...', 'tertiary');
+          }
+        } else {
+          this.zobrazToast(`Produkt "${hladanyNazov}" nebol nájdený.`, 'warning');
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Dlhšia pauza na prečítanie toastu
+        }
+      } catch (error) {
+        console.warn('Hlasový cyklus zachytil udalosť/chybu:', error);
+
+        // Ošetrenie stavov z Web Speech API
+        if (error === 'not-allowed') {
+          this.zobrazToast('Nemáte povolený mikrofón.', 'danger');
+          this.isVoiceModeActive = false; // Tvrdé vypnutie
+        } else if (error === 'aborted') {
+          // Používateľ alebo systém manuálne zastavil nahrávanie
+          this.isVoiceModeActive = false;
+        } else if (error === 'no-speech') {
+          // Ticho (nič nepovedal). Ak je mód zapnutý, cyklus sa jednoducho zopakuje
+          if (this.isVoiceModeActive) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        } else {
+          // Iná chyba, chvíľu počkáme, aby sa cyklus "nezbláznil" z rýchlych opakovaní
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-    } catch (error) {
-      console.warn('Hlasové vyhľadávanie bolo zrušené alebo zlyhalo.', error);
-      // Ak používateľ zamietol povolenie pre mikrofón v prehliadači, padne to sem
     }
   }
 }
