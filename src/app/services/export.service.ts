@@ -413,4 +413,45 @@ export class ExportService {
         return true;
     }
 
+
+    // --- 5. EXCEL (KATALÓG PRODUKTOV) ---
+    public generovatExcelCelehoSkladu(data: any[]) {
+        if (!data || data.length === 0) return false;
+
+        // Mapovanie priamo na stĺpce z tabuľky 'produkty'
+        const formatovaneData = data.map(item => ({
+            'Vlastné ID': item.vlastne_id || '-',
+            'Systémové ID': item.interne_id || '',
+            'Názov produktu': item.nazov || '',
+            'EAN': item.ean || '-',
+            'M.J.': item.jednotka || '-',
+            'Balenie (ks)': item.balenie_ks || '-',
+            'Min. Limit': item.min_limit || 0,
+            'Kategória ID': item.kategoria_id || '-',
+            'Stredisko ID': item.stredisko_id || '-'
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(formatovaneData);
+
+        // Formátovanie šírky stĺpcov pre lepšiu čitateľnosť (UX)
+        ws['!cols'] = [
+            { wch: 15 }, // Vlastné ID
+            { wch: 15 }, // Systémové ID
+            { wch: 45 }, // Názov
+            { wch: 18 }, // EAN
+            { wch: 8 },  // MJ
+            { wch: 12 }, // Balenie
+            { wch: 12 }, // Limit
+            { wch: 12 }, // Kat ID
+            { wch: 12 }  // Stredisko ID
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Produkty');
+
+        const datum = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Katalog_Produktov_${datum}.xlsx`);
+
+        return true;
+    }
 }

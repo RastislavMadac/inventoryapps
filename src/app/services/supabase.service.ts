@@ -1164,4 +1164,14 @@ export class SupabaseService {
             pocet: inv.inventura_polozky[0]?.count || 0
         }));
     }
+
+    async getCelySkladPreExport() {
+        const { data, error } = await this.supabase
+            .from('produkty')
+            .select('*')
+            .order('vlastne_id', { ascending: true });
+
+        if (error) throw error;
+        return data;
+    }
 }

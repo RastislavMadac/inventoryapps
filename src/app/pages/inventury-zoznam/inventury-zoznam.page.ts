@@ -14,7 +14,7 @@ import { addIcons } from 'ionicons';
 import {
   add, logOutOutline, checkmarkDoneOutline,
   ellipsisVertical, documentTextOutline, gridOutline,
-  trashOutline, closeOutline, warningOutline, closeCircle, reload
+  trashOutline, closeOutline, warningOutline, closeCircle, reload, downloadOutline
 } from 'ionicons/icons';
 import { DoplnitIdModalComponent } from 'src/app/components/doplnit-id-modal/doplnit-id-modal.component';
 import { ModalController } from '@ionic/angular';
@@ -58,7 +58,8 @@ export class InventuryZoznamPage implements OnInit {
       trashOutline,
       closeOutline,
       closeCircle,
-      reload
+      reload,
+      downloadOutline
     });
   }
 
@@ -227,6 +228,12 @@ export class InventuryZoznamPage implements OnInit {
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'pdf_id'); }
         },
+
+        {
+          text: 'Exportovať aktuálny stav skladu',
+          icon: 'download-outline',
+          handler: () => { this.exportovatCelySklad(); }
+        },
         // {
         //   text: 'PDF (Len bez ID)',
         //   icon: 'document-text-outline',
@@ -322,5 +329,27 @@ export class InventuryZoznamPage implements OnInit {
     this.nacitajZoznam();
   }
 
+  async exportovatCelySklad() {
+    this.isLoading = true;
+    try {
+      // Získanie dát celého skladu (vyžaduje existenciu metódy v SupabaseService)
+      const dataSkladu = await this.supabase.getCelySkladPreExport();
 
+      if (!dataSkladu || dataSkladu.length === 0) {
+        this.toast('Sklad je momentálne prázdny.', 'warning');
+        return;
+      }
+
+      const uspech = this.exportService.generovatExcelCelehoSkladu(dataSkladu);
+
+      if (uspech) {
+        this.toast('Stav skladu bol úspešne exportovaný.', 'success');
+      }
+    } catch (e: any) {
+      console.error('Chyba pri exporte skladu:', e);
+      this.toast('Nepodarilo sa exportovať sklad.', 'danger');
+    } finally {
+      this.isLoading = false;
+    }
+  }
 }

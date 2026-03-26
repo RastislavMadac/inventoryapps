@@ -279,63 +279,72 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   private spracujHlasovyVstup(text: string) {
-    // 1. PRED-SPRACOVANIE: Vyčistíme text a pripravíme desatinnú logiku
-    let spracovanyText = text.toLowerCase().trim()
+    console.log('🤖 Prehliadač počul:', text);
+    const originalText = text.toLowerCase().trim();
+
+    // 1. Kontrola, či zaznel povel na potvrdenie
+    const obsahujePotvrdenie = originalText.includes('potvrdiť') ||
+      originalText.includes('ok') ||
+      originalText.includes('uložiť');
+
+    // 2. Vyčistíme text od povelov a zjednotíme desatinné znaky na bodku
+    let spracovanyText = originalText
       .replace('potvrdiť', '')
       .replace('ok', '')
       .replace('uložiť', '')
-      .replace('celých', '.')
-      .replace('celé', '.')
-      .replace('celá', '.')
-      .replace('čiarka', '.')
-      .replace(',', '.') // Prevod "10,5" na "10.5"
+      .replace(/celých/g, '.')
+      .replace(/celé/g, '.')
+      .replace(/celá/g, '.')
+      .replace(/čiarka/g, '.')
+      .replace(/,/g, '.') // Pre istotu prepíše aj čiarku, ak ju prehliadač vráti
       .trim();
 
-    // 2. RÝCHLY PARSING: Ak prehliadač vrátil priamo cifry (napr. "2500.5")
-    let vysledneCislo = parseFloat(spracovanyText);
+    // Ak zaznel len povel bez čísla
+    if (spracovanyText === '') {
+      if (obsahujePotvrdenie) {
+        this.potvrdit();
+      }
+      return;
+    }
 
-    // 3. SLOVNÍK (MAPA): Slovenský jazyk do 5000
-    if (isNaN(vysledneCislo)) {
-      const mapa: { [key: string]: number } = {
-        // Jednotky a špecifické tvary
-        'nula': 0, 'jeden': 1, 'jedna': 1, 'dva': 2, 'dve': 2, 'tri': 3, 'štyri': 4, 'päť': 5, 'šesť': 6, 'sedem': 7, 'osem': 8, 'deväť': 9,
-        // Násť
-        'desať': 10, 'jedenásť': 11, 'dvanásť': 12, 'trinásť': 13, 'štrnásť': 14, 'pätnásť': 15, 'šestnásť': 16, 'sedemnásť': 17, 'osemnásť': 18, 'devätnásť': 19,
-        // Desiatky
-        'dvadsať': 20, 'tridsať': 30, 'štyridsať': 40, 'päťdesiat': 50, 'šesťdesiat': 60, 'sedemdesiat': 70, 'osemdesiat': 80, 'deväťdesiat': 90,
-        // Stovky
-        'sto': 100, 'dvesto': 200, 'tristo': 300, 'štyristo': 400, 'päťsto': 500, 'šesťsto': 600, 'sedemsto': 700, 'osemsto': 800, 'deväťsto': 900,
-        // Tisíce (do 5000)
-        'tisíc': 1000, 'jedentisíc': 1000, 'dvetisíc': 2000, 'tritisíc': 3000, 'štyritisíc': 4000, 'päťtisíc': 5000
-      };
+    // 3. Zjednodušený slovník IBA pre jednotlivé cifry
+    const mapaCislic: { [key: string]: string } = {
+      'nula': '0', 'jeden': '1', 'jedna': '1', 'dva': '2', 'dve': '2',
+      'tri': '3', 'štyri': '4', 'päť': '5', 'šesť': '6', 'sedem': '7',
+      'osem': '8', 'deväť': '9'
+    };
 
-      // Spracovanie desatinných miest cez bodku
-      if (spracovanyText.includes('.')) {
-        const casti = spracovanyText.split('.');
-        const celaCast = this.prelozSlovaNaCislo(casti[0], mapa);
-        const desatinnaCast = this.prelozSlovaNaCislo(casti[1], mapa);
+    // 4. PREKLAD: Rozbijeme text na slová a poskladáme z nich jedno dlhé "textové" číslo
+    let poskladaneCisloText = '';
+    const slova = spracovanyText.split(/\s+/); // Rozdelí podľa medzier
 
-        if (celaCast !== null && desatinnaCast !== null) {
-          // Skombinujeme celú a desatinnú časť (napr. "2" + "." + "5")
-          vysledneCislo = parseFloat(`${celaCast}.${desatinnaCast}`);
-        }
+    for (const slovo of slova) {
+      if (mapaCislic[slovo] !== undefined) {
+        // Ak je to slovo (napr. "päť"), pridáme znak "5"
+        poskladaneCisloText += mapaCislic[slovo];
       } else {
-        // Len celé číslo
-        vysledneCislo = this.prelozSlovaNaCislo(spracovanyText, mapa) ?? NaN;
+        // Ak to slovo nepoznáme, je to pravdepodobne bodka ".", alebo už priamo číslo
+        // (napr. prehliadač bol šikovný a vrátil rovno "4" namiesto "štyri")
+        poskladaneCisloText += slovo;
       }
     }
 
-    // 4. ZÁPIS DO KALKULAČKY A LOGIKA POTVRDENIA
+    // V tomto bode máme text napr. "67.4". Pre istotu z neho vymažeme akékoľvek zostatkové medzery.
+    poskladaneCisloText = poskladaneCisloText.replace(/\s+/g, '');
+
+    // 5. Prevod finálneho textu (napr. "67.4") na reálne matematické číslo
+    let vysledneCislo = parseFloat(poskladaneCisloText);
+
+    // 6. ZÁPIS DO KALKULAČKY
     if (!isNaN(vysledneCislo)) {
       this.mainDisplay = vysledneCislo.toString();
       this.fullFormula = vysledneCislo.toString();
-      this.shouldResetMain = true; // Pri ťuknutí na tlačidlo sa displej premaže
+      this.shouldResetMain = true;
+    }
 
-      // Automatické potvrdenie (ak zaznie klúčové slovo)
-      const originalText = text.toLowerCase();
-      if (originalText.includes('potvrdiť') || originalText.includes('ok') || originalText.includes('uložiť')) {
-        this.potvrdit();
-      }
+    // 7. AUTOMATICKÉ POTVRDENIE (ak zaznelo ok)
+    if (obsahujePotvrdenie) {
+      this.potvrdit();
     }
   }
 
