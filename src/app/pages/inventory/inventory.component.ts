@@ -1427,48 +1427,33 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   /**
-    * Nekonečný cyklus, ktorý beží, kým je mód aktívny
-    */
+   * Nekonečný cyklus, ktorý beží, kým je mód aktívny
+   */
   private async spustitHlasovuSlucku() {
     while (this.isVoiceModeActive) {
       try {
         const hlasovyVstup = await this.speechService.startListening();
-
-        // Ak sa počas počúvania mód vypol (napr. používateľ klikol na tlačidlo), alebo mikrofón nič nezachytil, ideme odznova
         if (!this.isVoiceModeActive || !hlasovyVstup) continue;
 
         console.log('🗣️ Mikrofón v inventári zachytil:', hlasovyVstup);
 
-        // 1. Zoberieme si čistý pôvodný text (na zachytenie povelov predtým, než z neho odstránime diakritiku)
+        // 1. KONTROLA POVELOV (vymaž, reset...)
         const originalText = hlasovyVstup.toLowerCase().trim();
+        const povelyNaReset = ['vymaž', 'vymaz', 'zmazať', 'zmaz', 'zmaž', 'vyčisti', 'vyčistiť', 'zrušiť', 'zruš', 'clear', 'reset', 'späť'];
 
-        // 2. Zoznam všetkých možných slov pre vymazanie/reset
-        const povelyNaReset = [
-          'vymaž', 'vymaz', 'zmazať', 'zmaz', 'zmaž',
-          'vyčisti', 'vyčistiť', 'zrušiť', 'zruš',
-          'clear', 'reset', 'späť'
-        ];
-
-        // Zistíme, či veta z mikrofónu obsahuje aspoň jedno slovo zo zoznamu
-        const chceVymazat = povelyNaReset.some(povel => originalText.includes(povel));
-
-        // 3. Kontrola povelov
-        if (chceVymazat) {
+        if (povelyNaReset.some(povel => originalText.includes(povel))) {
           console.log('🧹 Povel prijatý: Resetujem vyhľadávanie.');
-
-          this.searchQuery = ''; // Vymaže text z vizuálneho vyhľadávacieho poľa
-          this.ukoncitiSpresnovanie(); // Zruší filter spresňovania a vráti zoznam do pôvodného stavu
+          this.searchQuery = '';
+          this.ukoncitiSpresnovanie();
           this.zobrazToast('Vyhľadávanie vymazané. Počúvam...', 'medium');
-
-          continue; // Preskočí vyhľadávanie produktov a mikrofón začne okamžite počúvať odznova
+          continue;
         }
 
-        // 4. Až teraz text preženieme vašou funkciou (odstráni mäkčene a zmení y -> i) pre presné hľadanie tovaru
+        // 2. HLAVNÁ LOGIKA VYHĽADÁVANIA
         const vstupOcisteny = this.odstranitDiakritiku(hlasovyVstup).toLowerCase().trim();
 
-        // --- LOGIKA ROZHODOVANIA ---
         if (this.isRefiningSearch) {
-          // A) Sme v režime spresňovania (používateľ vyberá z už zobrazených zhôd)
+          // A) Sme v režime SPRESŇOVANIA (Už sme stiahli napr. 5 druhov piva a teraz vyberáme jedno)
           const najdenyVSubsete = this.subsetZasob.find(p =>
             this.odstranitDiakritiku(p.nazov || '').toLowerCase().includes(vstupOcisteny)
           );
@@ -1477,57 +1462,53 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
             this.ukoncitiSpresnovanie();
             await this.spustitKalkulacku(najdenyVSubsete);
           } else {
-            this.zobrazToast(`V zozname zhôd som "${hlasovyVstup}" nenašiel. Skúste znova alebo povedzte "vymaž".`, 'warning');
+            this.zobrazToast(`Zobrazené položky neobsahujú "${hlasovyVstup}". Povedzte iný názov alebo "vymaž".`, 'warning');
           }
 
         } else {
-          // B) Bežné hľadanie v celom zozname (filtruje podľa upraveného textu aj EAN)
-          const vsetkyZhody = this.zasoby.filter(p => {
-            const nazov = this.odstranitDiakritiku(p.nazov || '').toLowerCase();
-            return nazov.includes(vstupOcisteny) || (p.ean && p.ean.includes(vstupOcisteny));
-          });
+          // B) PRVOTNÉ HĽADANIE - Ideme priamo cez hlavný systém (Prehľadá VŠETKO na serveri)
+          this.searchQuery = hlasovyVstup;
+          this.zobrazToast(`Hľadám "${hlasovyVstup}" v databáze...`, 'tertiary');
 
+          // Spustíme obnovu (toto zavolá server, ak treba, a naplní premennú this.filtrovaneZasoby)
+          if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
+            this.aplikovatFiltre();
+          } else {
+            this.isLoading = true;
+            await this.obnovitZoznamPodlaRezimu();
+          }
+
+          // Počkáme, kým sa zoznam na obrazovke aktualizuje
+          this.cdr.detectChanges();
+          const vsetkyZhody = this.filtrovaneZasoby;
+
+          // C) Vyhodnotíme, koľko toho server našiel
           if (vsetkyZhody.length === 1) {
-            // Našli sme presne jeden kus - hneď otvárame kalkulačku
+            // Našli sme presne 1 kus v celom sklade - otvárame kalkulačku!
             await this.spustitKalkulacku(vsetkyZhody[0]);
           }
           else if (vsetkyZhody.length > 1) {
-            // Našli sme viac zhôd - prepíname do režimu spresňovania
+            // Server vrátil viacero produktov. Zapneme spresňovanie.
             this.isRefiningSearch = true;
             this.subsetZasob = vsetkyZhody;
-
-            // Aktualizujeme UI, aby používateľ videl, z čoho si môže vybrať
-            this.filtrovaneZasoby = vsetkyZhody;
-            this.cdr.detectChanges();
-
             this.zobrazToast(`Našiel som ${vsetkyZhody.length} zhôd. Povedzte presný názov alebo "vymaž".`, 'tertiary');
           }
           else {
-            // Nenašli sme nič
-            this.zobrazToast(`Produkt "${hlasovyVstup}" nebol nájdený. Povedzte iný názov alebo "vymaž".`, 'warning');
+            // Server nenašiel nič
+            this.zobrazToast(`Produkt "${hlasovyVstup}" nebol nájdený. Skúste iný názov.`, 'warning');
           }
         }
 
-        // Krátka pauza pred ďalším počúvaním, aby sa neprekrývali requesty
         await new Promise(resolve => setTimeout(resolve, 1000));
 
       } catch (error) {
-        // --- SPRACOVANIE CHÝB Z MIKROFÓNU ---
-
         if (error === 'no-speech') {
-          // Prehliadač vypol mikrofón po chvíli ticha. Ak sme stále v hlasovom móde, len počkáme a slučka ho znova zapne.
-          if (this.isVoiceModeActive) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-        }
-        else if (error === 'not-allowed') {
-          // Používateľ (alebo systém) zablokoval prístup k mikrofónu
+          if (this.isVoiceModeActive) await new Promise(resolve => setTimeout(resolve, 200));
+        } else if (error === 'not-allowed') {
           this.zobrazToast('Prístup k mikrofónu bol zamietnutý.', 'danger');
           this.isVoiceModeActive = false;
           this.ukoncitiSpresnovanie();
-        }
-        else {
-          // Akákoľvek iná chyba (napr. výpadok internetu)
+        } else {
           console.warn('Hlasová slučka zachytila chybu:', error);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
