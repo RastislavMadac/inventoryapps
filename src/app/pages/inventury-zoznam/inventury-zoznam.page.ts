@@ -192,7 +192,7 @@ export class InventuryZoznamPage implements OnInit {
       buttons: [
 
         {
-          text: 'Špeciálna Tlačová zostava (.xls)',
+          text: 'Export pre blueGastro (.xls)',
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
         },
@@ -230,7 +230,7 @@ export class InventuryZoznamPage implements OnInit {
         },
 
         {
-          text: 'Exportovať aktuálny stav skladu',
+          text: 'Celý sklad (Excel)',
           icon: 'download-outline',
           handler: () => { this.exportovatCelySklad(); }
         },

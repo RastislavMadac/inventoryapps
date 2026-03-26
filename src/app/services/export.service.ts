@@ -420,8 +420,9 @@ export class ExportService {
 
         // Mapovanie priamo na stĺpce z tabuľky 'produkty'
         const formatovaneData = data.map(item => ({
+            'ID': item.id || '',
             'Vlastné ID': item.vlastne_id || '-',
-            'Systémové ID': item.interne_id || '',
+            'Systémové ID': item.Interne_id || '',
             'Názov produktu': item.nazov || '',
             'EAN': item.ean || '-',
             'M.J.': item.jednotka || '-',

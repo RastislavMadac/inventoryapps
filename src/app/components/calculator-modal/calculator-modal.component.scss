@@ -212,191 +212,150 @@
 
 
 /* =========================================
-   TABLET OPTIMALIZÁCIA
+   TABLET OPTIMALIZÁCIA (FINÁLNA - FIX NA ŠÍRKU)
    ========================================= */
 
-/* 1. TABLET PORTRAIT (Na výšku - iPad, Android tablety) */
-/* =========================================
-   TABLET / MODAL FIX (Landscape & Large)
-   ========================================= */
-@media (min-width: 768px) {
+/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) */
+@media (min-width: 768px) and (orientation: portrait) {
 
-  /* 1. Hlavný kontajner natiahneme na 100% výšky modálu */
-  .centered-content {
-    display: flex;
-    flex-direction: row;
-    /* Vedľa seba */
-    align-items: stretch;
-    /* Roztiahnuť na výšku */
-    justify-content: center;
-    height: 100%;
-    /* Dôležité pre modal */
-    padding: 0;
-    /* Reset paddingu */
-    overflow: hidden;
-    /* Žiadne scrollovanie */
+  .info-section,
+  .keypad-section,
+  .display-container,
+  .balenie-btn-container,
+  .keypad {
+    max-width: 600px;
   }
 
-  /* 2. ĽAVÁ STRANA (Info + Displej) - 40% šírky */
-  .info-section {
-    flex: 4;
-    /* Zaberá 4 diely z 10 */
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    background-color: #f4f5f8;
-    /* Jemne šedá pre odlíšenie */
-    border-right: 1px solid #dcdcdc;
-    /* Čiara medzi displejom a klávesnicou */
-  }
-
-  /* Názov produktu */
-  .product-header {
-    font-size: 1.4rem;
-    margin-bottom: 15px;
-    flex-shrink: 0;
-    /* Neskračovať */
-  }
-
-  /* Displej - TOTO JE KĽÚČOVÉ - natiahne sa do zvyšného miesta */
   .display-container {
-    flex-grow: 1;
-    /* Vyplní všetko prázdne miesto naľavo */
-    height: auto;
-    /* Zrušíme fixnú výšku */
-    max-width: 100%;
-    /* Roztiahnuť na šírku */
-    margin-bottom: 15px;
-
-    /* Centrovanie čísla v tom veľkom boxe */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    /* Vertikálne v strede */
-    align-items: flex-end;
-    /* Číslo vpravo */
+    height: 160px;
   }
 
-  /* Číslo na displeji */
   .calculation-text {
-    font-size: 5rem;
-    /* Veľké číslo */
-    padding-right: 10px;
+    font-size: 4.5rem;
   }
 
-  /* Tlačidlo zobraziť detail */
-  .detail-toggle {
-    margin-bottom: 10px;
-    justify-content: flex-start;
+  .calculation-text.has-detail {
+    font-size: 3.2rem;
   }
 
-  /* 3. PRAVÁ STRANA (Klávesnica) - 60% šírky */
-  .keypad-section {
-    flex: 6;
-    /* Zaberá 6 dielov z 10 */
-    padding: 20px;
-    display: flex;
+  .row ion-button {
+    height: 85px;
+    font-size: 2rem;
+  }
+}
+
+/* =========================================
+   TABLET OPTIMALIZÁCIA (Definitívny fix na šírku)
+   ========================================= */
+
+/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) */
+@media (min-width: 768px) and (orientation: portrait) {
+
+  .info-section,
+  .keypad-section,
+  .display-container,
+  .balenie-btn-container,
+  .keypad {
+    max-width: 600px;
+  }
+
+  .display-container {
+    height: 160px;
+  }
+
+  .calculation-text {
+    font-size: 4.5rem;
+  }
+
+  .calculation-text.has-detail {
+    font-size: 3.2rem;
+  }
+
+  .row ion-button {
+    height: 85px;
+    font-size: 2rem;
+  }
+}
+
+/* 2. TABLET LANDSCAPE (Na šírku) a VEĽKÉ MONITORY */
+@media (min-width: 768px) and (orientation: landscape),
+(min-width: 900px) {
+
+  .centered-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+
+    /* TOTO JE ZMENA PRE VERTIKÁLNE CENTROVANIE: */
+    height: 100%;
+    /* Musí zabrať celú výšku obrazovky */
+    align-content: center;
+    /* Vycentruje celú mriežku (ľavú aj pravú stranu) do stredu obrazovky */
     align-items: center;
-    /* Klávesnica vertikálne v strede */
-    justify-content: center;
-    background-color: #fff;
+    /* Vycentruje prvky v rámci svojich blokov */
+
+    overflow-y: auto;
+    /* Ak by bol tablet extrémne nízky, povolí scroll namiesto odrezania */
   }
 
-  /* Samotná mriežka klávesnice */
+  /* ĽAVÁ STRANA (Info a displej) */
+  .info-section {
+    grid-column: 1 / 2;
+    /* Umiestni do prvého stĺpca */
+    padding: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  /* HLASOVÉ VYHĽADÁVANIE (Ak je aktívne, dáme ho pod displej) */
+  .voice-section {
+    grid-column: 1 / 2;
+    /* Zostane v prvom stĺpci */
+    width: 100%;
+  }
+
+  /* PRAVÁ STRANA (Klávesnica) */
+  .keypad-section {
+    grid-column: 2 / 3;
+    /* Umiestni do druhého stĺpca */
+    grid-row: 1 / 3;
+    /* Dovolí klávesnici natiahnuť sa cez oba riadky ľavej strany */
+    padding: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .display-container {
+    height: 120px;
+    /* Znížili sme displej, nepotrebuje byť taký obrovský */
+    width: 100%;
+    margin-bottom: 15px;
+  }
+
+  .calculation-text {
+    font-size: 3.5rem;
+  }
+
   .keypad {
     width: 100%;
-    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
-    /* Rozostupy medzi riadkami */
+    gap: 8px;
+    /* Menšie medzery = viac miesta pre tlačidlá */
   }
 
-  /* Riadky tlačidiel */
   .row {
-    margin-bottom: 0;
-    /* Zrušíme marginy, použijeme space-evenly */
-    gap: 10px;
-    /* Medzery medzi tlačidlami */
-    flex: 1;
-    /* Každý riadok rovnako vysoký */
-  }
-
-  /* Tlačidlá */
-  .row ion-button {
-    height: 100%;
-    /* Tlačidlo vyplní výšku riadku */
-    margin: 0;
-    /* Reset marginov */
-    font-size: 2rem;
-    /* Veľké písmo */
-    --box-shadow: none;
-    /* Čistejší vzhľad */
-  }
-
-  /* Špecificky pre posledný riadok, aby OK nebolo deformované */
-  .bottom-row {
-    margin-top: 10px;
-  }
-}
-
-/* 2. TABLET LANDSCAPE (Na šírku - Rozdelenie obrazovky) */
-@media (min-width: 900px) {
-
-  .centered-content {
-    flex-direction: row;
-    /* Prvky vedľa seba */
-    align-items: flex-start;
-    /* Zarovnanie hore */
-    justify-content: center;
-    gap: 40px;
-    /* Medzera medzi ľavou a pravou stranou */
-    padding-top: 20px;
-  }
-
-  /* Ľavá strana (Info) */
-  .info-section {
-    flex: 1;
-    max-width: 450px;
-    justify-content: flex-start;
-  }
-
-  /* Pravá strana (Klávesnica) */
-  .keypad-section {
-    flex: 1.2;
-    /* Klávesnica zaberá trochu viac miesta */
-    max-width: 550px;
-  }
-
-  /* Úprava displeja pre landscape */
-  .display-container {
-    height: 200px;
-    /* Ešte väčší displej, keďže máme miesto */
-    margin-bottom: 30px;
-  }
-
-  /* Tlačidlo Balenie zväčšíme */
-  .balenie-btn-container ion-button {
     height: 60px;
-    font-size: 1.2rem;
-  }
-
-  /* Zarovnanie prepínača detailov */
-  .detail-toggle {
-    justify-content: flex-start;
-    /* Na šírku to vyzerá lepšie vľavo */
-    margin-bottom: 15px;
-  }
-}
-
-/* 3. VEĽKÉ OBRAZOVKY (Desktop / iPad Pro 12.9") */
-@media (min-width: 1200px) {
-  .calculation-text {
-    font-size: 5rem;
+    /* Pevná výška, ktorá garantuje, že sa na šírku zmestí všetkých 5 riadkov */
+    margin: 0;
   }
 
   .row ion-button {
-    height: 95px;
-    /* Luxusne veľké tlačidlá */
+    margin: 0;
+    height: 100%;
+    font-size: 1.8rem;
   }
 }

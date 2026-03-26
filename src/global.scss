@@ -136,3 +136,24 @@ ion-toast {
   /* Prepíšeme 'space-between' na 'flex-start' (všetko začína hore) */
   justify-content: flex-start !important;
 }
+
+/* Globálne štýly pre modálne okno kalkulačky */
+.my-custom-modal {
+  /* Predvolene na mobile necháme okno na celú obrazovku */
+
+  /* Na tabletoch a PC z neho spravíme pekné plávajúce okno uprostred */
+  @media (min-width: 768px) {
+    --width: 100px;
+    /* Maximálna šírka okna */
+    --height: 450px;
+    /* Výška okna */
+    --border-radius: 16px;
+    /* Zaoblené rohy */
+    --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    /* Jemný tieň */
+
+    /* Tieto vlastnosti zabezpečia, že sa okno pekne vycentruje a nebude od okraja po okraj */
+    --max-width: 90vw;
+    --max-height: 90vh;
+  }
+}
