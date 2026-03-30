@@ -491,3 +491,35 @@ ion-card-content {
     }
   }
 }
+
+/* >>> Špeciálny zväčšený toast pre kalkulačku (V strede obrazovky) <<< */
+ion-toast.kalkulacka-toast {
+  --box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  /* Silný tieň pre 3D efekt */
+
+  ::ng-deep ion-toast.kalkulacka-toast {
+    --box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+    /* Ešte výraznejší tieň */
+
+    ::part(container) {
+      min-width: 90vw;
+      border-radius: 20px;
+      padding: 40px 20px;
+      /* Ešte viac priestoru okolo textu */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    ::part(message) {
+      font-size: 2.8rem !important;
+      /* Dvojnásobne veľké písmo */
+      font-weight: 900;
+      /* Najhrubšie možné písmo */
+      text-align: center;
+      line-height: 1.4;
+      padding-bottom: 0 !important;
+      color: white !important;
+    }
+  }
+}

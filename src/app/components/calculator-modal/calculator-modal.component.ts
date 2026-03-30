@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, ModalController, AlertController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -27,10 +27,11 @@ export class CalculatorModalComponent implements OnInit {
 
   zobrazitDetail: boolean = true
   shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
-
+  maPocuvat: boolean = false;
   private lastClickTime: number = 0;
   pocuva: boolean = false;
   constructor(
+    private cdr: ChangeDetectorRef,
     private modalController: ModalController,
     private alertCtrl: AlertController,
     private supabaseService: SupabaseService,
@@ -45,12 +46,41 @@ export class CalculatorModalComponent implements OnInit {
     const pociatocnyStav = this.aktualnyStav || 0;
     this.mainDisplay = pociatocnyStav.toString();
     this.fullFormula = pociatocnyStav.toString();
+
+    if (this.produktId > 0) {
+      this.nacitajAktualneBalenie();
+    }
   }
-  // >>> PRIDANÁ METÓDA: Rýchla zmena balenia <<<
+
+  // 👉 NOVÁ METÓDA: Vytiahne vždy presnú a aktuálnu hodnotu z tabuľky produkty
+  async nacitajAktualneBalenie() {
+    try {
+      // Keďže máš 'supabase' nastavené ako public v SupabaseService, môžeme ho volať takto:
+      const { data, error } = await this.supabaseService.supabase
+        .from('produkty')
+        .select('balenie_ks')
+        .eq('id', this.produktId)
+        .single();
+
+      if (error) throw error;
+
+      // Ak databáza vráti reálnu hodnotu väčšiu ako 1, aktualizujeme kalkulačku
+      if (data && data.balenie_ks && data.balenie_ks > 1) {
+        this.balenie = data.balenie_ks;
+        this.povodnneBalenie = this.balenie;
+
+        // Vynútime prekreslenie UI, aby sa zjavilo oranžové tlačidlo
+        this.cdr.detectChanges();
+      }
+    } catch (err) {
+      console.error('Chyba pri overovaní čerstvého balenia z DB:', err);
+    }
+
+  }
   async zmenitVelkostBalenia() {
     const alert = await this.alertCtrl.create({
       header: 'Veľkosť balenia',
-      message: 'Zadajte, koľko kusov je v jednom balení:',
+      message: 'Zadajte, koľko kusov je v jednom balení (hodnota sa trvalo uloží k produktu):',
       inputs: [
         {
           name: 'noveBalenie',
@@ -65,29 +95,34 @@ export class CalculatorModalComponent implements OnInit {
         {
           text: 'Uložiť',
           handler: async (data) => {
-            const textHodnota = data.noveBalenie.replace(',', '.');
-            const cislo = parseFloat(textHodnota);
+            if (data.noveBalenie) {
+              const textHodnota = String(data.noveBalenie).replace(',', '.');
+              const cislo = parseFloat(textHodnota);
 
-            if (!isNaN(cislo) && cislo > 0) {
-              try {
-                await this.supabaseService.updateProdukt(this.produktId, { balenie_ks: cislo });
+              if (!isNaN(cislo) && cislo > 0) {
+                // 1. Aktualizujeme hodnoty lokálne
                 this.balenie = cislo;
-              } catch (e: any) {
-                const errorAlert = await this.alertCtrl.create({
-                  header: 'Chyba',
-                  message: 'Nepodarilo sa uložiť zmenu balenia: ' + e.message,
-                  buttons: ['OK']
-                });
-                await errorAlert.present();
+                this.povodnneBalenie = cislo;
+
+                // 👉 2. VYNÚTIME PREKRESLENIE UI
+                this.cdr.detectChanges();
+
+                // 3. Uložíme do databázy
+                try {
+                  await this.supabaseService.updateProdukt(this.produktId, { balenie_ks: cislo });
+                  console.log('📦 Balenie úspešne uložené do DB');
+                } catch (error) {
+                  console.error('❌ Chyba pri ukladaní balenia do DB:', error);
+                }
               }
             }
           }
         }
       ]
     });
+
     await alert.present();
   }
-
   stlacene(hodnota: string) {
     // Debounce (proti dvojkliku)
     const now = Date.now();
@@ -204,6 +239,8 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   potvrdit() {
+    this.maPocuvat = false;
+    this.speechService.stopListening();
     const res = this.evaluateString(this.fullFormula);
 
     let vysledok = 0;
@@ -256,28 +293,43 @@ export class CalculatorModalComponent implements OnInit {
 
   async ionViewWillEnter() {
     if (this.speechService.isSupported) {
-      await this.spustiPocuvanie();
+      this.maPocuvat = true;
+      this.spustiPocuvanie(); // Všimni si: odstránil som 'await', aby funkcia bežala na pozadí
     }
   }
 
-  // Odstránime počúvanie pri zavretí okna, aby nebežalo na pozadí
   ionViewWillLeave() {
+    this.maPocuvat = false; // Prerušíme slučku
+    this.pocuva = false;
     this.speechService.stopListening();
   }
 
   async spustiPocuvanie() {
-    this.pocuva = true;
-    try {
-      const rozpoznanyText = await this.speechService.startListening();
-      this.spracujHlasovyVstup(rozpoznanyText);
-    } catch (error) {
-      console.warn('Počúvanie prerušené', error);
-      // Ak používateľ stlačí manuálne číslo na kalkulačke, API to často zruší
-    } finally {
-      this.pocuva = false;
-    }
-  }
+    // Ak už počúvame, zabránime viacnásobnému spusteniu
+    if (this.pocuva) return;
 
+    this.pocuva = true;
+    this.maPocuvat = true;
+
+    // Slučka udrží mikrofón aktívny, kým používateľ nepotvrdí alebo nezavrie modal
+    while (this.maPocuvat) {
+      try {
+        const rozpoznanyText = await this.speechService.startListening();
+
+        // Ak mikrofón niečo zachytil, spracujeme to
+        if (rozpoznanyText) {
+          this.spracujHlasovyVstup(rozpoznanyText);
+        }
+      } catch (error) {
+        console.warn('Počúvanie prerušené, reštartujem...', error);
+        // Operačný systém často vypne mikrofón pri tichu. 
+        // Počkáme 300ms a slučka ho znova naštartuje.
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+
+    this.pocuva = false;
+  }
   private spracujHlasovyVstup(text: string) {
     console.log('🤖 Prehliadač počul:', text);
     const originalText = text.toLowerCase().trim();

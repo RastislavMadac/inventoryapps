@@ -349,14 +349,15 @@
     </ion-fab-button>
   </ion-fab>
 
-  <ion-toast
+ <ion-toast
     [isOpen]="toastState.isOpen"
     [message]="toastState.message"
     [color]="toastState.color"
-    [duration]="1000"
-    position="top"
+    [duration]="toastState.duration"
+    [position]="toastState.position"
+    [buttons]="toastState.buttons"
     mode="ios"
-    class="force-toast-visible"
+    [class]="'force-toast-visible ' + toastState.cssClass"
     (didDismiss)="toastState.isOpen = false">
   </ion-toast>
 

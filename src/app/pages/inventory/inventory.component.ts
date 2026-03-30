@@ -97,8 +97,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   toastState = {
     isOpen: false,    // Premenované z isToastOpen na isOpen
     message: '',      // Premenované z toastMessage na message
-    color: 'success'  // Premenované z toastColor na color
+    color: 'success',
+    duration: 2000, // Premenované z toastColor na color
+    cssClass: '', // >>> PRIDANÉ <<<
+    position: 'top' as 'top' | 'middle' | 'bottom',
+    buttons: [] as any[] // Tlačidlá
   };
+
+  private toastDismissListener: any = null;
   searchQuery: string = '';
   filterKategoria: string = 'vsetky';
 
@@ -805,6 +811,24 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async spustitKalkulacku(zasoba: SkladovaZasobaView) {
     this.idPolozkyPreScroll = zasoba.id || zasoba.produkt_id;
 
+    // 👉 1. KROK: NAČÍTANIE ČERSTVÉHO BALENIA PRIAMO Z DB PRED OTVORENÍM
+    let cerstveBalenie = zasoba.balenie_ks || 1;
+    try {
+      const { data, error } = await this.supabaseService.supabase
+        .from('produkty')
+        .select('balenie_ks')
+        .eq('id', zasoba.produkt_id)
+        .single();
+
+      if (data && data.balenie_ks !== null && data.balenie_ks > 1) {
+        cerstveBalenie = Number(data.balenie_ks);
+        zasoba.balenie_ks = cerstveBalenie; // Uložíme si hodnotu aj do lokálneho zoznamu
+      }
+    } catch (err) {
+      console.warn('⚠️ Nepodarilo sa načítať čerstvé balenie z DB:', err);
+    }
+
+    // 👉 2. KROK: OTVORENIE KALKULAČKY S GARANTOVANÝMI DÁTAMI
     const modal = await this.modalController.create({
       component: CalculatorModalComponent,
       cssClass: 'my-custom-modal',
@@ -814,30 +838,39 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         aktualnyStav: this.aktivnaInventura
           ? ((zasoba as any).spocitane_mnozstvo ?? 0)
           : zasoba.mnozstvo_ks,
-        balenie: zasoba.balenie_ks,
+        // Tu pošleme čerstvo vytiahnutú hodnotu, ktorá obchádza chybu v RPC filtri
+        balenie: cerstveBalenie,
         jednotka: zasoba.jednotka || 'ks'
       }
     });
 
     await modal.present();
 
-    // 🔴 ZMENA 1: Zmenené z onWillDismiss na onDidDismiss
+    // Čakáme na zatvorenie kalkulačky a získame dáta
     const { data, role } = await modal.onDidDismiss();
 
     if (role === 'confirm' && data) {
       const novyStav = data.novyStav;
-      const balenieZModalu = data.balenie; // <<< PRIDAJ TENTO RIADOK
+      const balenieZModalu = data.balenie;
 
-      // A sem pridaj treti parameter:
-      await this.ulozitZmenu(zasoba, novyStav, balenieZModalu);
+      // 1. Zápis do databázy (toto vykoná backend operácie)
+      await this.ulozitZmenu(zasoba, novyStav, balenieZModalu, true);
 
+      // 2. Extrakcia jednotky pre krajšie formátovanie (napr. ks, kg, l)
+      const jednotka = zasoba.jednotka || 'ks';
+
+      // 3. Zobrazenie veľkého vlastného toastu (3. parameter je css trieda)
+      this.zobrazToast(`Zadané: ${zasoba.nazov} ➔ ${novyStav} ${jednotka}`, 'success', 'kalkulacka-toast');
+
+      // Vynútenie prekreslenia UI
       this.cdr.detectChanges();
 
     } else {
+      // Ak používateľ okno zrušil bez uloženia
       this.idPolozkyPreScroll = null;
     }
   }
-  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number) {
+  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number, potlacitToast: boolean = false) {
     // 1. Prevedieme vstup na číslo
     let suroveCislo = Number(novyStavInput);
 
@@ -858,7 +891,6 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    // >>> KĽÚČOVÝ BOD: Príprava balenia pre zápis <<<
     const finalBalenie = balenie ?? zasoba.balenie_ks ?? 1;
 
     console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}, Balenie: ${finalBalenie}`);
@@ -866,12 +898,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     try {
       const jednotka = zasoba.jednotka || 'ks';
 
+      // --- HLAVNÁ LOGIKA PRE MNOŽSTVÁ ---
       if (zasoba.id === 0) {
         // A) Nová zásoba na regáli
         await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
 
         if (this.aktivnaInventura) {
-          // Voláme servis s 5 argumentmi
           await this.supabaseService.zapisatDoInventury(
             this.aktivnaInventura.id,
             zasoba.produkt_id,
@@ -880,12 +912,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
             finalBalenie
           );
         }
-        this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
+
+        if (!potlacitToast) {
+          this.zobrazToast(`➕ ${zasoba.nazov}: Vytvorené ${novyStav} ${jednotka}`, 'success');
+        }
       } else {
         // B) Existujúca zásoba
         if (this.aktivnaInventura) {
           if (novyStav > 0) {
-            // Voláme servis s 5 argumentmi
             await this.supabaseService.zapisatDoInventury(
               this.aktivnaInventura.id,
               zasoba.produkt_id,
@@ -893,23 +927,42 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
               novyStav,
               finalBalenie
             );
-            this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success');
+
+            if (!potlacitToast) {
+              this.zobrazToast(`✅ ${zasoba.nazov}: Zapísané ${novyStav} ${jednotka}`, 'success');
+            }
           } else {
             await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
-            this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
+
+            if (!potlacitToast) {
+              this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
+            }
           }
         } else {
           // Bežná aktualizácia skladu (mimo inventúry)
           await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
-          this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
 
-          // >>> FIX: Aktualizácia balenia aj mimo inventúry <<<
-          if (balenie && balenie !== zasoba.balenie_ks) {
-            await this.supabaseService.updateProdukt(zasoba.produkt_id, { balenie_ks: balenie });
-            this.zobrazToast('Balenie produktu bolo aktualizované.', 'success');
+          if (!potlacitToast) {
+            this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
           }
         }
       }
+
+      // --- >>> OPRAVA: SPOLOČNÁ LOGIKA PRE BALENIE <<< ---
+      // Tento kód sa teraz vykoná vždy, bez ohľadu na to, či ide o novú/starú položku alebo inventúru
+      if (balenie && balenie !== zasoba.balenie_ks) {
+        await this.supabaseService.updateProdukt(zasoba.produkt_id, { balenie_ks: balenie })
+          ;
+
+        // Ak nechceme potlačiť toasty, povieme používateľovi, že sa zmenilo aj balenie
+        if (!potlacitToast) {
+          this.zobrazToast('Balenie produktu bolo aktualizované.', 'success');
+        }
+
+        // Pre istotu updatneme balenie aj lokálne v pamäti, aby sa hneď po zavretí kalkulačky ukázalo správne
+        zasoba.balenie_ks = balenie;
+      }
+      // ---------------------------------------------------
 
       // Obnova zoznamu a scroll späť na položku
       await this.obnovitZoznamPodlaRezimu();
@@ -933,23 +986,56 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
 
-  zobrazToast(sprava: string, farba: string) {
+  zobrazToast(sprava: string, farba: string, cssTrieda: string = '') {
     console.log('🔔 Spúšťam toast cez šablónu:', sprava);
 
-    // Resetujeme stav (ak by bol náhodou otvorený iný)
+    // Ak už beží nejaký starý odpočúvač dotykov, zrušíme ho
+    if (this.toastDismissListener) {
+      document.removeEventListener('touchstart', this.toastDismissListener);
+      document.removeEventListener('click', this.toastDismissListener);
+      this.toastDismissListener = null;
+    }
+
     this.toastState.isOpen = false;
 
-    // Malý timeout zabezpečí, že Angular si všimne zmenu a toast sa "preblikne"
     setTimeout(() => {
       this.toastState.message = sprava;
       this.toastState.color = farba;
-      this.toastState.isOpen = true;
+      this.toastState.cssClass = cssTrieda;
 
-      // Vynútime prekreslenie pre istotu
+      // 🔥 LOGIKA PRE OBROVSKÝ TOAST Z KALKULAČKY
+      if (cssTrieda === 'kalkulacka-toast') {
+        this.toastState.position = 'middle';
+        this.toastState.duration = 0;
+        this.toastState.buttons = []; // Žiadne tlačidlo, zatvorí sa dotykom
+
+        // Vytvoríme funkciu, ktorá toast zavrie a hneď po sebe uprace
+        this.toastDismissListener = () => {
+          this.toastState.isOpen = false;
+          this.cdr.detectChanges();
+          document.removeEventListener('touchstart', this.toastDismissListener);
+          document.removeEventListener('click', this.toastDismissListener);
+          this.toastDismissListener = null;
+        };
+
+        // Dáme 200ms oneskorenie, aby kliknutie na "Uložiť" v kalkulačke okamžite nezavrelo aj tento toast
+        setTimeout(() => {
+          document.addEventListener('touchstart', this.toastDismissListener);
+          document.addEventListener('click', this.toastDismissListener);
+        }, 200);
+
+      }
+      // 🧊 LOGIKA PRE BEŽNÉ TOASTY (hore, 2 sekundy)
+      else {
+        this.toastState.position = 'top';
+        this.toastState.duration = 2000;
+        this.toastState.buttons = [];
+      }
+
+      this.toastState.isOpen = true;
       this.cdr.detectChanges();
     }, 100);
   }
-
   prihlasitOdberZmien() {
     if (this.realtimeSubscription) {
       this.realtimeSubscription.unsubscribe();
@@ -1120,7 +1206,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       const element = document.getElementById(targetId);
       if (element) {
         console.log('✅ Scrollujem na:', targetId);
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         element.classList.add('highlight-anim');
         setTimeout(() => element.classList.remove('highlight-anim'), 2000);
         this.idPolozkyPreScroll = null;
