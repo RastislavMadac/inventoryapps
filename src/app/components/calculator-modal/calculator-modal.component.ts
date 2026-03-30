@@ -5,7 +5,8 @@ import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
-import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service'; // <<< PRIDANÁ SLUŽBA
+import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
+import { ViewDidEnter, ViewWillLeave } from '@ionic/angular';
 @Component({
   selector: 'app-calculator-modal',
   standalone: true,
@@ -13,7 +14,7 @@ import { SpeechRecognitionService } from 'src/app/services/speech-recognition.se
   templateUrl: './calculator-modal.component.html',
   styleUrls: ['./calculator-modal.component.scss'],
 })
-export class CalculatorModalComponent implements OnInit {
+export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillLeave {
 
   @Input() produktId: number = 0;
   @Input() nazovProduktu: string = '';
@@ -291,10 +292,14 @@ export class CalculatorModalComponent implements OnInit {
     }
   }
 
-  async ionViewWillEnter() {
+  // 1. ZMENA: Použijeme ionViewDidEnter, aby sa kalkulačka najprv vykreslila
+  async ionViewDidEnter() {
     if (this.speechService.isSupported) {
       this.maPocuvat = true;
-      this.spustiPocuvanie(); // Všimni si: odstránil som 'await', aby funkcia bežala na pozadí
+      // Dáme ešte malú pauzu (300ms), aby sa všetko v UI usadilo
+      setTimeout(() => {
+        this.spustiPocuvanie();
+      }, 300);
     }
   }
 
@@ -305,26 +310,46 @@ export class CalculatorModalComponent implements OnInit {
   }
 
   async spustiPocuvanie() {
-    // Ak už počúvame, zabránime viacnásobnému spusteniu
     if (this.pocuva) return;
 
     this.pocuva = true;
     this.maPocuvat = true;
 
-    // Slučka udrží mikrofón aktívny, kým používateľ nepotvrdí alebo nezavrie modal
     while (this.maPocuvat) {
       try {
         const rozpoznanyText = await this.speechService.startListening();
-
-        // Ak mikrofón niečo zachytil, spracujeme to
         if (rozpoznanyText) {
           this.spracujHlasovyVstup(rozpoznanyText);
         }
-      } catch (error) {
-        console.warn('Počúvanie prerušené, reštartujem...', error);
-        // Operačný systém často vypne mikrofón pri tichu. 
-        // Počkáme 300ms a slučka ho znova naštartuje.
-        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error: any) {
+
+        if (error === 'no-speech' || error?.error === 'no-speech') {
+          // Ticho ignorujeme
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // >>> PRIDANÁ OCHRANA PROTI ZABLOKOVANÉMU MIKROFÓNU <<<
+        else if (error === 'not-allowed' || error?.error === 'not-allowed') {
+          console.error('🚫 Prístup k mikrofónu bol zamietnutý (not-allowed). Slučka sa ukončuje.');
+
+          this.maPocuvat = false; // TOTO preruší while slučku!
+          this.pocuva = false;    // Vypne pulzujúcu ikonku v UI
+
+          // Zobrazíme upozornenie cez AlertController
+          const alert = await this.alertCtrl.create({
+            header: 'Mikrofón zablokovaný',
+            message: 'Aplikácia nemá prístup k mikrofónu. Povoľte ho v nastaveniach prehliadača alebo zariadenia.',
+            buttons: ['Rozumiem']
+          });
+          await alert.present();
+
+          break; // Bezpečne vyskočíme z `while` slučky
+        }
+
+        else {
+          console.warn('Mikrofón narazil na problém, reštartujem...', error);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
     }
 
@@ -400,30 +425,5 @@ export class CalculatorModalComponent implements OnInit {
     }
   }
 
-  /**
-   * Pomocná funkcia: Rozbije reťazec slov na pole a sčíta ich hodnoty z mapy
-   */
-  private prelozSlovaNaCislo(veta: string, mapa: any): number | null {
-    const slova = veta.trim().split(/\s+/); // Rozdelenie podľa medzier
-    let suma = 0;
-    let nasloSaAsponJednoSlovo = false;
 
-    for (const slovo of slova) {
-      if (mapa[slovo] !== undefined) {
-        suma += mapa[slovo];
-        nasloSaAsponJednoSlovo = true;
-      } else {
-        // Kontrola, či slovo nie je priamo číslo (napr. "2 tisíc")
-        const p = parseInt(slovo, 10);
-        if (!isNaN(p)) {
-          // Ak je to 1-9 a nasleduje "tisíc", spracujeme to ako násobok (napr. "2 tisíc")
-          // Ale v našej mape už máme "dvetisíc", tak toto je skôr poistka
-          suma += p;
-          nasloSaAsponJednoSlovo = true;
-        }
-      }
-    }
-
-    return nasloSaAsponJednoSlovo ? suma : null;
-  }
 }

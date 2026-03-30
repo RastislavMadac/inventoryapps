@@ -349,41 +349,63 @@ export class SupabaseService {
 
         return zoznam;
     }
+    // async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number, balenie: number) {
+    //     const user = await this.getCurrentUserDetails();
+
+    //     // 1. KROK: Zapíšeme množstvo do inventúry (tu balenie_ks neuvádzame, lebo tam nie je)
+    //     const { error: invError } = await this.supabase
+    //         .from('inventura_polozky')
+    //         .upsert({
+    //             inventura_id: inventuraId,
+    //             produkt_id: produktId,
+    //             regal_id: regalId,
+    //             mnozstvo: mnozstvo,
+    //             pouzivatel_id: user.id,
+    //             pouzivatel_meno: user.email,
+    //             created_at: new Date().toISOString()
+    //         }, { onConflict: 'inventura_id, produkt_id, regal_id' });
+
+    //     if (invError) throw invError;
+
+    //     // 2. KROK: Aktualizujeme balenie priamo v tabuľke PRODUKTY
+    //     const { data: updatedProduct, error: prodError } = await this.supabase
+    //         .from('produkty')
+    //         .update({ balenie_ks: balenie })
+    //         .eq('id', produktId)
+    //         .select();
+
+    //     if (prodError) throw prodError;
+
+    //     if (!updatedProduct || updatedProduct.length === 0) {
+    //         throw new Error('Balenie produktu sa nepodarilo aktualizovať. Skontrolujte oprávnenia (RLS).');
+    //     }
+
+    //     return true;
+    // }
+
     async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number, balenie: number) {
         const user = await this.getCurrentUserDetails();
 
-        // 1. KROK: Zapíšeme množstvo do inventúry (tu balenie_ks neuvádzame, lebo tam nie je)
-        const { error: invError } = await this.supabase
-            .from('inventura_polozky')
-            .upsert({
-                inventura_id: inventuraId,
-                produkt_id: produktId,
-                regal_id: regalId,
-                mnozstvo: mnozstvo,
-                pouzivatel_id: user.id,
-                pouzivatel_meno: user.email,
-                created_at: new Date().toISOString()
-            }, { onConflict: 'inventura_id, produkt_id, regal_id' });
+        // 1. KROK: RPC volanie pre bezpečný zápis do inventúry
+        const { error: invError } = await this.supabase.rpc('zapisat_do_inventury_bezpecne', {
+            p_inventura_id: inventuraId,
+            p_produkt_id: produktId,
+            p_regal_id: regalId,
+            p_mnozstvo: mnozstvo
+        });
 
         if (invError) throw invError;
 
-        // 2. KROK: Aktualizujeme balenie priamo v tabuľke PRODUKTY
-        const { data: updatedProduct, error: prodError } = await this.supabase
+        // Tu zostáva tvoja pôvodná logika pre aktualizáciu balenia v katalógu
+        const { error: prodError } = await this.supabase
             .from('produkty')
             .update({ balenie_ks: balenie })
-            .eq('id', produktId)
-            .select();
+            .eq('id', produktId);
 
         if (prodError) throw prodError;
 
-        if (!updatedProduct || updatedProduct.length === 0) {
-            throw new Error('Balenie produktu sa nepodarilo aktualizovať. Skontrolujte oprávnenia (RLS).');
-        }
-
         return true;
     }
-
-
     async getPolozkyVInventure(inventuraId: number, od: number, do_poctu: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
             .from('inventura_polozky')
@@ -1085,42 +1107,65 @@ export class SupabaseService {
         return { data, error };
     }
 
-    async presunutPolozku(zasobaId: number, produktId: number, novyRegalId: number, mnozstvoNaPresun: number) {
-        const { data: existujuca, error: checkError } = await this.supabase
-            .from('skladove_zasoby')
-            .select('id, mnozstvo_ks')
-            .eq('produkt_id', produktId)
-            .eq('regal_id', novyRegalId)
-            .maybeSingle();
+    // async presunutPolozku(zasobaId: number, produktId: number, novyRegalId: number, mnozstvoNaPresun: number) {
+    //     const { data: existujuca, error: checkError } = await this.supabase
+    //         .from('skladove_zasoby')
+    //         .select('id, mnozstvo_ks')
+    //         .eq('produkt_id', produktId)
+    //         .eq('regal_id', novyRegalId)
+    //         .maybeSingle();
 
-        if (checkError) throw checkError;
+    //     if (checkError) throw checkError;
 
-        if (existujuca) {
-            const noveMnozstvo = Number(existujuca.mnozstvo_ks) + Number(mnozstvoNaPresun);
+    //     if (existujuca) {
+    //         const noveMnozstvo = Number(existujuca.mnozstvo_ks) + Number(mnozstvoNaPresun);
 
-            await this.supabase
-                .from('skladove_zasoby')
-                .update({ mnozstvo_ks: noveMnozstvo, updated_at: new Date().toISOString() })
-                .eq('id', existujuca.id);
+    //         await this.supabase
+    //             .from('skladove_zasoby')
+    //             .update({ mnozstvo_ks: noveMnozstvo, updated_at: new Date().toISOString() })
+    //             .eq('id', existujuca.id);
 
-            await this.supabase
-                .from('skladove_zasoby')
-                .delete()
-                .eq('id', zasobaId);
-        } else {
-            const { error: updateError } = await this.supabase
-                .from('skladove_zasoby')
-                .update({
-                    regal_id: novyRegalId,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', zasobaId);
+    //         await this.supabase
+    //             .from('skladove_zasoby')
+    //             .delete()
+    //             .eq('id', zasobaId);
+    //     } else {
+    //         const { error: updateError } = await this.supabase
+    //             .from('skladove_zasoby')
+    //             .update({
+    //                 regal_id: novyRegalId,
+    //                 updated_at: new Date().toISOString()
+    //             })
+    //             .eq('id', zasobaId);
 
-            if (updateError) throw updateError;
-        }
-    }
+    //         if (updateError) throw updateError;
+    //     }
+    // }
 
     // V SupabaseService nahraď pôvodnú funkciu touto verziou
+
+
+    async presunutPolozku(zdrojovyRegalId: number, produktId: number, novyRegalId: number, mnozstvo: number) {
+        // Voláme našu bezpečnú SQL funkciu
+        const { data, error } = await this.supabase.rpc('presunut_polozku_bezpecne', {
+            p_produkt_id: produktId,
+            p_zdrojovy_regal_id: zdrojovyRegalId,
+            p_cielovy_regal_id: novyRegalId,
+            p_mnozstvo_na_presun: mnozstvo
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri presune:', error.message);
+            throw error;
+        }
+
+        // Keďže sme funkciu nastavili, aby vracala TEXT (ten OK/CHYBA), môžeme ho skontrolovať
+        if (data && data.startsWith('CHYBA')) {
+            throw new Error(data);
+        }
+
+        return data; // Vráti "OK: Presun úspešne vykonaný."
+    }
     async getPocetSpocitanychGlobal(): Promise<number> {
         // Pýtame sa priamo na počet všetkých riadkov v tabuľke inventura_polozky
         const { count, error } = await this.supabase

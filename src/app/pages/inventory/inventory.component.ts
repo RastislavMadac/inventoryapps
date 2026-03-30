@@ -1450,17 +1450,71 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     await alert.present();
   }
 
+  // async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
+  //   this.isLoading = true;
+  //   this.cdr.detectChanges();
+
+  //   try {
+  //     // 1. ZADEFINUJEME PREMENNÚ 'balenie', ktorú vytiahneme zo zásoby (aby zmizla chyba)
+  //     const balenie = zasoba.balenie_ks || 1;
+
+  //     // 2. Logika pre samotný presun v sklade
+  //     if (zasoba.id > 0) {
+  //       await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+  //       this.zobrazToast('Položka úspešne presunutá.', 'success');
+  //     } else {
+  //       await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
+  //       this.zobrazToast('Produkt bol úspešne priradený na regál.', 'success');
+  //     }
+
+  //     // 3. Presun v inventúre (ak nejaká beží)
+  //     if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
+  //       const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
+
+  //       // Najprv zmažeme starý záznam
+  //       await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
+
+  //       // A TU VOLÁME SERVIS S 5 ARGUMENTMI (použijeme tú premennú 'balenie' z bodu 1)
+  //       await this.supabaseService.zapisatDoInventury(
+  //         this.aktivnaInventura.id,
+  //         zasoba.produkt_id,
+  //         novyRegalId,
+  //         spocitane,
+  //         balenie // <<< TERAZ UŽ BUDE FUNGOVAŤ, LEBO JE DEFINOVANÁ VYŠŠIE
+  //       );
+  //     }
+
+  //     await this.obnovitZoznamPodlaRezimu();
+
+  //   } catch (error: any) {
+  //     console.error('Chyba pri presune/priradení:', error);
+  //     this.zobrazToast('Nepodarilo sa vykonať akciu.', 'danger');
+  //   } finally {
+  //     this.isLoading = false;
+  //     this.cdr.detectChanges();
+  //   }
+  // }
+  // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
+
   async vykonatPresun(zasoba: SkladovaZasobaView, novyRegalId: number) {
     this.isLoading = true;
     this.cdr.detectChanges();
 
     try {
-      // 1. ZADEFINUJEME PREMENNÚ 'balenie', ktorú vytiahneme zo zásoby (aby zmizla chyba)
       const balenie = zasoba.balenie_ks || 1;
+
+      // >>> ZMENA: Zistíme si zdrojový regál (odkiaľ berieme)
+      const zdrojovyRegalId = zasoba.regal_id || this.vybranyRegalId;
 
       // 2. Logika pre samotný presun v sklade
       if (zasoba.id > 0) {
-        await this.supabaseService.presunutPolozku(zasoba.id, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
+        if (!zdrojovyRegalId) {
+          this.zobrazToast('Chyba: Nepodarilo sa zistiť zdrojový regál.', 'danger');
+          return;
+        }
+
+        // >>> ZMENA: Posielame zdrojovyRegalId namiesto zasoba.id
+        await this.supabaseService.presunutPolozku(zdrojovyRegalId, zasoba.produkt_id, novyRegalId, zasoba.mnozstvo_ks);
         this.zobrazToast('Položka úspešne presunutá.', 'success');
       } else {
         await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
@@ -1468,19 +1522,19 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       }
 
       // 3. Presun v inventúre (ak nejaká beží)
-      if (this.aktivnaInventura && zasoba.v_inventure && zasoba.regal_id) {
+      if (this.aktivnaInventura && zasoba.v_inventure && zdrojovyRegalId) {
         const spocitane = (zasoba as any).spocitane_mnozstvo || 0;
 
         // Najprv zmažeme starý záznam
-        await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zasoba.regal_id);
+        await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, zdrojovyRegalId);
 
-        // A TU VOLÁME SERVIS S 5 ARGUMENTMI (použijeme tú premennú 'balenie' z bodu 1)
+        // A TU VOLÁME SERVIS S 5 ARGUMENTMI
         await this.supabaseService.zapisatDoInventury(
           this.aktivnaInventura.id,
           zasoba.produkt_id,
           novyRegalId,
           spocitane,
-          balenie // <<< TERAZ UŽ BUDE FUNGOVAŤ, LEBO JE DEFINOVANÁ VYŠŠIE
+          balenie
         );
       }
 
@@ -1494,7 +1548,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.cdr.detectChanges();
     }
   }
-  // >>> PWA HLASOVÉ VYHĽADÁVANIE (KROK 1) <<<
+
+
   async vyhladatHlasom() {
     if (this.isVoiceModeActive) {
       // Vypnutie módu
