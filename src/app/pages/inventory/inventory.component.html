@@ -8,7 +8,7 @@
     <ion-title>Inventúra</ion-title>
 
     <ion-buttons slot="end">
-         <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
+      <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
       </ion-chip>
@@ -16,41 +16,39 @@
   </ion-toolbar>
 
   <ion-toolbar color="primary">
-  <div class="header-controls-wrapper">
-    
-   <ion-button 
-  *ngIf="speechService.isSupported" 
-  (click)="vyhladatHlasom()" 
-  fill="clear" 
-  [color]="isVoiceModeActive ? 'danger' : 'light'" 
-  [class.pulsing-mic]="isVoiceModeActive"
-  class="mic-btn">
-  <ion-icon slot="icon-only" [name]="isVoiceModeActive ? 'mic' : 'mic-outline'"></ion-icon>
-</ion-button>
+    <div class="header-controls-wrapper">
 
-    <ion-toggle 
-      class="custom-header-toggle"
-      mode="ios"
-      [(ngModel)]="zobrazitVsetkoVRegaloch"
-      (ionChange)="obnovitZoznamPodlaRezimu()"
-      color="light">
+      <!--   !!!MIKROFON!!!
+      <ion-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" fill="clear"
+        [color]="isVoiceModeActive ? 'danger' : 'light'" [class.pulsing-mic]="isVoiceModeActive" class="mic-btn">
+        <ion-icon slot="icon-only" [name]="isVoiceModeActive ? 'mic' : 'mic-outline'"></ion-icon>
+      </ion-button> -->
+
+<!--  !!!ZOBRAZENIE CELEHO SKLADU !!!
+  <ion-toggle class="custom-header-toggle" mode="ios" [(ngModel)]="zobrazitVsetkoVRegaloch"
+      (ionChange)="obnovitZoznamPodlaRezimu()" color="light">
     </ion-toggle>
-
-    <ion-button 
-      (click)="toggleReorder()"
-      *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
-      color="light"
-      fill="clear">
-      <ion-icon slot="icon-only" 
-        [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'">
-      </ion-icon>
-    </ion-button>
-
-  </div>
-</ion-toolbar>
+    -->
     
- 
- <ion-toolbar color="primary" class="toolbar-segment">
+      <ion-button (click)="toggleReorder()"
+        *ngIf="rezimZobrazenia === 'regal' && vybranyRegalId && !searchQuery && filterKategoria === 'vsetky'"
+        color="light" fill="clear">
+        <ion-icon slot="icon-only" [name]="isReorderDisabled ? 'reorder-four-outline' : 'checkmark-circle-outline'">
+        </ion-icon>
+      </ion-button>
+
+      <ion-button (click)="toggleFiltre()" color="light" fill="clear" style="margin-left: auto;">
+        <ion-icon slot="start" name="filter-outline"></ion-icon>
+        <ion-icon slot="end" [name]="zobrazitFiltre ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+      </ion-button>
+
+    </div>
+  </ion-toolbar>
+
+
+
+
+  <ion-toolbar color="primary" class="toolbar-segment">
     <ion-segment [value]="rezimZobrazenia" (ionChange)="zmenitRezim($event)" mode="ios">
       <ion-segment-button value="regal">
         <ion-label>Po Regáloch</ion-label>
@@ -66,10 +64,7 @@
     </ion-segment>
   </ion-toolbar>
 
-  <ion-toolbar 
-    color="primary" 
-    *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" 
-    class="fade-in tollbar-segment" 
+  <ion-toolbar color="primary" *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" class="fade-in tollbar-segment"
     style="--min-height: 45px;">
 
     <ion-item color="primary" lines="none" style="--padding-start: 16px; --inner-padding-end: 16px;">
@@ -77,96 +72,81 @@
         Zobraziť všetky položky zo skladu
       </ion-label>
 
-      <ion-toggle class="custom-header-toggle"
-                  mode="ios"
-                  [(ngModel)]="zobrazitVsetkoVRegaloch"
-                  (ionChange)="obnovitZoznamPodlaRezimu()"
-                  color="light">
+      <ion-toggle class="custom-header-toggle" mode="ios" [(ngModel)]="zobrazitVsetkoVRegaloch"
+        (ionChange)="obnovitZoznamPodlaRezimu()" color="light">
       </ion-toggle>
     </ion-item>
-  </ion-toolbar> 
+  </ion-toolbar>
 
+  <div class="filter-panel-wrapper" [class.is-open]="zobrazitFiltre">
+    <div class="filter-panel">
 
-  <div class="filter-panel">
-    
-    <div class="ion-padding-horizontal reset-container" 
-         style="display: flex; justify-content: center; width: 100%;"
-         *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
-      
-      <ion-chip color="danger" mode="ios" (click)="zrusitFiltre()">
-        <ion-icon name="close-circle"></ion-icon>
-        <ion-label>Zrušiť filtre</ion-label>
-      </ion-chip>
-    </div>
+      <div class="ion-padding-horizontal reset-container" style="display: flex; justify-content: center; width: 100%;"
+        *ngIf="vybranySkladId || searchQuery || (filterKategoria && filterKategoria !== 'vsetky')">
+        <ion-chip color="danger" mode="ios" (click)="zrusitFiltre()">
+          <ion-icon name="close-circle"></ion-icon>
+          <ion-label>Zrušiť filtre</ion-label>
+        </ion-chip>
+      </div>
 
-    <div class="select-row fade-in">
-
-      <div class="select-wrapper">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-          <span class="input-label">Sklad</span>
+      <div class="select-row fade-in">
+        <div class="select-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span class="input-label">Sklad</span>
+          </div>
+          <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
+            <ion-select placeholder="Vyberte" interface="action-sheet" [(ngModel)]="vybranySkladId"
+              (ionChange)="priZmeneSkladu()" [disabled]="rezimZobrazenia === 'global'">
+              <ion-select-option *ngFor="let s of sklady" [value]="s.id">
+                {{ s.nazov }}
+              </ion-select-option>
+            </ion-select>
+            <ion-icon name="caret-down-outline"></ion-icon>
+          </div>
         </div>
-        
-        <div class="custom-input-box" [class.disabled]="rezimZobrazenia === 'global'">
-          <ion-select placeholder="Vyberte" interface="action-sheet"
-                      [(ngModel)]="vybranySkladId" 
-                      (ionChange)="priZmeneSkladu()"
-                      [disabled]="rezimZobrazenia === 'global'">
-            <ion-select-option *ngFor="let s of sklady" [value]="s.id">
-              {{ s.nazov }}
-            </ion-select-option>
-          </ion-select>
-          <ion-icon name="caret-down-outline"></ion-icon>
+
+        <div class="select-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span class="input-label">Regál</span>
+          </div>
+
+          <div class="custom-input-box" [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
+            <ion-select placeholder="Vyberte" interface="action-sheet" [(ngModel)]="vybranyRegalId"
+              (ionChange)="priZmeneRegalu()" [disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
+              <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">
+                {{ r.nazov }}
+              </ion-select-option>
+            </ion-select>
+            <ion-icon name="caret-down-outline"></ion-icon>
+          </div>
         </div>
       </div>
 
-      <div class="select-wrapper">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-          <span class="input-label">Regál</span>
-        </div>
-        
-        <div class="custom-input-box" 
-             [class.disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
-          <ion-select placeholder="Vyberte" interface="action-sheet"
-                      [(ngModel)]="vybranyRegalId" 
-                      (ionChange)="priZmeneRegalu()"  
-                      [disabled]="!vybranySkladId || rezimZobrazenia === 'global'">
-            <ion-select-option *ngFor="let r of filtrovaneRegaly" [value]="r.id">
-              {{ r.nazov }}
-            </ion-select-option>
-          </ion-select>
-          <ion-icon name="caret-down-outline"></ion-icon>
-        </div>
-      </div>
-    </div>
+      <div
+        *ngIf="(rezimZobrazenia === 'regal' && (vybranyRegalId || zobrazitVsetkoVRegaloch)) || rezimZobrazenia !== 'regal'"
+        class="search-row fade-in">
 
-    <div *ngIf="(rezimZobrazenia === 'regal' && (vybranyRegalId || zobrazitVsetkoVRegaloch)) || rezimZobrazenia !== 'regal'" 
-         class="search-row fade-in">
-      
-      <ion-searchbar 
-        placeholder="Hľadať produkt..."
-        [(ngModel)]="searchQuery"
-        (ionInput)="handleSearch($event)"
-        [debounce]="500"
-        mode="ios"
-        class="custom-searchbar">
-      </ion-searchbar>
+        <ion-searchbar placeholder="Hľadať produkt..." [(ngModel)]="searchQuery" (ionInput)="handleSearch($event)"
+          [debounce]="500" mode="ios" class="custom-searchbar">
+        </ion-searchbar>
 
-      <div class="filter-btn-wrapper">
-        <div class="icon-box">
-          <ion-icon name="filter-outline"></ion-icon>
-          <ion-select interface="action-sheet" 
-                      [(ngModel)]="filterKategoria" 
-                      (ionChange)="zmenitFilterKategorie($event)">
-            <ion-select-option value="vsetky">Všetky</ion-select-option>
-            <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
-              {{ k }}
-            </ion-select-option>
-          </ion-select>
+        <div class="filter-btn-wrapper">
+          <div class="icon-box">
+            <ion-icon name="filter-outline"></ion-icon>
+            <ion-select interface="action-sheet" [(ngModel)]="filterKategoria"
+              (ionChange)="zmenitFilterKategorie($event)">
+              <ion-select-option value="vsetky">Všetky</ion-select-option>
+              <ion-select-option *ngFor="let k of zoznamKategorii" [value]="k">
+                {{ k }}
+              </ion-select-option>
+            </ion-select>
+          </div>
         </div>
       </div>
-    </div>
 
-  </div> </ion-header>
+    </div>
+  </div>
+</ion-header>
 
 
 <ion-content #content [fullscreen]="true" class="bg-gray">
@@ -180,8 +160,8 @@
     <p>Načítavam...</p>
   </div>
 
-  <div *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId && !zobrazitVsetkoVRegaloch && !isLoading" 
-       class="center-content empty-state fade-in">
+  <div *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId && !zobrazitVsetkoVRegaloch && !isLoading"
+    class="center-content empty-state fade-in">
     <div class="circle-icon">
       <ion-icon name="arrow-up-outline"></ion-icon>
     </div>
@@ -194,7 +174,7 @@
        && !isLoading 
        && !isRefiningSearch
        && (vybranyRegalId || zobrazitVsetkoVRegaloch || rezimZobrazenia !== 'regal')"
-       class="center-content empty-state fade-in">
+    class="center-content empty-state fade-in">
 
     <div class="circle-icon green-icon">
       <ion-icon [name]="rezimZobrazenia === 'v_inventure' ? 'checkmark-done-outline' : 'search-outline'"></ion-icon>
@@ -225,19 +205,18 @@
 
       <ion-reorder-group [disabled]="isReorderDisabled" (ionItemReorder)="doReorder($event)">
 
-        <ion-item *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" 
-                  class="transparent-item"
-                  style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+        <ion-item *ngFor="let z of filtrovaneZasoby; trackBy: trackByZasoby" class="transparent-item"
+          style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
 
           <ion-card [id]="'polozka-' + z.id" class="product-card" style="width: 100%; margin: 5px 12px;">
             <ion-card-content>
-              
+
               <div class="card-container">
 
                 <div class="card-left">
 
                   <div class="icon-placeholder" [class.done]="z.v_inventure">
-                    <span 
+                    <span
                       style="font-weight: 400; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 2px;"
                       [style.color]="z.v_inventure ? '#118023' : 'var(--ion-color-medium)'">
                       {{ z.interne_id || '?' }}
@@ -250,10 +229,8 @@
                       <h3>{{ z.nazov }}</h3>
                     </div>
 
-                    <p *ngIf="z.umiestnenie || z.regal_nazov" 
-                       class="loc" 
-                       style="margin-top: 2px; margin-bottom: 4px;">
-                      <ion-icon name="location-outline"></ion-icon> 
+                    <p *ngIf="z.umiestnenie || z.regal_nazov" class="loc" style="margin-top: 2px; margin-bottom: 4px;">
+                      <ion-icon name="location-outline"></ion-icon>
                       {{ z.umiestnenie ? z.umiestnenie : (z.sklad_nazov + ' | ' + z.regal_nazov) }}
                     </p>
 
@@ -269,13 +246,11 @@
                 </div>
 
                 <div class="qty-box" (click)="otvoritUpravu(z)">
-                  <ion-badge 
-                    [color]="aktivnaInventura 
+                  <ion-badge [color]="aktivnaInventura 
                       ? (z.v_inventure 
                           ? ($any(z).spocitane_mnozstvo == z.mnozstvo_ks ? 'success' : 'warning') 
                           : 'light')
-                      : 'light'"
-                    class="big-badge">
+                      : 'light'" class="big-badge">
                     {{ aktivnaInventura ? ($any(z).spocitane_mnozstvo || 0) : z.mnozstvo_ks }}
                     {{ z.jednotka || 'ks' }}
                   </ion-badge>
@@ -284,27 +259,22 @@
                 <div class="info-actions">
                   <span class="action-icons" *ngIf="isReorderDisabled">
 
-                    <ion-button fill="clear" size="small"
-                                (click)="zobrazitPresunSklad(z, $event)"
-                                title="Presunúť">
-                      <ion-icon name="arrow-redo-outline" style="font-size: 1.2rem; color: var(--ion-color-tertiary);"></ion-icon>
+                    <ion-button fill="clear" size="small" (click)="zobrazitPresunSklad(z, $event)" title="Presunúť">
+                      <ion-icon name="arrow-redo-outline"
+                        style="font-size: 1.2rem; color: var(--ion-color-tertiary);"></ion-icon>
                     </ion-button>
 
-                    <ion-button *ngIf="jeAdmin" fill="clear" size="small" 
-                                (click)="upravitProduktDetail(z); $event.stopPropagation()">
+                    <ion-button *ngIf="jeAdmin" fill="clear" size="small"
+                      (click)="upravitProduktDetail(z); $event.stopPropagation()">
                       <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
                     </ion-button>
 
-                    <ion-icon 
-                      *ngIf="jeAdmin || rezimZobrazenia === 'v_inventure'"
-                      name="trash-outline" 
-                      color="danger" 
-                      class="trash-icon"
-                      (click)="zmazatPolozku(z, $event)">
+                    <ion-icon *ngIf="jeAdmin || rezimZobrazenia === 'v_inventure'" name="trash-outline" color="danger"
+                      class="trash-icon" (click)="zmazatPolozku(z, $event)">
                     </ion-icon>
                   </span>
 
-                  </div>
+                </div>
 
               </div>
             </ion-card-content>
@@ -320,28 +290,16 @@
     </ion-list>
   </div>
 
-  <ion-infinite-scroll 
-    *ngIf="rezimZobrazenia === 'v_inventure'" 
-    threshold="100px" 
+  <ion-infinite-scroll *ngIf="rezimZobrazenia === 'v_inventure'" threshold="100px"
     (ionInfinite)="nacitatDalsieHotove($event)">
-    
-    <ion-infinite-scroll-content
-      loadingSpinner="bubbles"
-      loadingText="Načítavam ďalšie...">
+
+    <ion-infinite-scroll-content loadingSpinner="bubbles" loadingText="Načítavam ďalšie...">
     </ion-infinite-scroll-content>
   </ion-infinite-scroll>
 
 
-  <ion-fab 
-    *ngIf="isReorderDisabled && jeAdmin"
-    #draggableFab
-    vertical="bottom" 
-    horizontal="end" 
-    slot="fixed" 
-    class="draggable-fab"
-    (touchstart)="onDragStart($event)"
-    (touchmove)="onDragMove($event)"
-    (touchend)="onDragEnd()"
+  <ion-fab *ngIf="isReorderDisabled && jeAdmin" #draggableFab vertical="bottom" horizontal="end" slot="fixed"
+    class="draggable-fab" (touchstart)="onDragStart($event)" (touchmove)="onDragMove($event)" (touchend)="onDragEnd()"
     style="margin-bottom: calc(15px + var(--ion-safe-area-bottom))">
 
     <ion-fab-button (click)="otvoritNovyProdukt()" color="primary">
@@ -349,16 +307,9 @@
     </ion-fab-button>
   </ion-fab>
 
- <ion-toast
-    [isOpen]="toastState.isOpen"
-    [message]="toastState.message"
-    [color]="toastState.color"
-    [duration]="toastState.duration"
-    [position]="toastState.position"
-    [buttons]="toastState.buttons"
-    mode="ios"
-    [class]="'force-toast-visible ' + toastState.cssClass"
-    (didDismiss)="toastState.isOpen = false">
+  <ion-toast [isOpen]="toastState.isOpen" [message]="toastState.message" [color]="toastState.color"
+    [duration]="toastState.duration" [position]="toastState.position" [buttons]="toastState.buttons" mode="ios"
+    [class]="'force-toast-visible ' + toastState.cssClass" (didDismiss)="toastState.isOpen = false">
   </ion-toast>
 
 </ion-content>

@@ -52,7 +52,7 @@
   }
 }
 
-/* 3. KONTAJNER DISPLEJA (Opravený pre detail) */
+/* 3. KONTAJNER DISPLEJA */
 .display-container {
   background: #f8f9fa;
   border: 1px solid #e0e0e0;
@@ -61,19 +61,39 @@
   margin-bottom: 20px;
   width: 100%;
   max-width: 400px;
-
-  /* Flexbox pre uloženie vzorca a výsledku pod seba */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* Obsah "padá" dole */
   align-items: flex-end;
-  /* Text zarovnaný doprava */
-
+  position: relative;
   height: 120px;
-  /* 🔥 Fixná výška */
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
   overflow: hidden;
+
+  // Štýly pre spodný riadok s informáciou o rozdiele (VNORENO PRE PORIADOK)
+  .difference-tracker {
+    font-size: 0.9rem;
+    margin-top: 5px;
+    text-align: right;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease-in;
+
+    .povodny {
+      color: var(--ion-color-medium);
+    }
+
+    .oddlovac {
+      color: var(--ion-color-medium-tint);
+    }
+
+    .rozdiel-plus {
+      color: var(--ion-color-success); // Zelená, ak našiel viac
+    }
+
+    .rozdiel-minus {
+      color: var(--ion-color-danger); // Červená, ak chýba
+    }
+  }
 }
 
 /* 4. TEXT VZORCA (Malý text hore) */
@@ -86,7 +106,6 @@
   white-space: nowrap;
   overflow-x: auto;
   margin-bottom: 5px;
-
   opacity: 0;
   animation: slideIn 0.2s forwards ease-out;
 
@@ -99,7 +118,6 @@
 .calculation-text {
   font-family: 'Courier New', Courier, monospace;
   font-size: 3.5rem;
-  /* Pôvodná veľkosť */
   font-weight: 700;
   color: #222;
   width: 100%;
@@ -107,13 +125,20 @@
   white-space: nowrap;
   overflow-x: auto;
   line-height: 1.1;
-  transition: font-size 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: font-size 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s, color 0.2s;
+  border-radius: 8px;
+  padding: 0 8px;
+
+  // Efekt "Označeného textu"
+  &.is-highlighted {
+    background-color: var(--ion-color-tertiary);
+    color: white;
+  }
 
   &::-webkit-scrollbar {
     display: none;
   }
 
-  /* Keď je zapnutý detail, zmenší sa */
   &.has-detail {
     font-size: 2.6rem;
     color: #333;
@@ -173,6 +198,17 @@
   }
 }
 
+// PRIDANÁ ANIMÁCIA PRE ROZDIEL (Chýbala)
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 @media (max-height: 700px) {
   .display-container {
     height: 100px;
@@ -188,7 +224,6 @@
 
   .row ion-button {
     height: 55px;
-    /* Menšie tlačidlá na malých mobiloch */
   }
 }
 
@@ -196,7 +231,6 @@
 .keypad-section {
   width: 100%;
   max-width: 400px;
-  /* Pôvodný limit pre mobily */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -207,48 +241,14 @@
 .detail-toggle,
 .balenie-btn-container {
   max-width: 100%;
-  /* Aby vyplnili rodiča */
 }
 
 
 /* =========================================
-   TABLET OPTIMALIZÁCIA (FINÁLNA - FIX NA ŠÍRKU)
+   TABLET OPTIMALIZÁCIA
    ========================================= */
 
-/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) */
-@media (min-width: 768px) and (orientation: portrait) {
-
-  .info-section,
-  .keypad-section,
-  .display-container,
-  .balenie-btn-container,
-  .keypad {
-    max-width: 600px;
-  }
-
-  .display-container {
-    height: 160px;
-  }
-
-  .calculation-text {
-    font-size: 4.5rem;
-  }
-
-  .calculation-text.has-detail {
-    font-size: 3.2rem;
-  }
-
-  .row ion-button {
-    height: 85px;
-    font-size: 2rem;
-  }
-}
-
-/* =========================================
-   TABLET OPTIMALIZÁCIA (Definitívny fix na šírku)
-   ========================================= */
-
-/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) */
+/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) - Odstránená duplicita */
 @media (min-width: 768px) and (orientation: portrait) {
 
   .info-section,
@@ -280,7 +280,6 @@
 /* 2. TABLET LANDSCAPE (Na šírku) a VEĽKÉ MONITORY */
 @media (min-width: 768px) and (orientation: landscape),
 (min-width: 900px) {
-
   .centered-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -288,41 +287,27 @@
     width: 100%;
     max-width: 900px;
     margin: 0 auto;
-
-    /* TOTO JE ZMENA PRE VERTIKÁLNE CENTROVANIE: */
     height: 100%;
-    /* Musí zabrať celú výšku obrazovky */
     align-content: center;
-    /* Vycentruje celú mriežku (ľavú aj pravú stranu) do stredu obrazovky */
     align-items: center;
-    /* Vycentruje prvky v rámci svojich blokov */
-
     overflow-y: auto;
-    /* Ak by bol tablet extrémne nízky, povolí scroll namiesto odrezania */
   }
 
-  /* ĽAVÁ STRANA (Info a displej) */
   .info-section {
     grid-column: 1 / 2;
-    /* Umiestni do prvého stĺpca */
     padding: 0;
     max-width: none;
     width: 100%;
   }
 
-  /* HLASOVÉ VYHĽADÁVANIE (Ak je aktívne, dáme ho pod displej) */
   .voice-section {
     grid-column: 1 / 2;
-    /* Zostane v prvom stĺpci */
     width: 100%;
   }
 
-  /* PRAVÁ STRANA (Klávesnica) */
   .keypad-section {
     grid-column: 2 / 3;
-    /* Umiestni do druhého stĺpca */
     grid-row: 1 / 3;
-    /* Dovolí klávesnici natiahnuť sa cez oba riadky ľavej strany */
     padding: 0;
     max-width: none;
     width: 100%;
@@ -330,7 +315,6 @@
 
   .display-container {
     height: 120px;
-    /* Znížili sme displej, nepotrebuje byť taký obrovský */
     width: 100%;
     margin-bottom: 15px;
   }
@@ -344,12 +328,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* Menšie medzery = viac miesta pre tlačidlá */
   }
 
   .row {
     height: 60px;
-    /* Pevná výška, ktorá garantuje, že sa na šírku zmestí všetkých 5 riadkov */
     margin: 0;
   }
 
@@ -358,4 +340,14 @@
     height: 100%;
     font-size: 1.8rem;
   }
+}
+
+// ODDELENÉ ŠTÝLY PRE EXTERNÉ (GLOBÁLNE) PRVKY
+// Možnosť pridať do globálneho variables.scss pre veľký varovný toast
+::ng-deep .obrovsky-toast-varovanie {
+  --background: var(--ion-color-warning);
+  --color: #000;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: center;
 }

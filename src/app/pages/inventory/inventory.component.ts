@@ -128,6 +128,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     search: '',
     kategoria: 'vsetky'
   };
+  zobrazitFiltre: boolean = true;
 
   constructor(
     public supabaseService: SupabaseService,
@@ -146,7 +147,9 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   ngOnInit() {
     this.nacitajSklady();
   }
-
+  toggleFiltre() {
+    this.zobrazitFiltre = !this.zobrazitFiltre;
+  }
   async ionViewWillEnter() {
     console.log('🔄 ionViewWillEnter: Obnovujem dáta...');
 

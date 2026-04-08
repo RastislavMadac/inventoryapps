@@ -7,14 +7,25 @@
         <span style="font-weight: normal; opacity: 0.7;">({{ jednotka }})</span>
       </div>
 
-      <div class="display-container">
-        <div class="formula-text" *ngIf="zobrazitDetail">
-          {{ fullFormula }}
-        </div>
-        <div class="calculation-text" [class.has-detail]="zobrazitDetail">
-          {{ mainDisplay }}
-        </div>
-      </div>
+   <div class="display-container" (click)="zrusitOznacenie()">
+  <div class="formula-text" *ngIf="zobrazitDetail">
+    {{ fullFormula }}
+  </div>
+  
+  <div class="calculation-text" [class.has-detail]="zobrazitDetail" [class.is-highlighted]="jeOznacene">
+    {{ mainDisplay }}
+  </div>
+
+  <div class="difference-tracker" *ngIf="povodnyStavPrePorovnanie > 0">
+    <span class="povodny">Pôvodne: {{ povodnyStavPrePorovnanie }} {{ jednotka }}</span>
+    <span class="oddlovac"> | </span>
+    <span class="rozdiel" 
+          [class.rozdiel-plus]="vypocitanyRozdiel > 0" 
+          [class.rozdiel-minus]="vypocitanyRozdiel < 0">
+      Rozdiel: {{ vypocitanyRozdiel > 0 ? '+' : '' }}{{ vypocitanyRozdiel }} {{ jednotka }}
+    </span>
+  </div>
+</div>
 
       <div class="balenie-btn-container" style="display: flex; gap: 8px;">
         <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()" style="flex: 1;">

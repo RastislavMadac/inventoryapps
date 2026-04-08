@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonicModule, ModalController, AlertController } from '@ionic/angular';
+import { IonicModule, ModalController, AlertController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
@@ -31,12 +31,19 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
   maPocuvat: boolean = false;
   private lastClickTime: number = 0;
   pocuva: boolean = false;
+
+
+  jeOznacene: boolean = false;
+  varovanieZobrazene: boolean = false;
+  povodnyStavPrePorovnanie: number = 0;
+
   constructor(
     private cdr: ChangeDetectorRef,
     private modalController: ModalController,
     private alertCtrl: AlertController,
     private supabaseService: SupabaseService,
-    public speechService: SpeechRecognitionService
+    public speechService: SpeechRecognitionService,
+    private toastController: ToastController
   ) {
     addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
   }
@@ -45,13 +52,17 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     this.povodnneBalenie = this.balenie; // Zapamätáme si úvodnú hodnotu
 
     const pociatocnyStav = this.aktualnyStav || 0;
+    this.povodnyStavPrePorovnanie = pociatocnyStav;
     this.mainDisplay = pociatocnyStav.toString();
     this.fullFormula = pociatocnyStav.toString();
-
+    if (pociatocnyStav > 0) {
+      this.jeOznacene = true;
+    }
     if (this.produktId > 0) {
       this.nacitajAktualneBalenie();
     }
   }
+
 
   // 👉 NOVÁ METÓDA: Vytiahne vždy presnú a aktuálnu hodnotu z tabuľky produkty
   async nacitajAktualneBalenie() {
@@ -124,12 +135,23 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
 
     await alert.present();
   }
+
+  get vypocitanyRozdiel(): number {
+    const currentVal = parseFloat(this.mainDisplay) || 0;
+    const rozdiel = currentVal - this.povodnyStavPrePorovnanie;
+    return Math.round(rozdiel * 100) / 100; // Zaokrúhlenie na 2 desatinné miesta
+  }
+
+  // Umožní skladníkovi kliknúť na číslo a len ho upraviť bez zmazania celého
+  zrusitOznacenie() {
+    this.jeOznacene = false;
+  }
   stlacene(hodnota: string) {
     // Debounce (proti dvojkliku)
     const now = Date.now();
     if (now - this.lastClickTime < 100) return;
     this.lastClickTime = now;
-
+    this.varovanieZobrazene = false;
     const isOperator = ['+', '-', '*', '/'].includes(hodnota);
 
     if (isOperator) {
@@ -140,6 +162,12 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
   }
 
   handleNumber(num: string) {
+    if (this.jeOznacene) {
+      this.mainDisplay = '';
+      this.fullFormula = '';
+      this.jeOznacene = false;
+      this.shouldResetMain = false;
+    }
     // Ak sme práve stlačili operátor, alebo je tam 0, začíname nové číslo
     if (this.shouldResetMain || this.mainDisplay === '0') {
       if (num === '.') {
@@ -239,7 +267,7 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     }
   }
 
-  potvrdit() {
+  async potvrdit() {
     this.maPocuvat = false;
     this.speechService.stopListening();
     const res = this.evaluateString(this.fullFormula);
@@ -252,9 +280,29 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
       if (!isNaN(simpleVal)) vysledok = simpleVal;
     }
 
-    // Ak sa balenie zmenilo oproti databáze, pošleme ho rodičovi na uloženie
-    const noveBaleniePreDb = this.balenie !== this.povodnneBalenie ? this.balenie : null;
+    // 👉 ÚROVEŇ 4: Kontrola extrémneho rozdielu pred zatvorením
+    if (this.povodnyStavPrePorovnanie > 0 && !this.varovanieZobrazene) {
+      // Definujeme extrémnu chybu: 5-násobne viac alebo 5-násobne menej (chyba o jednu nulu/čiarku)
+      const nespravnaCiarkaHore = vysledok >= this.povodnyStavPrePorovnanie * 5;
+      const nespravnaCiarkaDole = vysledok <= this.povodnyStavPrePorovnanie / 5;
 
+      if (nespravnaCiarkaHore || nespravnaCiarkaDole) {
+        const toast = await this.toastController.create({
+          message: `⚠️ Pozor! Očakávali sme cca ${this.povodnyStavPrePorovnanie}. Zadaných je ${vysledok}. Ak je to správne, stlačte OK znova.`,
+          color: 'warning',
+          duration: 5000,
+          position: 'top',
+          cssClass: 'obrovsky-toast-varovanie'
+        });
+        await toast.present();
+
+        // Nastavíme klapku, aby pri druhom stlačení OK to už prešlo
+        this.varovanieZobrazene = true;
+        return; // ZASTAVÍME ZATVORENIE MODALU
+      }
+    }
+
+    // Ak to prešlo validáciou, posielame dáta späť
     this.modalController.dismiss({
       novyStav: vysledok,
       balenie: this.balenie

@@ -492,6 +492,35 @@ ion-card-content {
   }
 }
 
+/* =========================================
+   ZASÚVACIE MENU (FILTRE)
+   ========================================= */
+
+.filter-panel-wrapper {
+  max-height: 0; // V zatvorenom stave má nulovú výšku
+  opacity: 0; // V zatvorenom stave je neviditeľný
+  overflow: hidden; // Oreže obsah, ktorý by pretŕčal
+
+  /* Plynulá animácia pre výšku a priehľadnosť */
+  transition: max-height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+    opacity 0.3s ease-in-out;
+
+  /* Farba pozadia, aby to ladilo s hlavičkou */
+  background: var(--ion-color-primary);
+}
+
+/* Keď klikneš na tlačidlo a pridá sa class "is-open" */
+.filter-panel-wrapper.is-open {
+  max-height: 400px;
+  /* Musí to byť číslo o niečo väčšie, ako je reálna výška tvojich filtrov */
+  opacity: 1;
+}
+
+/* Jemná úprava samotného panelu, aby nevznikali biele miesta */
+.filter-panel {
+  padding-bottom: 10px;
+}
+
 /* >>> Špeciálny zväčšený toast pre kalkulačku (V strede obrazovky) <<< */
 ion-toast.kalkulacka-toast {
   --box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
