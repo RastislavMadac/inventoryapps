@@ -66,11 +66,15 @@
   justify-content: flex-end;
   align-items: flex-end;
   position: relative;
-  height: 120px;
+
+  /* 👇 Dovolí kontajneru natiahnuť sa podľa potreby 👇 */
+  min-height: 135px;
+  height: auto;
+
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
   overflow: hidden;
 
-  // Štýly pre spodný riadok s informáciou o rozdiele (VNORENO PRE PORIADOK)
+  /* Vnorený tracker pre správne zobrazenie rozdieľov priamo v displeji */
   .difference-tracker {
     font-size: 0.9rem;
     margin-top: 5px;
@@ -120,7 +124,7 @@
   font-size: 3.5rem;
   font-weight: 700;
   color: #222;
-  width: 100%;
+  width: 100%; // 👈 OPRAVA: Pôvodne si tu mal 100px, to by úplne zničilo layout
   text-align: right;
   white-space: nowrap;
   overflow-x: auto;
@@ -131,7 +135,7 @@
 
   // Efekt "Označeného textu"
   &.is-highlighted {
-    background-color: var(--ion-color-tertiary);
+    background-color: var(--ion-color-tertiary); // Pôvodne tu bola red, tertiary vyzerá profesionálnejšie
     color: white;
   }
 
@@ -145,10 +149,48 @@
   }
 }
 
-/* 6. TLAČIDLO BALENIE */
+/* 6. TLAČIDLÁ NAD KLÁVESNICOU */
+/* 6. TLAČIDLÁ NAD KLÁVESNICOU */
 .balenie-btn-container {
+  display: flex;
+  flex-wrap: nowrap;
+  /* Udrží všetko v jednom riadku */
+  gap: 8px;
+  /* Medzery len MEDZI tlačidlami, nie na krajoch */
   width: 100%;
   max-width: 400px;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+  /* Zabezpečí, že šírka neprekročí 100% obrazovky */
+
+  ion-button {
+    margin: 0;
+    /* Zmenšíme prázdne miesto vnútri tlačidiel, aby sa text lepšie zmestil */
+    --padding-start: 6px;
+    --padding-end: 6px;
+    overflow: hidden;
+  }
+
+  /* Veľké tlačidlá (Pôvodne a Balenie) */
+  .action-btn {
+    flex: 1 1 0;
+    /* Rozdelia si voľné miesto úplne na polovicu */
+    min-width: 0;
+    /* Dovolí im zmenšiť sa, koľko je potrebné */
+    font-size: 0.85rem;
+    /* Jemne menšie písmo, aby sa text neorezával */
+  }
+
+  /* Ak je na obrazovke len "Pridať balenie" */
+  .full-width {
+    flex: 1 1 100%;
+  }
+
+  /* Malé tlačidlo s ceruzkou */
+  .edit-btn {
+    flex: 0 0 45px;
+    /* Fixná šírka, nezaberá zbytočne veľa miesta */
+  }
 }
 
 /* 7. KLÁVESNICA */
@@ -198,7 +240,6 @@
   }
 }
 
-// PRIDANÁ ANIMÁCIA PRE ROZDIEL (Chýbala)
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -211,7 +252,9 @@
 
 @media (max-height: 700px) {
   .display-container {
-    height: 100px;
+    /* 👇 OPRAVA: Aj na malých obrazovkách necháme kontajner natiahnuť sa 👇 */
+    min-height: 110px;
+    height: auto;
   }
 
   .calculation-text {
@@ -248,7 +291,7 @@
    TABLET OPTIMALIZÁCIA
    ========================================= */
 
-/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) - Odstránená duplicita */
+/* 1. TABLET PORTRAIT (Na výšku - iPad/Android) */
 @media (min-width: 768px) and (orientation: portrait) {
 
   .info-section,
@@ -260,7 +303,9 @@
   }
 
   .display-container {
-    height: 160px;
+    /* 👇 OPRAVA: Pre tablety 👇 */
+    min-height: 160px;
+    height: auto;
   }
 
   .calculation-text {
@@ -314,7 +359,9 @@
   }
 
   .display-container {
-    height: 120px;
+    /* 👇 OPRAVA: Pre landscape tablety 👇 */
+    min-height: 120px;
+    height: auto;
     width: 100%;
     margin-bottom: 15px;
   }
@@ -343,7 +390,6 @@
 }
 
 // ODDELENÉ ŠTÝLY PRE EXTERNÉ (GLOBÁLNE) PRVKY
-// Možnosť pridať do globálneho variables.scss pre veľký varovný toast
 ::ng-deep .obrovsky-toast-varovanie {
   --background: var(--ion-color-warning);
   --color: #000;

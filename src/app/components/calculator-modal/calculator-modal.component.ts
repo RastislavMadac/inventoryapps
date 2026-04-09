@@ -5,7 +5,7 @@ import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
-import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
+//import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
 import { ViewDidEnter, ViewWillLeave } from '@ionic/angular';
 @Component({
   selector: 'app-calculator-modal',
@@ -28,21 +28,22 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
 
   zobrazitDetail: boolean = true
   shouldResetMain: boolean = false; // Flag: či sa má pri ďalšom čísle vymazať mainDisplay
-  maPocuvat: boolean = false;
+  //maPocuvat: boolean = false;
   private lastClickTime: number = 0;
-  pocuva: boolean = false;
+  //pocuva: boolean = false;
 
 
   jeOznacene: boolean = false;
   varovanieZobrazene: boolean = false;
   povodnyStavPrePorovnanie: number = 0;
-
+  povodnyStavPouzity: boolean = false;
+  ignorovaniePovodnehStavuPotvrdene: boolean = false;
   constructor(
     private cdr: ChangeDetectorRef,
     private modalController: ModalController,
     private alertCtrl: AlertController,
     private supabaseService: SupabaseService,
-    public speechService: SpeechRecognitionService,
+    //public speechService: SpeechRecognitionService,
     private toastController: ToastController
   ) {
     addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
@@ -152,6 +153,7 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     if (now - this.lastClickTime < 100) return;
     this.lastClickTime = now;
     this.varovanieZobrazene = false;
+    this.ignorovaniePovodnehStavuPotvrdene = false;
     const isOperator = ['+', '-', '*', '/'].includes(hodnota);
 
     if (isOperator) {
@@ -268,8 +270,8 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
   }
 
   async potvrdit() {
-    this.maPocuvat = false;
-    this.speechService.stopListening();
+    //this.maPocuvat = false;
+    //this.speechService.stopListening();
     const res = this.evaluateString(this.fullFormula);
 
     let vysledok = 0;
@@ -278,6 +280,24 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     } else {
       const simpleVal = parseFloat(this.mainDisplay);
       if (!isNaN(simpleVal)) vysledok = simpleVal;
+    }
+
+    // 👇 1. NOVÁ KONTROLA: Tlačidlo nebolo stlačené 👇
+    if (this.povodnyStavPrePorovnanie > 0 && !this.povodnyStavPouzity && !this.ignorovaniePovodnehStavuPotvrdene) {
+      const toast = await this.toastController.create({
+        message: `Nezabudli ste pripočítať pôvodný stav (${this.povodnyStavPrePorovnanie} ${this.jednotka})? Ak ho chcete zámerne prepísať, stlačte OK znova.`,
+        color: 'danger',
+        duration: 4000,
+        position: 'top',
+        cssClass: 'obrovsky-toast-varovanie'
+      });
+
+      // 👈 OPRAVA: Toto musí byť TU, pred returnom
+      await toast.present();
+
+      // Nastavíme klapku, aby to na druhýkrát prešlo
+      this.ignorovaniePovodnehStavuPotvrdene = true;
+      return; // Zastavíme zatvorenie kalkulačky
     }
 
     // 👉 ÚROVEŇ 4: Kontrola extrémneho rozdielu pred zatvorením
@@ -340,138 +360,177 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     }
   }
 
-  // 1. ZMENA: Použijeme ionViewDidEnter, aby sa kalkulačka najprv vykreslila
-  async ionViewDidEnter() {
-    if (this.speechService.isSupported) {
-      this.maPocuvat = true;
-      // Dáme ešte malú pauzu (300ms), aby sa všetko v UI usadilo
-      setTimeout(() => {
-        this.spustiPocuvanie();
-      }, 300);
-    }
-  }
+  nastavitPovodnyStav() {
+    if (this.povodnyStavPrePorovnanie > 0) {
+      this.mainDisplay = this.povodnyStavPrePorovnanie.toString();
+      this.fullFormula = this.povodnyStavPrePorovnanie.toString();
 
-  ionViewWillLeave() {
-    this.maPocuvat = false; // Prerušíme slučku
-    this.pocuva = false;
-    this.speechService.stopListening();
-  }
-
-  async spustiPocuvanie() {
-    if (this.pocuva) return;
-
-    this.pocuva = true;
-    this.maPocuvat = true;
-
-    while (this.maPocuvat) {
-      try {
-        const rozpoznanyText = await this.speechService.startListening();
-        if (rozpoznanyText) {
-          this.spracujHlasovyVstup(rozpoznanyText);
-        }
-      } catch (error: any) {
-
-        if (error === 'no-speech' || error?.error === 'no-speech') {
-          // Ticho ignorujeme
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-
-        // >>> PRIDANÁ OCHRANA PROTI ZABLOKOVANÉMU MIKROFÓNU <<<
-        else if (error === 'not-allowed' || error?.error === 'not-allowed') {
-          console.error('🚫 Prístup k mikrofónu bol zamietnutý (not-allowed). Slučka sa ukončuje.');
-
-          this.maPocuvat = false; // TOTO preruší while slučku!
-          this.pocuva = false;    // Vypne pulzujúcu ikonku v UI
-
-          // Zobrazíme upozornenie cez AlertController
-          const alert = await this.alertCtrl.create({
-            header: 'Mikrofón zablokovaný',
-            message: 'Aplikácia nemá prístup k mikrofónu. Povoľte ho v nastaveniach prehliadača alebo zariadenia.',
-            buttons: ['Rozumiem']
-          });
-          await alert.present();
-
-          break; // Bezpečne vyskočíme z `while` slučky
-        }
-
-        else {
-          console.warn('Mikrofón narazil na problém, reštartujem...', error);
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-    }
-
-    this.pocuva = false;
-  }
-  private spracujHlasovyVstup(text: string) {
-    console.log('🤖 Prehliadač počul:', text);
-    const originalText = text.toLowerCase().trim();
-
-    // 1. Kontrola, či zaznel povel na potvrdenie
-    const obsahujePotvrdenie = originalText.includes('potvrdiť') ||
-      originalText.includes('ok') ||
-      originalText.includes('uložiť');
-
-    // 2. Vyčistíme text od povelov a zjednotíme desatinné znaky na bodku
-    let spracovanyText = originalText
-      .replace('potvrdiť', '')
-      .replace('ok', '')
-      .replace('uložiť', '')
-      .replace(/celých/g, '.')
-      .replace(/celé/g, '.')
-      .replace(/celá/g, '.')
-      .replace(/čiarka/g, '.')
-      .replace(/,/g, '.') // Pre istotu prepíše aj čiarku, ak ju prehliadač vráti
-      .trim();
-
-    // Ak zaznel len povel bez čísla
-    if (spracovanyText === '') {
-      if (obsahujePotvrdenie) {
-        this.potvrdit();
-      }
-      return;
-    }
-
-    // 3. Zjednodušený slovník IBA pre jednotlivé cifry
-    const mapaCislic: { [key: string]: string } = {
-      'nula': '0', 'jeden': '1', 'jedna': '1', 'dva': '2', 'dve': '2',
-      'tri': '3', 'štyri': '4', 'päť': '5', 'šesť': '6', 'sedem': '7',
-      'osem': '8', 'deväť': '9'
-    };
-
-    // 4. PREKLAD: Rozbijeme text na slová a poskladáme z nich jedno dlhé "textové" číslo
-    let poskladaneCisloText = '';
-    const slova = spracovanyText.split(/\s+/); // Rozdelí podľa medzier
-
-    for (const slovo of slova) {
-      if (mapaCislic[slovo] !== undefined) {
-        // Ak je to slovo (napr. "päť"), pridáme znak "5"
-        poskladaneCisloText += mapaCislic[slovo];
-      } else {
-        // Ak to slovo nepoznáme, je to pravdepodobne bodka ".", alebo už priamo číslo
-        // (napr. prehliadač bol šikovný a vrátil rovno "4" namiesto "štyri")
-        poskladaneCisloText += slovo;
-      }
-    }
-
-    // V tomto bode máme text napr. "67.4". Pre istotu z neho vymažeme akékoľvek zostatkové medzery.
-    poskladaneCisloText = poskladaneCisloText.replace(/\s+/g, '');
-
-    // 5. Prevod finálneho textu (napr. "67.4") na reálne matematické číslo
-    let vysledneCislo = parseFloat(poskladaneCisloText);
-
-    // 6. ZÁPIS DO KALKULAČKY
-    if (!isNaN(vysledneCislo)) {
-      this.mainDisplay = vysledneCislo.toString();
-      this.fullFormula = vysledneCislo.toString();
+      // Nastavíme, aby sa pri ďalšom ťuknutí na číslo displej vymazal
       this.shouldResetMain = true;
-    }
-
-    // 7. AUTOMATICKÉ POTVRDENIE (ak zaznelo ok)
-    if (obsahujePotvrdenie) {
-      this.potvrdit();
+      this.jeOznacene = false; // Zrušíme modré podfarbenie, ak nejaké bolo
+      this.varovanieZobrazene = false; // Resetujeme varovania
     }
   }
+  // NOVÁ FUNKCIA: Pripočíta pôvodný stav k aktuálnemu číslu
+  pripocitatPovodnyStav() {
+    if (this.povodnyStavPrePorovnanie > 0) {
+      this.varovanieZobrazene = false;
+      this.ignorovaniePovodnehStavuPotvrdene = false;
+
+      // 👇 ZAZNAMENÁME, ŽE TLAČIDLO BOLO STLAČENÉ 👇
+      this.povodnyStavPouzity = true;
+
+      if (this.jeOznacene) {
+        this.jeOznacene = false;
+      }
+
+      const lastChar = this.fullFormula.slice(-1);
+      if (!['+', '-', '*', '/'].includes(lastChar)) {
+        this.handleOperator('+');
+      }
+
+      this.fullFormula += this.povodnyStavPrePorovnanie.toString();
+
+      const res = this.evaluateString(this.fullFormula);
+      if (res !== null) {
+        this.mainDisplay = res.toString();
+        this.shouldResetMain = true;
+      }
+    }
+  }
+
+  // 1. ZMENA: Použijeme ionViewDidEnter, aby sa kalkulačka najprv vykreslila
+  // async ionViewDidEnter() {
+  //   if (this.speechService.isSupported) {
+  //     this.maPocuvat = true;
+  //     // Dáme ešte malú pauzu (300ms), aby sa všetko v UI usadilo
+  //     setTimeout(() => {
+  //       this.spustiPocuvanie();
+  //     }, 300);
+  //   }
+  // }
+
+  // ionViewWillLeave() {
+  //   this.maPocuvat = false; // Prerušíme slučku
+  //   this.pocuva = false;
+  //   this.speechService.stopListening();
+  // }
+
+  // async spustiPocuvanie() {
+  //   if (this.pocuva) return;
+
+  //   this.pocuva = true;
+  //   this.maPocuvat = true;
+
+  //   while (this.maPocuvat) {
+  //     try {
+  //       const rozpoznanyText = await this.speechService.startListening();
+  //       if (rozpoznanyText) {
+  //         this.spracujHlasovyVstup(rozpoznanyText);
+  //       }
+  //     } catch (error: any) {
+
+  //       if (error === 'no-speech' || error?.error === 'no-speech') {
+  //         // Ticho ignorujeme
+  //         await new Promise(resolve => setTimeout(resolve, 200));
+  //       }
+
+  //       // >>> PRIDANÁ OCHRANA PROTI ZABLOKOVANÉMU MIKROFÓNU <<<
+  //       else if (error === 'not-allowed' || error?.error === 'not-allowed') {
+  //         console.error('🚫 Prístup k mikrofónu bol zamietnutý (not-allowed). Slučka sa ukončuje.');
+
+  //         this.maPocuvat = false; // TOTO preruší while slučku!
+  //         this.pocuva = false;    // Vypne pulzujúcu ikonku v UI
+
+  //         // Zobrazíme upozornenie cez AlertController
+  //         const alert = await this.alertCtrl.create({
+  //           header: 'Mikrofón zablokovaný',
+  //           message: 'Aplikácia nemá prístup k mikrofónu. Povoľte ho v nastaveniach prehliadača alebo zariadenia.',
+  //           buttons: ['Rozumiem']
+  //         });
+  //         await alert.present();
+
+  //         break; // Bezpečne vyskočíme z `while` slučky
+  //       }
+
+  //       else {
+  //         console.warn('Mikrofón narazil na problém, reštartujem...', error);
+  //         await new Promise(resolve => setTimeout(resolve, 500));
+  //       }
+  //     }
+  //   }
+
+  //   this.pocuva = false;
+  // }
+  // private spracujHlasovyVstup(text: string) {
+  //   console.log('🤖 Prehliadač počul:', text);
+  //   const originalText = text.toLowerCase().trim();
+
+  //   // 1. Kontrola, či zaznel povel na potvrdenie
+  //   const obsahujePotvrdenie = originalText.includes('potvrdiť') ||
+  //     originalText.includes('ok') ||
+  //     originalText.includes('uložiť');
+
+  //   // 2. Vyčistíme text od povelov a zjednotíme desatinné znaky na bodku
+  //   let spracovanyText = originalText
+  //     .replace('potvrdiť', '')
+  //     .replace('ok', '')
+  //     .replace('uložiť', '')
+  //     .replace(/celých/g, '.')
+  //     .replace(/celé/g, '.')
+  //     .replace(/celá/g, '.')
+  //     .replace(/čiarka/g, '.')
+  //     .replace(/,/g, '.') // Pre istotu prepíše aj čiarku, ak ju prehliadač vráti
+  //     .trim();
+
+  //   // Ak zaznel len povel bez čísla
+  //   if (spracovanyText === '') {
+  //     if (obsahujePotvrdenie) {
+  //       this.potvrdit();
+  //     }
+  //     return;
+  //   }
+
+  //   // 3. Zjednodušený slovník IBA pre jednotlivé cifry
+  //   const mapaCislic: { [key: string]: string } = {
+  //     'nula': '0', 'jeden': '1', 'jedna': '1', 'dva': '2', 'dve': '2',
+  //     'tri': '3', 'štyri': '4', 'päť': '5', 'šesť': '6', 'sedem': '7',
+  //     'osem': '8', 'deväť': '9'
+  //   };
+
+  //   // 4. PREKLAD: Rozbijeme text na slová a poskladáme z nich jedno dlhé "textové" číslo
+  //   let poskladaneCisloText = '';
+  //   const slova = spracovanyText.split(/\s+/); // Rozdelí podľa medzier
+
+  //   for (const slovo of slova) {
+  //     if (mapaCislic[slovo] !== undefined) {
+  //       // Ak je to slovo (napr. "päť"), pridáme znak "5"
+  //       poskladaneCisloText += mapaCislic[slovo];
+  //     } else {
+  //       // Ak to slovo nepoznáme, je to pravdepodobne bodka ".", alebo už priamo číslo
+  //       // (napr. prehliadač bol šikovný a vrátil rovno "4" namiesto "štyri")
+  //       poskladaneCisloText += slovo;
+  //     }
+  //   }
+
+  //   // V tomto bode máme text napr. "67.4". Pre istotu z neho vymažeme akékoľvek zostatkové medzery.
+  //   poskladaneCisloText = poskladaneCisloText.replace(/\s+/g, '');
+
+  //   // 5. Prevod finálneho textu (napr. "67.4") na reálne matematické číslo
+  //   let vysledneCislo = parseFloat(poskladaneCisloText);
+
+  //   // 6. ZÁPIS DO KALKULAČKY
+  //   if (!isNaN(vysledneCislo)) {
+  //     this.mainDisplay = vysledneCislo.toString();
+  //     this.fullFormula = vysledneCislo.toString();
+  //     this.shouldResetMain = true;
+  //   }
+
+  //   // 7. AUTOMATICKÉ POTVRDENIE (ak zaznelo ok)
+  //   if (obsahujePotvrdenie) {
+  //     this.potvrdit();
+  //   }
+  // }
 
 
 }

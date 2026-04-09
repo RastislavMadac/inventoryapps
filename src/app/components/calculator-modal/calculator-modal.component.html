@@ -1,50 +1,62 @@
 <ion-content class="ion-padding">
   <div class="centered-content">
-  
+
     <div class="info-section">
       <div class="product-header" *ngIf="nazovProduktu">
         {{ nazovProduktu }}
         <span style="font-weight: normal; opacity: 0.7;">({{ jednotka }})</span>
       </div>
 
-   <div class="display-container" (click)="zrusitOznacenie()">
-  <div class="formula-text" *ngIf="zobrazitDetail">
-    {{ fullFormula }}
-  </div>
-  
-  <div class="calculation-text" [class.has-detail]="zobrazitDetail" [class.is-highlighted]="jeOznacene">
-    {{ mainDisplay }}
-  </div>
+      <div class="display-container" (click)="zrusitOznacenie()">
+        <div class="formula-text" *ngIf="zobrazitDetail">
+          {{ fullFormula }}
+        </div>
 
-  <div class="difference-tracker" *ngIf="povodnyStavPrePorovnanie > 0">
-    <span class="povodny">Pôvodne: {{ povodnyStavPrePorovnanie }} {{ jednotka }}</span>
-    <span class="oddlovac"> | </span>
-    <span class="rozdiel" 
-          [class.rozdiel-plus]="vypocitanyRozdiel > 0" 
-          [class.rozdiel-minus]="vypocitanyRozdiel < 0">
-      Rozdiel: {{ vypocitanyRozdiel > 0 ? '+' : '' }}{{ vypocitanyRozdiel }} {{ jednotka }}
-    </span>
-  </div>
-</div>
+        <div class="calculation-text" [class.has-detail]="zobrazitDetail" [class.is-highlighted]="jeOznacene">
+          {{ mainDisplay }}
+        </div>
 
-      <div class="balenie-btn-container" style="display: flex; gap: 8px;">
-        <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" class="ion-margin-bottom" (click)="pridatBalenie()" style="flex: 1;">
+        <div class="difference-tracker" *ngIf="povodnyStavPrePorovnanie > 0">
+          <span class="povodny">Pôvodne: {{ povodnyStavPrePorovnanie }} {{ jednotka }}</span>
+          <span class="oddlovac"> | </span>
+          <span class="rozdiel" [class.rozdiel-plus]="vypocitanyRozdiel > 0"
+            [class.rozdiel-minus]="vypocitanyRozdiel < 0">
+            Rozdiel: {{ vypocitanyRozdiel > 0 ? '+' : '' }}{{ vypocitanyRozdiel }} {{ jednotka }}
+          </span>
+        </div>
+      </div>
+
+      <div class="balenie-btn-container">
+
+        <ion-button *ngIf="povodnyStavPrePorovnanie > 0" expand="block"
+          [color]="!povodnyStavPouzity ? 'danger' : 'tertiary'" [fill]="!povodnyStavPouzity ? 'solid' : 'outline'"
+          (click)="pripocitatPovodnyStav()" class="action-btn">
+          <ion-icon [name]="!povodnyStavPouzity ? 'alert-circle-outline' : 'checkmark-outline'" slot="start"></ion-icon>
+          <strong>{{ povodnyStavPrePorovnanie }} {{ jednotka }} (Pôvodne)</strong>
+        </ion-button>
+
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" (click)="pridatBalenie()"
+          class="action-btn">
           <ion-icon name="cube-outline" slot="start"></ion-icon>
           <strong>Balenie (x{{ balenie }})</strong>
         </ion-button>
 
-        <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()" style="flex: 1;">
+        <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium"
+          (click)="zmenitVelkostBalenia()" class="action-btn">
           <ion-icon name="add-circle-outline" slot="start"></ion-icon>
           Pridať balenie
         </ion-button>
 
-        <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" class="ion-margin-bottom" (click)="zmenitVelkostBalenia()">
+        <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" (click)="zmenitVelkostBalenia()"
+          class="edit-btn">
           <ion-icon slot="icon-only" name="create-outline"></ion-icon>
         </ion-button>
-      </div>
-    </div> 
 
-    <div *ngIf="speechService.isSupported" class="voice-section ion-text-center ion-padding-vertical">
+      </div>
+    </div>
+
+
+    <!-- <div *ngIf="speechService.isSupported" class="voice-section ion-text-center ion-padding-vertical">
       
       <div *ngIf="pocuva" style="color: var(--ion-color-tertiary); display: flex; align-items: center; justify-content: center; gap: 8px; animation: pulse 1.5s infinite;">
         <ion-icon name="mic" style="font-size: 1.5rem;"></ion-icon> 
@@ -55,7 +67,7 @@
         <ion-icon slot="start" name="mic"></ion-icon>
         Znova nadiktovať
       </ion-button>
-    </div>
+    </div>  -->
 
     <div class="keypad-section">
       <div class="keypad">
@@ -65,31 +77,34 @@
           <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
           <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
         </div>
-    
+
         <div class="row">
           <ion-button color="light" (click)="stlacene('7')">7</ion-button>
           <ion-button color="light" (click)="stlacene('8')">8</ion-button>
           <ion-button color="light" (click)="stlacene('9')">9</ion-button>
           <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
         </div>
-    
+
         <div class="row">
           <ion-button color="light" (click)="stlacene('4')">4</ion-button>
           <ion-button color="light" (click)="stlacene('5')">5</ion-button>
           <ion-button color="light" (click)="stlacene('6')">6</ion-button>
           <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
         </div>
-    
+
         <div class="row">
           <ion-button color="light" (click)="stlacene('1')">1</ion-button>
           <ion-button color="light" (click)="stlacene('2')">2</ion-button>
           <ion-button color="light" (click)="stlacene('3')">3</ion-button>
           <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
         </div>
-    
+
         <div class="row bottom-row">
           <ion-button color="light" (click)="stlacene('0')">0</ion-button>
           <ion-button color="light" (click)="stlacene('.')">.</ion-button>
           <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
         </div>
-      </div> </div> </div> </ion-content>
+      </div>
+    </div>
+  </div>
+</ion-content>
