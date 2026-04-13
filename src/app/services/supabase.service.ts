@@ -27,7 +27,9 @@ export interface SkladovaZasobaView {
     nazov: string;
     ean?: string;
     kategoria: string;
+    kategoria_id?: number; // 🔥 Pridané
     mnozstvo_ks: number;
+    min_limit?: number;    // 🔥 Pridané
     poradie?: number;
     balenie_ks: number;
     umiestnenie?: string;
@@ -35,6 +37,7 @@ export interface SkladovaZasobaView {
     v_inventure?: boolean;
     jednotka?: string;
     sklad_id?: number;
+    stredisko?: string;    // 🔥 Pridané
     spocitane_mnozstvo?: number;
     regal_nazov?: string;
     sklad_nazov?: string;
@@ -448,10 +451,18 @@ export class SupabaseService {
         });
     }
     async uzavrietInventuru(inventuraId: number) {
-        const { error } = await this.supabase.rpc('uzavriet_inventuru', {
+        const { data, error } = await this.supabase.rpc('uzavriet_inventuru_komplet', {
             p_inventura_id: inventuraId
         });
+
         if (error) throw error;
+
+        // V SQL vraciame text 'OK: ...' alebo 'CHYBA: ...'
+        if (data && typeof data === 'string' && data.startsWith('CHYBA')) {
+            throw new Error(data);
+        }
+
+        return data;
     }
 
     async znovuOtvoritInventuru(inventuraId: number) {
@@ -1218,5 +1229,76 @@ export class SupabaseService {
 
         if (error) throw error;
         return data;
+    }
+
+    // NOVÁ FUNKCIA: Porovná importovaný Excel (z importy_temp) s reálnym stavom inventúry
+    async porovnatImportSInventurou(inventuraId: number) {
+        const { data, error } = await this.supabase.rpc('porovnat_import_s_inventurou', {
+            p_inventura_id: inventuraId
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri porovnávaní inventúry:', error);
+            throw error;
+        }
+
+        // Vráti pole s objektmi: { interne_id: string, nazov: string, stav: 'chyba_v_inventure' | 'navyse_v_inventure' }
+        return data || [];
+    }
+
+    // Prijíma pole objektov z ExportService a uloží ich do dočasnej tabuľky
+
+    async nahratImportDoTemp(inventuraId: number, excelData: any[]) {
+        // 1. Zmažeme starý import pre túto inventúru (aby nevznikali duplicity pri opakovanom importe)
+        await this.supabase.from('importy_temp').delete().eq('inventura_id', inventuraId);
+
+        // 2. Mapovanie dát z Excelu do JSON objektov pre Supabase
+        const insertData = excelData.map(row => {
+            return {
+                inventura_id: inventuraId,
+
+                // 🔥 OPRAVA: Excel 'CISLO' -> databáza Interne_id
+                "Interne_id": String(row['CISLO'] || '').trim(),
+
+                // 🔥 OPRAVA: Excel 'ID' -> databáza vlastne_id
+                vlastne_id: String(row['ID'] || '').trim(),
+
+                // Mapovanie: stĺpec NAZOV v Exceli -> nazov v databáze
+                nazov: row['NAZOV'] || 'Neznámy produkt',
+
+                // Množstvo na krížovú kontrolu
+                mnozstvo: Number(row['PREDPOKLADANE MNOZSTVO'] || row['FYZICKE MNOZSTVO'] || row['Množstvo'] || 0)
+            };
+        }).filter(item => item.vlastne_id !== ''); // Upravený aj filter, nechceme riadky bez vlastne_id
+
+        // Poistka proti prázdnemu / nesprávnemu Excelu
+        if (insertData.length === 0) {
+            throw new Error('Nenašli sa žiadne platné dáta. Uistite sa, že Excel obsahuje hlavičku s názvom "ID" na 4. riadku.');
+        }
+
+        // 3. Hromadný bulk-insert do Supabase
+        const { error } = await this.supabase.from('importy_temp').insert(insertData);
+
+        if (error) {
+            console.error('❌ Chyba pri zápise do staging tabuľky importy_temp:', error);
+            throw error;
+        }
+
+        return true;
+    }
+
+
+    // NOVÁ FUNKCIA: Nájde produkty z Excelu, ktoré chýbajú v hlavnom katalógu
+    async skontrolovatNeznameProdukty(inventuraId: number) {
+        const { data, error } = await this.supabase.rpc('najst_nezname_produkty_z_importu', {
+            p_inventura_id: inventuraId
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri hľadaní neznámych produktov:', error);
+            throw error;
+        }
+
+        return data || [];
     }
 }

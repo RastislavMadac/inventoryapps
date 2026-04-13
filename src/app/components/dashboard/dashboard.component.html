@@ -1,5 +1,4 @@
 <div class="dashboard-container">
-  
   <ion-card class="stat-card blue" button (click)="zobrazitVsetky()">
     <ion-card-content>
       <div class="icon-bg">
@@ -26,11 +25,96 @@
       </div>
     </ion-card-content>
   </ion-card>
-
 </div>
 
+<ion-card class="import-card">
+  <ion-card-header>
+    <ion-card-title>Excel Validácia</ion-card-title>
+    <ion-card-subtitle>Krížová kontrola voči účtovníctvu</ion-card-subtitle>
+  </ion-card-header>
+
+  <ion-card-content>
+    <p class="import-info">Nahrajte Excel (hlavička na riadku 4), systém porovná fyzickú inventúru so stavom v súbore.</p>
+    
+    <input type="file" #fileInput (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
+    
+    <ion-button expand="block" color="tertiary" (click)="fileInput.click()">
+      <ion-icon name="cloud-upload-outline" slot="start"></ion-icon>
+      Nahrať stav z účtovníctva
+    </ion-button>
+  </ion-card-content>
+</ion-card>
+
+<ion-modal [isOpen]="isModalOpen" (didDismiss)="isModalOpen = false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="primary">
+        <ion-title>Nezrovnalosti ({{ vysledokPorovnania.length }})</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="isModalOpen = false">
+            <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <div style="background: rgba(var(--ion-color-primary-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+        <p style="margin: 0; font-size: 0.9rem; text-align: center;">Porovnanie fyzicky naskenovaného stavu voči importovanému Excelu.</p>
+      </div>
+
+      <ion-list lines="full">
+
+<div *ngIf="neznameProdukty.length > 0" style="margin-top: 30px;">
+        <div style="background: rgba(var(--ion-color-dark-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+          <p style="margin: 0; font-size: 0.9rem; font-weight: bold; color: var(--ion-color-dark); text-align: center;">
+            <ion-icon name="warning-outline" style="vertical-align: middle;"></ion-icon> 
+            Kritické upozornenie: Tieto produkty niesú v katalógu!
+          </p>
+        </div>
+
+        <ion-list lines="full">
+          <ion-item *ngFor="let prod of neznameProdukty">
+            <ion-icon name="cube-outline" color="dark" slot="start"></ion-icon>
+            <ion-label>
+              <h2 style="font-weight: bold; white-space: normal;">{{ prod.nazov }}</h2>
+              <p>
+                Systémové ID: <strong>{{ prod.interne_id }}</strong>
+                <span *ngIf="prod.vlastne_id"> | Číslo: {{ prod.vlastne_id }}</span>
+              </p>
+            </ion-label>
+            <ion-badge slot="end" color="dark">Neznámy produkt</ion-badge>
+          </ion-item>
+        </ion-list>
+      </div>
+
+        <ion-item *ngFor="let chyba of vysledokPorovnania">
+          <ion-icon 
+            [name]="chyba.stav === 'chyba_v_inventure' ? 'alert-circle' : 'add-circle'" 
+            [color]="chyba.stav === 'chyba_v_inventure' ? 'danger' : 'warning'" 
+            slot="start">
+          </ion-icon>
+          <ion-label>
+            <h2 style="font-weight: bold; white-space: normal;">{{ chyba.nazov }}</h2>
+            <p>
+              Systémové ID: <strong>{{ chyba.interne_id }}</strong>
+              <span *ngIf="chyba.vlastne_id"> | Číslo: {{ chyba.vlastne_id }}</span>
+            </p>
+          </ion-label>
+          <ion-badge slot="end" [color]="chyba.stav === 'chyba_v_inventure' ? 'danger' : 'warning'">
+             {{ chyba.stav === 'chyba_v_inventure' ? 'Chýba' : 'Navyše' }}
+          </ion-badge>
+        </ion-item>
+      </ion-list>
+
+      <ion-button expand="block" fill="outline" color="medium" (click)="isModalOpen = false" style="margin-top: 20px;">
+        Zavrieť prehľad
+      </ion-button>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
 <ion-card class="inventory-expand-card">
-  
   <div class="card-toggle-header" (click)="toggleInventury()">
     <div class="header-left">
       <ion-icon [name]="isInvExpanded ? 'chevron-down' : 'chevron-forward'" color="medium"></ion-icon>
@@ -67,7 +151,6 @@
 </ion-card>
 
 <div #zoznamRef *ngIf="nadpisZoznamu" class="internal-list-container fade-in">
-  
   <div class="list-header">
     <h3>{{ nadpisZoznamu }}</h3>
     <ion-button fill="clear" size="small" color="medium" (click)="zavrietZoznam()">
@@ -100,5 +183,4 @@
       Žiadne položky na zobrazenie.
     </div>
   </ion-list>
-
 </div>

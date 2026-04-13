@@ -143,10 +143,7 @@ export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillL
     return Math.round(rozdiel * 100) / 100; // Zaokrúhlenie na 2 desatinné miesta
   }
 
-  // Umožní skladníkovi kliknúť na číslo a len ho upraviť bez zmazania celého
-  zrusitOznacenie() {
-    this.jeOznacene = false;
-  }
+
   stlacene(hodnota: string) {
     // Debounce (proti dvojkliku)
     const now = Date.now();

@@ -455,4 +455,32 @@ export class ExportService {
 
         return true;
     }
+
+
+    // --- IMPORT Z EXCELU ---
+    public parsovatExcelImport(file: File): Promise<any[]> {
+        return new Promise((resolve, reject) => {
+            const reader: FileReader = new FileReader();
+
+            reader.onload = (e: any) => {
+                try {
+                    const binaryString: string = e.target.result;
+                    const workBook = XLSX.read(binaryString, { type: 'binary' });
+
+                    const sheetName: string = workBook.SheetNames[0];
+                    const workSheet = workBook.Sheets[sheetName];
+
+                    // 🔥 Pridaný parameter { range: 3 }
+                    // Preskočí riadky 1, 2 a 3. Riadok 4 sa stane hlavičkou (kľúčmi JSON objektu)
+                    const jsonData = XLSX.utils.sheet_to_json(workSheet, { range: 4 });
+                    resolve(jsonData);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            reader.onerror = (error) => reject(error);
+            reader.readAsBinaryString(file);
+        });
+    }
 }
