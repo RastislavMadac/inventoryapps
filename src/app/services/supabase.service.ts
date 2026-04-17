@@ -1246,37 +1246,42 @@ export class SupabaseService {
         return data || [];
     }
 
-    // Prijíma pole objektov z ExportService a uloží ich do dočasnej tabuľky
-
     async nahratImportDoTemp(inventuraId: number, excelData: any[]) {
-        // 1. Zmažeme starý import pre túto inventúru (aby nevznikali duplicity pri opakovanom importe)
+        // 1. Zmažeme starý import
         await this.supabase.from('importy_temp').delete().eq('inventura_id', inventuraId);
 
-        // 2. Mapovanie dát z Excelu do JSON objektov pre Supabase
+        // 2. Mapovanie a AGRESÍVNE čistenie dát z Excelu
         const insertData = excelData.map(row => {
+            // a) Očistenie Vlastného ID (Odstráni všetky medzery, taby a non-breaking spaces)
+            let rawVlastneId = String(row['ID'] || '').replace(/\s+/g, '');
+            // Excel občas pridá .0 na koniec textových čísel (napr. 123 -> 123.0)
+            if (rawVlastneId.endsWith('.0')) {
+                rawVlastneId = rawVlastneId.slice(0, -2);
+            }
+
+            // b) Očistenie Interného ID (Ponechávame pre zobrazenie, ale nepoužíva sa na párovanie)
+            let rawInterneId = String(row['CISLO'] || '').trim();
+            if (rawInterneId.endsWith('.0')) {
+                rawInterneId = rawInterneId.slice(0, -2);
+            }
+
+            // c) Očistenie Názvu
+            let rawNazov = String(row['NAZOV'] || 'Neznámy produkt').trim();
+
             return {
                 inventura_id: inventuraId,
-
-                // 🔥 OPRAVA: Excel 'CISLO' -> databáza Interne_id
-                "Interne_id": String(row['CISLO'] || '').trim(),
-
-                // 🔥 OPRAVA: Excel 'ID' -> databáza vlastne_id
-                vlastne_id: String(row['ID'] || '').trim(),
-
-                // Mapovanie: stĺpec NAZOV v Exceli -> nazov v databáze
-                nazov: row['NAZOV'] || 'Neznámy produkt',
-
-                // Množstvo na krížovú kontrolu
+                "Interne_id": rawInterneId,
+                vlastne_id: rawVlastneId,
+                nazov: rawNazov,
                 mnozstvo: Number(row['PREDPOKLADANE MNOZSTVO'] || row['FYZICKE MNOZSTVO'] || row['Množstvo'] || 0)
             };
-        }).filter(item => item.vlastne_id !== ''); // Upravený aj filter, nechceme riadky bez vlastne_id
+        }).filter(item => item.vlastne_id !== ''); // 🔥 FILTER: Vyžadujeme striktne vyplnené vlastne_id
 
-        // Poistka proti prázdnemu / nesprávnemu Excelu
         if (insertData.length === 0) {
-            throw new Error('Nenašli sa žiadne platné dáta. Uistite sa, že Excel obsahuje hlavičku s názvom "ID" na 4. riadku.');
+            throw new Error('Nenašli sa žiadne platné dáta. Uistite sa, že Excel obsahuje hlavičku s názvom "ID" (vlastne_id).');
         }
 
-        // 3. Hromadný bulk-insert do Supabase
+        // 3. Hromadný zápis do temp tabuľky
         const { error } = await this.supabase.from('importy_temp').insert(insertData);
 
         if (error) {
@@ -1300,5 +1305,92 @@ export class SupabaseService {
         }
 
         return data || [];
+    }
+
+    // NOVÁ FUNKCIA: Hromadný zápis nových produktov do katalógu
+    async pridatNoveProduktyZImportu(payload: any[]) {
+        const { error } = await this.supabase.rpc('pridat_nove_produkty_z_importu', {
+            payload: payload
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri zápise nových produktov:', error);
+            throw error;
+        }
+        return true;
+    }
+
+    // 🔥 NAČÍTANIE STREDÍSK
+    async getStrediska(): Promise<any[]> {
+        const { data, error } = await this.supabase
+            .from('strediska')
+            .select('id, nazov')
+            .order('nazov', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+    }
+
+    /// Pridaj do supabase.service.ts
+    async spracovatPrijemSoSubstituciou(payload: {
+        produkt_id: number,
+        mnozstvo: number,
+        regal_id: number | null,
+        odpocitat_z_id: number | null,
+        mnozstvo_na_odpocet: number
+    }) {
+        const { error } = await this.supabase.rpc('spracovat_prijem_so_substituciou', {
+            p_novy_produkt_id: payload.produkt_id,
+            p_mnozstvo_plus: payload.mnozstvo,
+            p_regal_id: payload.regal_id || null, // Zabezpečí, že ak nie je regál, pošle sa čistý NULL
+            p_odpocitat_produkt_id: payload.odpocitat_z_id || null,
+            p_mnozstvo_minus: payload.mnozstvo_na_odpocet || 0
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri substitúcii skladu:', error);
+            throw error;
+        }
+    }
+    async opravitChybuNaSklade(payload: {
+        inventura_id: number, // 🔥 PRIDANÉ
+        produkt_id: number,
+        mnozstvo_uprava: number,
+        regal_id: number | null,
+        odpocitat_z_id: number | null,
+        mnozstvo_na_odpocet: number
+    }) {
+        const { error } = await this.supabase.rpc('opravit_chybu_v_skladovych_zasobach', {
+            p_inventura_id: payload.inventura_id, // 🔥 PRIDANÉ
+            p_produkt_id: payload.produkt_id,
+            p_mnozstvo_uprava: payload.mnozstvo_uprava || 0,
+            p_regal_id: payload.regal_id || null,
+            p_odpocitat_produkt_id: payload.odpocitat_z_id || null,
+            p_mnozstvo_minus: payload.mnozstvo_na_odpocet || 0
+        });
+
+        if (error) {
+            console.error('❌ Chyba pri oprave skladu:', error);
+            throw error;
+        }
+    }
+
+    async getVsetkyRegaly() {
+        const { data, error } = await this.supabase
+            .from('regaly')
+            .select(`
+                id, 
+                nazov, 
+                sklady (nazov)
+            `)
+            .order('nazov', { ascending: true });
+
+        if (error) throw error;
+
+        // Naformátujeme to pre pekné zobrazenie v drope-downe
+        return data.map((r: any) => ({
+            id: r.id,
+            nazov: `${r.sklady?.nazov || 'Neznámy sklad'} - ${r.nazov}`
+        }));
     }
 }

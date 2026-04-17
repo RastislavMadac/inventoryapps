@@ -49,7 +49,7 @@
   <ng-template>
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-title>Nezrovnalosti ({{ vysledokPorovnania.length }})</ion-title>
+        <ion-title>Nezrovnalosti ({{ vysledokPorovnania.length + neznameProdukty.length }})</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="isModalOpen = false">
             <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
@@ -62,50 +62,164 @@
       <div style="background: rgba(var(--ion-color-primary-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
         <p style="margin: 0; font-size: 0.9rem; text-align: center;">Porovnanie fyzicky naskenovaného stavu voči importovanému Excelu.</p>
       </div>
+      
+      <ion-searchbar 
+        placeholder="Hľadať produkt (názov)..." 
+        [(ngModel)]="searchQueryModal" 
+        [debounce]="250"
+        style="padding: 0; padding-bottom: 15px;">
+      </ion-searchbar>
 
-      <ion-list lines="full">
-
-<div *ngIf="neznameProdukty.length > 0" style="margin-top: 30px;">
+      <div *ngIf="filtruvaneNezname.length > 0" style="margin-bottom: 30px;">
         <div style="background: rgba(var(--ion-color-dark-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
           <p style="margin: 0; font-size: 0.9rem; font-weight: bold; color: var(--ion-color-dark); text-align: center;">
-            <ion-icon name="warning-outline" style="vertical-align: middle;"></ion-icon> 
-            Kritické upozornenie: Tieto produkty niesú v katalógu!
+            <ion-icon name="warning-outline" style="vertical-align: middle;"></ion-icon> Neznáme produkty z importu
           </p>
         </div>
 
         <ion-list lines="full">
-          <ion-item *ngFor="let prod of neznameProdukty">
-            <ion-icon name="cube-outline" color="dark" slot="start"></ion-icon>
-            <ion-label>
-              <h2 style="font-weight: bold; white-space: normal;">{{ prod.nazov }}</h2>
-              <p>
-                Systémové ID: <strong>{{ prod.interne_id }}</strong>
-                <span *ngIf="prod.vlastne_id"> | Číslo: {{ prod.vlastne_id }}</span>
-              </p>
-            </ion-label>
-            <ion-badge slot="end" color="dark">Neznámy produkt</ion-badge>
+          <ion-item *ngFor="let prod of filtruvaneNezname">
+            <div style="width: 100%; padding: 10px 0;">
+              
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h2 style="font-weight: bold; white-space: normal;">{{ prod.nazov }}</h2>
+                  <p style="margin-bottom: 0;">Systémové ID: <strong>{{ prod.interne_id }}</strong><span *ngIf="prod.vlastne_id"> | Číslo: {{ prod.vlastne_id }}</span></p>
+                </div>
+                <ion-button fill="outline" size="small" (click)="prod.expanded = !prod.expanded">
+                  {{ prod.expanded ? 'Zbaliť' : 'Riešiť' }}
+                </ion-button>
+              </div>
+
+              <div *ngIf="prod.expanded" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
+                  <div style="flex: 1; border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 0 5px;">
+                    <ion-select interface="modal" placeholder="Kategória" [(ngModel)]="prod.kategoria_id" style="width: 100%;">
+                      <ion-select-option [value]="null">Bez kategórie</ion-select-option>
+                      <ion-select-option *ngFor="let k of kategorie" [value]="k.id">{{ k.nazov }}</ion-select-option>
+                    </ion-select>
+                  </div>
+                  <div style="flex: 1; border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 0 5px;">
+                    <ion-select interface="popover" placeholder="Stredisko" [(ngModel)]="prod.stredisko_id" style="width: 100%;">
+                      <ion-select-option [value]="null">Bez strediska</ion-select-option>
+                      <ion-select-option *ngFor="let s of strediska" [value]="s.id">{{ s.nazov }}</ion-select-option>
+                    </ion-select>
+                  </div>
+                  <div style="width: 70px; border: 1px solid var(--ion-color-light-shade); border-radius: 6px; display: flex; align-items: center;">
+                    <ion-input type="number" 
+                    [(ngModel)]="prod.balenie_ks" 
+                    placeholder="ks"
+                    style="text-align: center;"></ion-input>
+                  </div>
+                </div>
+
+                <ion-button expand="block" color="success" style="margin-top: 15px;" (click)="importovatNeznamyProdukt(prod)">
+                  ✔️ Uložiť tento produkt do katalógu
+                </ion-button>
+              </div>
+
+            </div>
           </ion-item>
         </ion-list>
       </div>
 
-        <ion-item *ngFor="let chyba of vysledokPorovnania">
-          <ion-icon 
-            [name]="chyba.stav === 'chyba_v_inventure' ? 'alert-circle' : 'add-circle'" 
-            [color]="chyba.stav === 'chyba_v_inventure' ? 'danger' : 'warning'" 
-            slot="start">
-          </ion-icon>
-          <ion-label>
-            <h2 style="font-weight: bold; white-space: normal;">{{ chyba.nazov }}</h2>
-            <p>
-              Systémové ID: <strong>{{ chyba.interne_id }}</strong>
-              <span *ngIf="chyba.vlastne_id"> | Číslo: {{ chyba.vlastne_id }}</span>
-            </p>
-          </ion-label>
-          <ion-badge slot="end" [color]="chyba.stav === 'chyba_v_inventure' ? 'danger' : 'warning'">
-             {{ chyba.stav === 'chyba_v_inventure' ? 'Chýba' : 'Navyše' }}
-          </ion-badge>
-        </ion-item>
-      </ion-list>
+      <div *ngIf="filtruvaneChyby.length > 0">
+        <h3 style="font-size: 1rem; font-weight: bold; color: var(--ion-color-dark); margin-bottom: 10px; padding-left: 10px;">
+          Chyby v inventúre (Úpravy a zámeny na sklade)
+        </h3>
+        
+        <ion-list lines="full">
+          <ion-item *ngFor="let chyba of filtruvaneChyby">
+            <div style="width: 100%; padding: 10px 0;">
+              
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h2 style="font-weight: bold; white-space: normal;">{{ chyba.nazov }}</h2>
+                  <p style="margin-bottom: 0;">
+                    ID: <strong>{{ chyba.vlastne_id }}</strong>
+                    <ion-badge [color]="chyba.stav === 'chyba_v_inventure' ? 'danger' : 'warning'" style="margin-left: 10px;">
+                      {{ chyba.stav === 'chyba_v_inventure' ? 'Chýba' : 'Navyše' }}
+                    </ion-badge>
+                  </p>
+                </div>
+                <ion-button fill="outline" size="small" (click)="chyba.expanded = !chyba.expanded">
+                  {{ chyba.expanded ? 'Zbaliť' : 'Riešiť' }}
+                </ion-button>
+              </div>
+
+              <div *ngIf="chyba.expanded" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                
+                <div style="border: 1px solid var(--ion-color-primary); border-radius: 6px; padding: 10px; margin-bottom: 10px; background: rgba(var(--ion-color-primary-rgb), 0.05);">
+                  <ion-label style="font-size: 0.8rem; font-weight: bold; color: var(--ion-color-primary); display: block; margin-bottom: 5px;">
+                    1. Úprava počtu na sklade:
+                  </ion-label>
+                  <ion-input type="number" 
+                  [(ngModel)]="chyba.mnozstvo_uprava"
+                  (ngModelChange)="aktualizujOdpocet(chyba)"
+                   placeholder="Zadaj počet (+/-)" 
+                   style="background: white; border-radius: 4px; border: 1px solid #ccc; padding-left: 10px;"></ion-input>
+                </div>
+
+                <div style="border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                  <ion-label style="font-size: 0.8rem; color: var(--ion-color-medium); font-weight: bold; display: block; margin-bottom: 5px;">
+                    2. Umiestnenie na sklade:
+                  </ion-label>
+                  
+                  <div *ngIf="chyba.zname_lokacie?.length > 0" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
+                    <ion-chip *ngFor="let lok of chyba.zname_lokacie" 
+                              [color]="chyba.regal_id === lok.id ? 'primary' : 'medium'"
+                              (click)="chyba.regal_id = lok.id"
+                              style="margin: 0; cursor: pointer; border-radius: 6px;">
+                      <ion-icon name="cube-outline"></ion-icon>
+                      <ion-label style="font-size: 0.8rem;">{{ lok.nazov }} ({{ lok.mnozstvo }} ks)</ion-label>
+                    </ion-chip>
+                  </div>
+
+                  <div style="border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 0 5px; background: white;">
+                    <ion-select interface="popover" placeholder="📦 Ponechať bez umiestnenia" [(ngModel)]="chyba.regal_id" style="width: 100%;">
+                      <ion-select-option [value]="null">📦 Ponechať bez umiestnenia</ion-select-option>
+                      <ion-select-option *ngFor="let r of regalySkladu" [value]="r.id">{{ r.nazov }}</ion-select-option>
+                    </ion-select>
+                  </div>
+                </div>
+
+                <div style="background: rgba(var(--ion-color-warning-rgb), 0.1); padding: 10px; border-radius: 6px; border: 1px solid var(--ion-color-warning);">
+                  <ion-label style="font-size: 0.8rem; color: var(--ion-color-dark); font-weight: bold; display: block; margin-bottom: 5px;">
+                    3. Zámena: Odpočítať z existujúceho produktu? (Nepovinné)
+                  </ion-label>
+                  
+                  <div *ngIf="chyba.mozneZameny?.length > 0; else ziadneZameny" style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1; border: 1px solid var(--ion-color-warning); border-radius: 6px; background: white; padding: 0 5px;">
+                      <ion-select interface="modal" placeholder="Nič neodpočítať" [(ngModel)]="chyba.odpocitat_z_id" style="width: 100%;">
+                        <ion-select-option [value]="null">Nič neodpočítať</ion-select-option>
+                        <ion-select-option *ngFor="let existujuci of chyba.mozneZameny" [value]="existujuci.id">
+                          {{ existujuci.nazov }}
+                        </ion-select-option>
+                      </ion-select>
+                    </div>
+                    <div *ngIf="chyba.odpocitat_z_id" style="width: 80px; border: 1px solid var(--ion-color-warning); border-radius: 6px; background: white;">
+                      <ion-input type="number" [(ngModel)]="chyba.mnozstvo_na_odpocet" placeholder="- ks" style="text-align: center;"></ion-input>
+                    </div>
+                  </div>
+                  
+                  <ng-template #ziadneZameny>
+                    <p style="font-size: 0.8rem; color: var(--ion-color-medium); margin: 0;">
+                      <ion-icon name="information-circle-outline" style="vertical-align: middle;"></ion-icon>
+                      <i> Žiadne iné produkty z tejto kategórie neboli v appke spočítané.</i>
+                    </p>
+                  </ng-template>
+
+                </div>
+
+                <ion-button expand="block" color="primary" style="margin-top: 15px;" (click)="opravitJednuChybu(chyba)">
+                  Aplikovať túto opravu
+                </ion-button>
+
+              </div>
+            </div>
+          </ion-item>
+        </ion-list>
+      </div>
 
       <ion-button expand="block" fill="outline" color="medium" (click)="isModalOpen = false" style="margin-top: 20px;">
         Zavrieť prehľad

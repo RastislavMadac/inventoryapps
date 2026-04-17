@@ -6,23 +6,31 @@ import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
   closeCircleOutline, alertCircle, checkmarkCircleOutline,
-  createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline
+  createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline
 } from 'ionicons/icons';
 import { AlertController, ToastController, LoadingController } from '@ionic/angular';
 
 import {
   IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
   IonItem, IonLabel, IonBadge, IonButton, IonCardHeader,
-  IonCardTitle, IonCardSubtitle, IonListHeader, IonNote, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent
+  IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonCheckbox,
+  IonSelect,
+  IonSelectOption,
+  IonInput, IonChip, IonSearchbar
 } from '@ionic/angular/standalone';
 
+import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule,
+    CommonModule, FormsModule,
     IonCard, IonCardContent, IonIcon, IonSpinner,
-    IonList, IonItem, IonLabel, IonBadge, IonButton, IonCardHeader, IonCardTitle, IonCardSubtitle, IonListHeader, IonNote, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent
+    IonList, IonItem, IonLabel, IonBadge, IonButton, IonCardHeader, IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, FormsModule, IonChip,      // 🔥 PRIDANÉ (bez tohto nefunguje ngModel)
+    IonCheckbox, IonSearchbar,     // 🔥 PRIDANÉ (pre checkbox v modali)
+    IonSelect,        // 🔥 PRIDANÉ (pre výber kategórie/strediska)
+    IonSelectOption,  // 🔥 PRIDANÉ (pre možnosti v selecte)
+    IonInput,
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
@@ -31,7 +39,7 @@ export class DashboardComponent implements OnInit {
 
   // Globálne štatistiky katalógu
   stats = { celkovo: 0, bezId: 0, spocitaneGlobal: 0 };
-
+  aktualnaInventuraId: number | null = null;
   // Zoznam všetkých inventúr s ich počtami
   zoznamInventurStats: any[] = [];
 
@@ -39,10 +47,16 @@ export class DashboardComponent implements OnInit {
   // 1. Pridaj premennú do triedy DashboardComponent
   isInvExpanded: boolean = false;
   isModalOpen: boolean = false;
-
+  searchQueryModal: string = '';
   vysledokPorovnania: any[] = [];
   isLoadingZoznam = false;
   neznameProdukty: any[] = [];
+
+  kategorie: any[] = [];
+  strediska: any[] = [];
+
+  vsetkyProduktyKatalog: any[] = [];
+  regalySkladu: any[] = [];
   // 2. Pridaj jednoduchú funkciu na prepínanie
   toggleInventury() {
     this.isInvExpanded = !this.isInvExpanded;
@@ -59,21 +73,29 @@ export class DashboardComponent implements OnInit {
     private exportService: ExportService,
     private loadingCtrl: LoadingController
   ) {
-    addIcons({ statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, warningOutline, cubeOutline, timeOutline, createOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForwardOutline, documentTextOutline, listOutline, addCircle, chevronDown });
+    addIcons({ statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, warningOutline, informationCircleOutline, timeOutline, createOutline, cubeOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForwardOutline, documentTextOutline, listOutline, addCircle, chevronDown });
   }
 
 
 
   async ngOnInit() {
     await this.obnovitStatistiky();
+    this.kategorie = await this.supabase.getKategorie();
+    this.strediska = await this.supabase.getStrediska();
+    this.vsetkyProduktyKatalog = await this.supabase.getVsetkyProduktyZoznam();
+    this.regalySkladu = await this.supabase.getVsetkyRegaly();
   }
 
-  // 🔥 NOVÁ METÓDA PRE IMPORT EXCELU
+  get pocetVybranychNeznamych() {
+    return this.neznameProdukty.filter(p => p.selected).length;
+  }
+
+
+  // 🔥 FINÁLNA METÓDA PRE IMPORT EXCELU (Spojená so všetkými vylepšeniami)
   async onFileChange(event: any) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // 1. Zistíme, či máme otvorenú inventúru, do ktorej budeme importovať
     const otvorena = await this.supabase.getOtvorenaInventura();
     if (!otvorena) {
       const toast = await this.toastCtrl.create({
@@ -83,24 +105,82 @@ export class DashboardComponent implements OnInit {
       toast.present();
       return;
     }
-
-    const loading = await this.loadingCtrl.create({ message: 'Spracovávam Excel...' });
+    this.aktualnaInventuraId = otvorena.id;
+    const loading = await this.loadingCtrl.create({ message: 'Spracovávam Excel a načítavam dáta...' });
     await loading.present();
 
     try {
+      // 1. Parsujeme Excel a nahráme do dočasnej tabuľky
       const jsonData = await this.exportService.parsovatExcelImport(file);
       await this.supabase.nahratImportDoTemp(otvorena.id, jsonData);
 
-      // Spustíme obe kontroly naraz (paralelne pre vyššiu rýchlosť)
-      const [rozdiely, nezname] = await Promise.all([
+      // 2. Stiahneme rozdiely, neznáme produkty a REÁLNE spočítané položky
+      const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
         this.supabase.porovnatImportSInventurou(otvorena.id),
-        this.supabase.skontrolovatNeznameProdukty(otvorena.id) // 🔥 Nové volanie
+        this.supabase.skontrolovatNeznameProdukty(otvorena.id),
+        this.supabase.getRawInventuraData(otvorena.id)
       ]);
 
-      this.vysledokPorovnania = rozdiely;
-      this.neznameProdukty = nezname; // 🔥 Uloženie do premennej
+      // Vytvoríme rýchly Set (zoznam ID) produktov, ktoré sa reálne skenovali
+      const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
 
-      // Modal otvoríme, ak sa našla chyba buď v inventúre, ALEBO v chýbajúcich produktoch
+      // 🔥 3. Mapujeme CHYBY (Červené / Žlté položky)
+      this.vysledokPorovnania = await Promise.all(rozdiely.map(async (r: any) => {
+        let znameLokacie: any[] = [];
+        let mozneZameny: any[] = [];
+
+        if (r.produkt_id) {
+          // A. Získame známe lokácie produktu na sklade (s TS ochranou poľa)
+          const zasoby = await this.supabase.ziskatLokacieProduktu(r.produkt_id);
+          if (zasoby && zasoby.length > 0) {
+            znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
+              const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
+              if (!regalObj) return null;
+
+              const skladData = regalObj.sklady;
+              const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || '';
+              return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
+            }).filter((item: any) => item !== null);
+          }
+
+          // B. Inteligentná ZÁMENA (Filtrujeme katalóg)
+          const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
+          const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
+
+          if (kategoriaId) {
+            mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
+              p.kategoria_id === kategoriaId &&   // Rovnaká kategória
+              spocitaneProduktIds.has(p.id) &&    // Reálne naskenované v appke
+              p.id !== r.produkt_id               // Nie je to ten istý produkt
+            );
+          }
+        }
+
+        return {
+          ...r,
+          expanded: false, // Pre UI rozbaľovanie tlačidlom "Riešiť"
+          mnozstvo_uprava: null,
+          regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null, // Automatický výber, ak je len 1 regál
+          odpocitat_z_id: null,
+          mnozstvo_na_odpocet: null,
+          zname_lokacie: znameLokacie, // Pre rýchle tlačidlá
+          mozneZameny: mozneZameny     // Pre inteligentný dropdown
+        };
+      }));
+
+      // 🔥 4. Mapujeme NEZNÁME PRODUKTY (Z Excelu, čo nie sú v katalógu)
+      this.neznameProdukty = nezname.map((p: any) => ({
+        ...p,
+        expanded: false,
+        kategoria_id: null,
+        stredisko_id: null,
+        balenie_ks: 1,
+        regal_id: null,
+        odpocitat_z_id: null,
+        mnozstvo_na_odpocet: null
+      }));
+
+      // 5. Otvoríme modál alebo zahlásime 100% zhodu
       if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
         this.isModalOpen = true;
       } else {
@@ -110,23 +190,71 @@ export class DashboardComponent implements OnInit {
         });
         t.present();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-
-      // Vytvoríme si bezpečnú správu
-      const msg = error instanceof Error ? error.message : 'Neznáma chyba pri spracovaní súboru';
-
       const errToast = await this.toastCtrl.create({
-        message: 'Chyba importu: ' + msg,
-        color: 'danger',
-        duration: 4000
+        message: 'Chyba importu: ' + (error.message || 'Neznáma chyba'),
+        color: 'danger', duration: 4000
       });
       errToast.present();
     } finally {
-      await loading.dismiss(); // 🔥 MUSÍ tu byť await
-      event.target.value = '';
+      await loading.dismiss();
+      event.target.value = ''; // Umožní znovu vybrať ten istý súbor
     }
   }
+
+  // 🔥 PRIDANÝ GETTER A METÓDA PRE OPRAVU CHÝB
+  get pocetVybranychChyb() {
+    return this.vysledokPorovnania.filter(c => c.selected).length;
+  }
+
+  // async opravitVybraneChyby() {
+  //   const vybrane = this.vysledokPorovnania.filter(c => c.selected);
+  //   if (vybrane.length === 0) return;
+
+  //   const loading = await this.loadingCtrl.create({ message: 'Aplikujem opravy na sklad...' });
+  //   await loading.present();
+
+  //   try {
+  //     for (const chyba of vybrane) {
+  //       if (!chyba.produkt_id) {
+  //         console.warn('Pozor: Produkt nemá ID, aktualizuj SQL funkciu.', chyba.nazov);
+  //         continue;
+  //       }
+
+  //       // Zavoláme servis s regálom aj zámenou
+  //       await this.supabase.opravitChybuNaSklade({
+  //         produkt_id: chyba.produkt_id,
+  //         mnozstvo_uprava: chyba.mnozstvo_uprava,
+  //         regal_id: chyba.regal_id,
+  //         odpocitat_z_id: chyba.odpocitat_z_id,
+  //         mnozstvo_na_odpocet: chyba.mnozstvo_na_odpocet
+  //       });
+  //     }
+
+  //     const toast = await this.toastCtrl.create({
+  //       message: `Úspešne opravených ${vybrane.length} chýb v inventúre.`,
+  //       duration: 3000, color: 'success'
+  //     });
+  //     await toast.present();
+
+  //     this.vysledokPorovnania = this.vysledokPorovnania.filter(c => !c.selected);
+  //     await this.obnovitStatistiky();
+
+  //     if (this.neznameProdukty.length === 0 && this.vysledokPorovnania.length === 0) {
+  //       this.isModalOpen = false;
+  //     }
+  //   } catch (error: any) {
+  //     console.error('Chyba pri oprave:', error);
+  //     const errToast = await this.toastCtrl.create({
+  //       message: 'Chyba: ' + error.message,
+  //       duration: 5000, color: 'danger'
+  //     });
+  //     await errToast.present();
+  //   } finally {
+  //     await loading.dismiss();
+  //   }
+  // }
 
   async obnovitStatistiky() {
     this.isLoadingStats = true;
@@ -215,6 +343,178 @@ export class DashboardComponent implements OnInit {
     this.zobrazeneProdukty = [];
   }
 
+  // async importovatNeznameProdukty() {
+  //   const vybrane = this.neznameProdukty.filter(p => p.selected);
+  //   if (vybrane.length === 0) return;
+
+  //   const loading = await this.loadingCtrl.create({ message: 'Zapisujem do katalógu a skladu...' });
+  //   await loading.present();
+
+  //   try {
+  //     // Použijeme for...of cyklus pre bezpečné asynchrónne volania za sebou
+  //     for (const prod of vybrane) {
+  //       // 1. Vytvoríme nový produkt v hlavnom katalógu (produkty)
+  //       const novyProdukt = await this.supabase.vytvoritProdukt({
+  //         nazov: prod.nazov,
+  //         vlastne_id: prod.vlastne_id,
+  //         Interne_id: prod.interne_id,
+  //         kategoria_id: prod.kategoria_id,
+  //         stredisko_id: prod.stredisko_id,
+  //         balenie_ks: prod.balenie_ks,
+  //         jednotka: 'ks' // Predvolená hodnota
+  //       });
+
+  //       // 2. Zapíšeme na sklad a prípadne odpočítame substitúciu
+  //       await this.supabase.spracovatPrijemSoSubstituciou({
+  //         produkt_id: novyProdukt.id,
+  //         mnozstvo: prod.mnozstvo,
+  //         regal_id: prod.regal_id, // Bude null, ak nevybral regál v UI
+  //         odpocitat_z_id: prod.odpocitat_z_id,
+  //         mnozstvo_na_odpocet: prod.mnozstvo_na_odpocet
+  //       });
+  //     }
+
+  //     const toast = await this.toastCtrl.create({
+  //       message: `Úspešne pridaných ${vybrane.length} produktov.`,
+  //       duration: 3000,
+  //       color: 'success',
+  //       position: 'bottom'
+  //     });
+  //     await toast.present();
+
+  //     // Vyčistenie a obnova UI
+  //     this.neznameProdukty = this.neznameProdukty.filter(p => !p.selected);
+  //     await this.obnovitStatistiky();
+
+  //     if (this.neznameProdukty.length === 0 && this.vysledokPorovnania.length === 0) {
+  //       this.isModalOpen = false;
+  //     }
+
+  //   } catch (error: any) {
+  //     console.error('Chyba pri importe:', error);
+  //     const errToast = await this.toastCtrl.create({
+  //       message: 'Chyba pri pridávaní položiek: ' + error.message,
+  //       duration: 5000, color: 'danger'
+  //     });
+  //     await errToast.present();
+  //   } finally {
+  //     await loading.dismiss();
+  //   }
+  // }
+
+
   async zmenitId(p: any) { /* Tvoja existujúca funkcia na zmenu ID */ }
   async ulozitNoveId(id: number, noveId: string) { /* Tvoja existujúca funkcia */ }
+
+  // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt
+  async importovatNeznamyProdukt(prod: any) {
+    const loading = await this.loadingCtrl.create({ message: 'Zapisujem do katalógu...' });
+    await loading.present();
+
+    try {
+      const novyProdukt = await this.supabase.vytvoritProdukt({
+        nazov: prod.nazov,
+        vlastne_id: prod.vlastne_id,
+        Interne_id: prod.interne_id,
+        kategoria_id: prod.kategoria_id,
+        stredisko_id: prod.stredisko_id,
+        balenie_ks: prod.balenie_ks,
+        jednotka: 'ks'
+      });
+
+      await this.supabase.spracovatPrijemSoSubstituciou({
+        produkt_id: novyProdukt.id,
+        mnozstvo: prod.mnozstvo,
+        regal_id: prod.regal_id,
+        odpocitat_z_id: prod.odpocitat_z_id,
+        mnozstvo_na_odpocet: prod.mnozstvo_na_odpocet
+      });
+
+      // Odstránime vybavenú položku zo zoznamu
+      this.neznameProdukty = this.neznameProdukty.filter(p => p !== prod);
+
+      const toast = await this.toastCtrl.create({ message: 'Produkt úspešne pridaný.', duration: 2000, color: 'success' });
+      await toast.present();
+
+      await this.skontrolovatKoniecModalu();
+    } catch (error: any) {
+      console.error('Chyba:', error);
+      const errToast = await this.toastCtrl.create({ message: 'Chyba: ' + error.message, duration: 4000, color: 'danger' });
+      await errToast.present();
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  // 2. INDIVIDUÁLNE ULOŽENIE: Oprava chyby (Červené / Žlté)
+  async opravitJednuChybu(chyba: any) {
+    if (!chyba.produkt_id || !this.aktualnaInventuraId) {
+      const t = await this.toastCtrl.create({ message: 'Zlyhanie: Produkt nemá ID.', duration: 3000, color: 'danger' });
+      t.present();
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({ message: 'Aplikujem opravu...' });
+    await loading.present();
+
+    try {
+      await this.supabase.opravitChybuNaSklade({
+        inventura_id: this.aktualnaInventuraId, // 🔥 TOTO PRIDAJ
+        produkt_id: chyba.produkt_id,
+        mnozstvo_uprava: chyba.mnozstvo_uprava,
+        regal_id: chyba.regal_id,
+        odpocitat_z_id: chyba.odpocitat_z_id,
+        mnozstvo_na_odpocet: chyba.mnozstvo_na_odpocet
+      });
+
+      // Odstránime vybavenú položku zo zoznamu
+      this.vysledokPorovnania = this.vysledokPorovnania.filter(c => c !== chyba);
+
+      const toast = await this.toastCtrl.create({ message: 'Oprava úspešne aplikovaná.', duration: 2000, color: 'success' });
+      await toast.present();
+
+      await this.skontrolovatKoniecModalu();
+    } catch (error: any) {
+      console.error('Chyba:', error);
+      const errToast = await this.toastCtrl.create({ message: 'Chyba: ' + error.message, duration: 4000, color: 'danger' });
+      await errToast.present();
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+  // 3. POMOCNÁ FUNKCIA: Ak vyriešime všetko, zavrie sa okno
+  async skontrolovatKoniecModalu() {
+    await this.obnovitStatistiky();
+    if (this.neznameProdukty.length === 0 && this.vysledokPorovnania.length === 0) {
+      this.isModalOpen = false;
+    }
+  }
+
+  odstranDiakritiku(text: string): string {
+    if (!text) return '';
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  get filtruvaneNezname() {
+    if (!this.searchQueryModal) return this.neznameProdukty;
+    const query = this.odstranDiakritiku(this.searchQueryModal);
+    return this.neznameProdukty.filter(p => this.odstranDiakritiku(p.nazov).includes(query));
+  }
+
+  get filtruvaneChyby() {
+    if (!this.searchQueryModal) return this.vysledokPorovnania;
+    const query = this.odstranDiakritiku(this.searchQueryModal);
+    return this.vysledokPorovnania.filter(c => this.odstranDiakritiku(c.nazov).includes(query));
+  }
+  // 🔥 POMOCNÁ FUNKCIA: Automatické predvyplnenie odpočtu
+  aktualizujOdpocet(chyba: any) {
+    if (chyba.mnozstvo_uprava !== null && chyba.mnozstvo_uprava !== undefined) {
+      // Math.abs() zabezpečí, že ak zadá -5 aj 5, do odpočtu pôjde čistých 5 ks
+      chyba.mnozstvo_na_odpocet = Math.abs(chyba.mnozstvo_uprava);
+    } else {
+      chyba.mnozstvo_na_odpocet = null;
+    }
+  }
 }
+
