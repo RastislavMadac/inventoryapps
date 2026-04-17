@@ -1393,4 +1393,17 @@ export class SupabaseService {
             nazov: `${r.sklady?.nazov || 'Neznámy sklad'} - ${r.nazov}`
         }));
     }
+    // 🔥 Zistí, či už bol pre túto inventúru nahratý Excel
+    async getPocetImportovTemp(inventuraId: number): Promise<number> {
+        const { count, error } = await this.supabase
+            .from('importy_temp')
+            .select('*', { count: 'exact', head: true })
+            .eq('inventura_id', inventuraId);
+
+        if (error) {
+            console.error('Chyba pri kontrole importu:', error);
+            return 0;
+        }
+        return count || 0;
+    }
 }

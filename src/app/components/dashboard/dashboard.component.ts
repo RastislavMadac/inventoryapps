@@ -54,7 +54,7 @@ export class DashboardComponent implements OnInit {
 
   kategorie: any[] = [];
   strediska: any[] = [];
-
+  maNahranyImport: boolean = false; // 🔥 Hore pri ostatných premenných
   vsetkyProduktyKatalog: any[] = [];
   regalySkladu: any[] = [];
   // 2. Pridaj jednoduchú funkciu na prepínanie
@@ -84,122 +84,116 @@ export class DashboardComponent implements OnInit {
     this.strediska = await this.supabase.getStrediska();
     this.vsetkyProduktyKatalog = await this.supabase.getVsetkyProduktyZoznam();
     this.regalySkladu = await this.supabase.getVsetkyRegaly();
+    await this.overitExistujuciImport();
   }
 
   get pocetVybranychNeznamych() {
     return this.neznameProdukty.filter(p => p.selected).length;
   }
+  async overitExistujuciImport() {
+    const otvorena = await this.supabase.getOtvorenaInventura();
+    if (otvorena) {
+      this.aktualnaInventuraId = otvorena.id;
+      const pocet = await this.supabase.getPocetImportovTemp(otvorena.id);
+      this.maNahranyImport = pocet > 0;
+    } else {
+      this.maNahranyImport = false;
+    }
+  }
 
-
-  // 🔥 FINÁLNA METÓDA PRE IMPORT EXCELU (Spojená so všetkými vylepšeniami)
+  // 1. Zabezpečí len samotné nahratie nového súboru do databázy
   async onFileChange(event: any) {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file || !this.aktualnaInventuraId) return;
 
-    const otvorena = await this.supabase.getOtvorenaInventura();
-    if (!otvorena) {
-      const toast = await this.toastCtrl.create({
-        message: 'Chyba: Neexistuje žiadna otvorená inventúra pre import.',
-        color: 'danger', duration: 3000
-      });
-      toast.present();
-      return;
-    }
-    this.aktualnaInventuraId = otvorena.id;
-    const loading = await this.loadingCtrl.create({ message: 'Spracovávam Excel a načítavam dáta...' });
+    const loading = await this.loadingCtrl.create({ message: 'Nahrávam Excel na server...' });
     await loading.present();
 
     try {
-      // 1. Parsujeme Excel a nahráme do dočasnej tabuľky
       const jsonData = await this.exportService.parsovatExcelImport(file);
-      await this.supabase.nahratImportDoTemp(otvorena.id, jsonData);
+      await this.supabase.nahratImportDoTemp(this.aktualnaInventuraId, jsonData);
+      this.maNahranyImport = true;
 
-      // 2. Stiahneme rozdiely, neznáme produkty a REÁLNE spočítané položky
+      await loading.dismiss(); // Vypneme starý loading
+      await this.otvoritValidaciu(); // Otvoríme rovno validáciu
+
+    } catch (error: any) {
+      console.error(error);
+      const errToast = await this.toastCtrl.create({ message: 'Chyba importu: ' + error.message, color: 'danger', duration: 4000 });
+      errToast.present();
+      await loading.dismiss();
+    } finally {
+      event.target.value = '';
+    }
+  }
+
+  // 2. Samotná logika mapovania a otvorenia modálneho okna
+  async otvoritValidaciu() {
+    if (!this.aktualnaInventuraId) return;
+
+    const loading = await this.loadingCtrl.create({ message: 'Porovnávam dáta a lokácie...' });
+    await loading.present();
+
+    try {
       const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
-        this.supabase.porovnatImportSInventurou(otvorena.id),
-        this.supabase.skontrolovatNeznameProdukty(otvorena.id),
-        this.supabase.getRawInventuraData(otvorena.id)
+        this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
+        this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
+        this.supabase.getRawInventuraData(this.aktualnaInventuraId)
       ]);
 
-      // Vytvoríme rýchly Set (zoznam ID) produktov, ktoré sa reálne skenovali
       const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
 
-      // 🔥 3. Mapujeme CHYBY (Červené / Žlté položky)
       this.vysledokPorovnania = await Promise.all(rozdiely.map(async (r: any) => {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
 
         if (r.produkt_id) {
-          // A. Získame známe lokácie produktu na sklade (s TS ochranou poľa)
           const zasoby = await this.supabase.ziskatLokacieProduktu(r.produkt_id);
           if (zasoby && zasoby.length > 0) {
             znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
               const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
               if (!regalObj) return null;
-
               const skladData = regalObj.sklady;
               const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || '';
               return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
             }).filter((item: any) => item !== null);
           }
 
-          // B. Inteligentná ZÁMENA (Filtrujeme katalóg)
           const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
           const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
 
           if (kategoriaId) {
             mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
-              p.kategoria_id === kategoriaId &&   // Rovnaká kategória
-              spocitaneProduktIds.has(p.id) &&    // Reálne naskenované v appke
-              p.id !== r.produkt_id               // Nie je to ten istý produkt
+              p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
             );
           }
         }
 
         return {
-          ...r,
-          expanded: false, // Pre UI rozbaľovanie tlačidlom "Riešiť"
-          mnozstvo_uprava: null,
-          regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null, // Automatický výber, ak je len 1 regál
-          odpocitat_z_id: null,
-          mnozstvo_na_odpocet: null,
-          zname_lokacie: znameLokacie, // Pre rýchle tlačidlá
-          mozneZameny: mozneZameny     // Pre inteligentný dropdown
+          ...r, expanded: false, mnozstvo_uprava: null,
+          regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null,
+          odpocitat_z_id: null, mnozstvo_na_odpocet: null,
+          zname_lokacie: znameLokacie, mozneZameny: mozneZameny
         };
       }));
 
-      // 🔥 4. Mapujeme NEZNÁME PRODUKTY (Z Excelu, čo nie sú v katalógu)
       this.neznameProdukty = nezname.map((p: any) => ({
-        ...p,
-        expanded: false,
-        kategoria_id: null,
-        stredisko_id: null,
-        balenie_ks: 1,
-        regal_id: null,
-        odpocitat_z_id: null,
-        mnozstvo_na_odpocet: null
+        ...p, expanded: false, kategoria_id: null, stredisko_id: null,
+        balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
       }));
 
-      // 5. Otvoríme modál alebo zahlásime 100% zhodu
       if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
         this.isModalOpen = true;
       } else {
-        const t = await this.toastCtrl.create({
-          message: 'Excel je v 100% zhode a všetky produkty existujú!',
-          color: 'success', duration: 3000
-        });
+        const t = await this.toastCtrl.create({ message: '100% zhoda!', color: 'success', duration: 3000 });
         t.present();
       }
-    } catch (error: any) {
-      console.error(error);
-      const errToast = await this.toastCtrl.create({
-        message: 'Chyba importu: ' + (error.message || 'Neznáma chyba'),
-        color: 'danger', duration: 4000
-      });
-      errToast.present();
+    } catch (e: any) {
+      console.error(e);
+      const t = await this.toastCtrl.create({ message: 'Chyba: ' + e.message, color: 'danger', duration: 4000 });
+      t.present();
     } finally {
       await loading.dismiss();
-      event.target.value = ''; // Umožní znovu vybrať ten istý súbor
     }
   }
 

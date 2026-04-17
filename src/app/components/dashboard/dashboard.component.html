@@ -34,14 +34,28 @@
   </ion-card-header>
 
   <ion-card-content>
-    <p class="import-info">Nahrajte Excel (hlavička na riadku 4), systém porovná fyzickú inventúru so stavom v súbore.</p>
+    <p class="import-info">Systém porovná fyzickú inventúru so stavom v Exceli z účtovníctva.</p>
     
     <input type="file" #fileInput (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
     
-    <ion-button expand="block" color="tertiary" (click)="fileInput.click()">
-      <ion-icon name="cloud-upload-outline" slot="start"></ion-icon>
-      Nahrať stav z účtovníctva
-    </ion-button>
+    <div *ngIf="maNahranyImport">
+      <ion-button expand="block" color="primary" (click)="otvoritValidaciu()" style="margin-bottom: 10px;">
+        <ion-icon name="checkmark-done-circle-outline" slot="start"></ion-icon>
+        Pokračovať vo validácii
+      </ion-button>
+      
+      <ion-button expand="block" fill="clear" color="medium" (click)="fileInput.click()">
+        Nahrať iný (nový) Excel
+      </ion-button>
+    </div>
+
+    <div *ngIf="!maNahranyImport">
+      <ion-button expand="block" color="tertiary" (click)="fileInput.click()">
+        <ion-icon name="cloud-upload-outline" slot="start"></ion-icon>
+        Nahrať stav z účtovníctva
+      </ion-button>
+    </div>
+
   </ion-card-content>
 </ion-card>
 
