@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
 //import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
-import { ViewDidEnter, ViewWillLeave } from '@ionic/angular';
+
 @Component({
   selector: 'app-calculator-modal',
   standalone: true,
@@ -14,7 +14,7 @@ import { ViewDidEnter, ViewWillLeave } from '@ionic/angular';
   templateUrl: './calculator-modal.component.html',
   styleUrls: ['./calculator-modal.component.scss'],
 })
-export class CalculatorModalComponent implements OnInit, ViewDidEnter, ViewWillLeave {
+export class CalculatorModalComponent implements OnInit {
 
   @Input() produktId: number = 0;
   @Input() nazovProduktu: string = '';
