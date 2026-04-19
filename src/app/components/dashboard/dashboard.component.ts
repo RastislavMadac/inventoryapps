@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
   closeCircleOutline, alertCircle, checkmarkCircleOutline,
-  createOutline, checkmarkDoneCircleOutline, chevronForwardOutline, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline
+  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline
 } from 'ionicons/icons';
 import { AlertController, ToastController, LoadingController } from '@ionic/angular';
 
@@ -26,10 +26,10 @@ import { FormsModule } from '@angular/forms';
   imports: [
     CommonModule, FormsModule,
     IonCard, IonCardContent, IonIcon, IonSpinner,
-    IonList, IonItem, IonLabel, IonBadge, IonButton, IonCardHeader, IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, FormsModule, IonChip,      // 🔥 PRIDANÉ (bez tohto nefunguje ngModel)
-    IonCheckbox, IonSearchbar,     // 🔥 PRIDANÉ (pre checkbox v modali)
-    IonSelect,        // 🔥 PRIDANÉ (pre výber kategórie/strediska)
-    IonSelectOption,  // 🔥 PRIDANÉ (pre možnosti v selecte)
+    IonList, IonItem, IonLabel, IonBadge, IonButton, IonCardHeader, IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, FormsModule, IonChip,
+    IonCheckbox, IonSearchbar,
+    IonSelect,
+    IonSelectOption,
     IonInput, IonRippleEffect
   ],
   templateUrl: './dashboard.component.html',
@@ -73,7 +73,7 @@ export class DashboardComponent implements OnInit {
     private exportService: ExportService,
     private loadingCtrl: LoadingController
   ) {
-    addIcons({ statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, warningOutline, informationCircleOutline, timeOutline, createOutline, cubeOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForwardOutline, documentTextOutline, listOutline, addCircle, chevronDown });
+    addIcons({ statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, warningOutline, informationCircleOutline, timeOutline, createOutline, cubeOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown });
   }
 
 
