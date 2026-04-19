@@ -422,8 +422,9 @@ export class DashboardComponent implements OnInit {
 
   // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt
   async importovatNeznamyProdukt(prod: any) {
-    const loading = await this.loadingCtrl.create({ message: 'Zapisujem do katalógu...' });
-    await loading.present();
+    // 🔥 ZMAZANÝ LOADING CONTROLLER - POUŽÍVAME BEZPEČNÝ TOAST
+    const startToast = await this.toastCtrl.create({ message: '⏳ Zapisujem do databázy...', duration: 1500, position: 'top', color: 'tertiary' });
+    await startToast.present();
 
     try {
       const novyProdukt = await this.supabase.vytvoritProdukt({
@@ -444,36 +445,38 @@ export class DashboardComponent implements OnInit {
         mnozstvo_na_odpocet: prod.mnozstvo_na_odpocet
       });
 
-      // Odstránime vybavenú položku zo zoznamu
-      this.neznameProdukty = this.neznameProdukty.filter(p => p !== prod);
+      // 🔥 Prebúdzame Angular, aby položka okamžite zmizla z obrazovky
+      setTimeout(async () => {
+        this.neznameProdukty = this.neznameProdukty.filter(p => p !== prod);
 
-      const toast = await this.toastCtrl.create({ message: 'Produkt úspešne pridaný.', duration: 2000, color: 'success' });
-      await toast.present();
+        const toast = await this.toastCtrl.create({ message: '✅ Produkt úspešne pridaný.', duration: 2500, position: 'top', color: 'success' });
+        await toast.present();
 
-      await this.skontrolovatKoniecModalu();
+        await this.skontrolovatKoniecModalu();
+      }, 0);
+
     } catch (error: any) {
       console.error('Chyba:', error);
-      const errToast = await this.toastCtrl.create({ message: 'Chyba: ' + error.message, duration: 4000, color: 'danger' });
+      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)), duration: 5000, position: 'top', color: 'danger' });
       await errToast.present();
-    } finally {
-      await loading.dismiss();
     }
   }
 
   // 2. INDIVIDUÁLNE ULOŽENIE: Oprava chyby (Červené / Žlté)
   async opravitJednuChybu(chyba: any) {
     if (!chyba.produkt_id || !this.aktualnaInventuraId) {
-      const t = await this.toastCtrl.create({ message: 'Zlyhanie: Produkt nemá ID.', duration: 3000, color: 'danger' });
+      const t = await this.toastCtrl.create({ message: '❌ Zlyhanie: Chýba ID.', duration: 3000, position: 'top', color: 'danger' });
       t.present();
       return;
     }
 
-    const loading = await this.loadingCtrl.create({ message: 'Aplikujem opravu...' });
-    await loading.present();
+    // 🔥 ZMAZANÝ LOADING CONTROLLER - POUŽÍVAME BEZPEČNÝ TOAST
+    const startToast = await this.toastCtrl.create({ message: '⏳ Aplikujem opravu na sklad...', duration: 1500, position: 'top', color: 'tertiary' });
+    await startToast.present();
 
     try {
       await this.supabase.opravitChybuNaSklade({
-        inventura_id: this.aktualnaInventuraId, // 🔥 TOTO PRIDAJ
+        inventura_id: this.aktualnaInventuraId,
         produkt_id: chyba.produkt_id,
         mnozstvo_uprava: chyba.mnozstvo_uprava,
         regal_id: chyba.regal_id,
@@ -481,19 +484,20 @@ export class DashboardComponent implements OnInit {
         mnozstvo_na_odpocet: chyba.mnozstvo_na_odpocet
       });
 
-      // Odstránime vybavenú položku zo zoznamu
-      this.vysledokPorovnania = this.vysledokPorovnania.filter(c => c !== chyba);
+      // 🔥 Prebúdzame Angular, aby vybavená chyba zmizla zo zoznamu
+      setTimeout(async () => {
+        this.vysledokPorovnania = this.vysledokPorovnania.filter(c => c !== chyba);
 
-      const toast = await this.toastCtrl.create({ message: 'Oprava úspešne aplikovaná.', duration: 2000, color: 'success' });
-      await toast.present();
+        const toast = await this.toastCtrl.create({ message: '✅ Oprava úspešne aplikovaná.', duration: 2500, position: 'top', color: 'success' });
+        await toast.present();
 
-      await this.skontrolovatKoniecModalu();
+        await this.skontrolovatKoniecModalu();
+      }, 0);
+
     } catch (error: any) {
       console.error('Chyba:', error);
-      const errToast = await this.toastCtrl.create({ message: 'Chyba: ' + error.message, duration: 4000, color: 'danger' });
+      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)), duration: 5000, position: 'top', color: 'danger' });
       await errToast.present();
-    } finally {
-      await loading.dismiss();
     }
   }
 
