@@ -127,53 +127,35 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // 🔥 FINALNA NEPRIESTRELNA METODA PRE VALIDACIU EXCELU
+  // 🔥 BLESKOVÁ (TURBO) A NEPRIESTRELNÁ METÓDA PRE VALIDACIU EXCELU
   async otvoritValidaciu() {
-    // 0. Overenie ID
     if (!this.aktualnaInventuraId) {
       const err = await this.toastCtrl.create({ message: '❌ Chýba ID inventúry!', duration: 3000, color: 'danger', position: 'top' });
       err.present();
       return;
     }
 
-    // 1. ZÁMERNE SME ZMAZALI LOADING CONTROLLER! 
-    // Namiesto neho používame bezpečné Toasty
-    const startToast = await this.toastCtrl.create({ message: 'Pripájam sa k databáze...', duration: 2000, position: 'top', color: 'tertiary' });
+    const startToast = await this.toastCtrl.create({ message: 'Spracovávam dáta...', duration: 1500, position: 'top', color: 'tertiary' });
     await startToast.present();
 
     try {
-      // Krok 1: Sťahujeme rozdiely
-      const t1 = await this.toastCtrl.create({ message: '⏳ 1/3: Sťahujem rozdiely', duration: 1500, position: 'top' });
-      await t1.present();
-      const rozdiely = await this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId);
+      // 🔥 TURBO KROK 1: Sťahujeme všetky 3 hlavné balíky dát NARAZ (Paralelne)
+      const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
+        this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
+        this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
+        this.supabase.getRawInventuraData(this.aktualnaInventuraId)
+      ]);
 
-      // Krok 2: Sťahujeme neznáme produkty
-      const t2 = await this.toastCtrl.create({ message: '⏳ 2/3: Sťahujem neznáme položky', duration: 1500, position: 'top' });
-      await t2.present();
-      const nezname = await this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId);
-
-      // Krok 3: Sťahujeme spočítané dáta
-      const t3 = await this.toastCtrl.create({ message: '⏳ 3/3: Sťahujem históriu', duration: 1500, position: 'top' });
-      await t3.present();
-      const spocitaneZaznamy = await this.supabase.getRawInventuraData(this.aktualnaInventuraId);
-
-      const t4 = await this.toastCtrl.create({ message: '✅ Dáta stiahnuté! Mapujem...', duration: 1500, position: 'top', color: 'success' });
-      await t4.present();
-
-      // ------------------------------------------
-      // Samotné mapovanie dát (S EXTRÉMNOU OCHRANOU PROTI NULL)
-      // ------------------------------------------
-
-      // 🔥 Ochrana: Ak Supabase vráti null, spravíme z toho prázdne pole []
+      // 🔥 Ochrana proti tichému pádu
       const safeRozdiely = rozdiely || [];
       const safeNezname = nezname || [];
       const safeSpocitane = spocitaneZaznamy || [];
       const safeKatalog = this.vsetkyProduktyKatalog || [];
 
       const spocitaneProduktIds = new Set(safeSpocitane.map((z: any) => z.produkt_id));
-      const vysledky: any[] = [];
 
-      for (const r of safeRozdiely) {
+      // 🔥 TURBO KROK 2: Zisťujeme lokácie pre všetky problémové produkty NARAZ (Paralelne)
+      const vysledky = await Promise.all(safeRozdiely.map(async (r: any) => {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
 
@@ -203,29 +185,16 @@ export class DashboardComponent implements OnInit {
           }
         }
 
-        vysledky.push({
+        return {
           ...r, expanded: false, mnozstvo_uprava: null,
           regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null,
           odpocitat_z_id: null, mnozstvo_na_odpocet: null,
           zname_lokacie: znameLokacie, mozneZameny: mozneZameny
-        });
-      }
-
-      this.vysledokPorovnania = vysledky;
-      this.neznameProdukty = safeNezname.map((p: any) => ({
-        ...p, expanded: false, kategoria_id: null, stredisko_id: null,
-        balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
+        };
       }));
 
-      // 🔥 Finálny test tesne pred otvorením
-      const finalToast = await this.toastCtrl.create({
-        message: `Pripravené: ${this.vysledokPorovnania.length} chýb, ${this.neznameProdukty.length} neznámych. Otváram...`,
-        duration: 2500, position: 'top', color: 'warning'
-      });
-      await finalToast.present();
-
-      // Zobrazíme modál alebo oslávime 100% zhodu
-      setTimeout(async () => { // 🔥 Pridali sme 'async' kvôli Toastu vo vnútri
+      // 🔥 Prebúdzame Angular a otvárame modál bez sekania
+      setTimeout(async () => {
         this.vysledokPorovnania = vysledky;
 
         this.neznameProdukty = safeNezname.map((p: any) => ({
@@ -233,11 +202,9 @@ export class DashboardComponent implements OnInit {
           balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
         }));
 
-        // Zobrazíme modál
         if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
           this.isModalOpen = true;
         } else {
-          // 🔥 TOTO TI TAM CHÝBALO: Ak je všetko čisté, ukážeme úspech
           const t = await this.toastCtrl.create({ message: 'Excel je v 100% zhode!', color: 'success', duration: 4000, position: 'top' });
           await t.present();
         }
