@@ -16,7 +16,7 @@ import {
   IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonCheckbox,
   IonSelect,
   IonSelectOption,
-  IonInput, IonChip, IonSearchbar
+  IonInput, IonChip, IonSearchbar, IonRippleEffect
 } from '@ionic/angular/standalone';
 
 import { FormsModule } from '@angular/forms';
@@ -30,7 +30,7 @@ import { FormsModule } from '@angular/forms';
     IonCheckbox, IonSearchbar,     // 🔥 PRIDANÉ (pre checkbox v modali)
     IonSelect,        // 🔥 PRIDANÉ (pre výber kategórie/strediska)
     IonSelectOption,  // 🔥 PRIDANÉ (pre možnosti v selecte)
-    IonInput,
+    IonInput, IonRippleEffect
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],

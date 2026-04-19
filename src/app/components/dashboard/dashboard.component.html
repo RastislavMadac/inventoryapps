@@ -36,24 +36,29 @@
   <ion-card-content>
     <p class="import-info">Systém porovná fyzickú inventúru so stavom v Exceli z účtovníctva.</p>
     
-    <input type="file" #fileInput (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
-    
     <div *ngIf="maNahranyImport">
-      <ion-button expand="block" color="primary" (click)="otvoritValidaciu()" style="margin-bottom: 10px;">
+      <ion-button expand="block" color="primary" (click)="otvoritValidaciu()" style="margin-bottom: 15px;">
         <ion-icon name="checkmark-done-circle-outline" slot="start"></ion-icon>
         Pokračovať vo validácii
       </ion-button>
       
-      <ion-button expand="block" fill="clear" color="medium" (click)="fileInput.click()">
-        Nahrať iný (nový) Excel
-      </ion-button>
+      <label class="mobile-safe-upload" style="display: block; width: 100%;">
+        <input type="file" (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
+        <div class="ion-activatable ripple-parent" style="text-align: center; color: var(--ion-color-medium); padding: 10px; font-weight: bold; border: 1px dashed var(--ion-color-medium); border-radius: 8px;">
+          Nahrať iný (nový) Excel
+          <ion-ripple-effect></ion-ripple-effect>
+        </div>
+      </label>
     </div>
 
     <div *ngIf="!maNahranyImport">
-      <ion-button expand="block" color="tertiary" (click)="fileInput.click()">
-        <ion-icon name="cloud-upload-outline" slot="start"></ion-icon>
-        Nahrať stav z účtovníctva
-      </ion-button>
+      <label class="mobile-safe-upload" style="display: block; width: 100%;">
+        <input type="file" (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
+        <div style="background-color: var(--ion-color-tertiary); color: white; text-align: center; padding: 15px; border-radius: 8px; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 10px;">
+          <ion-icon name="cloud-upload-outline" style="font-size: 1.2rem;"></ion-icon>
+          Nahrať stav z účtovníctva
+        </div>
+      </label>
     </div>
 
   </ion-card-content>

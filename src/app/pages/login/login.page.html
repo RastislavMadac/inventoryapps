@@ -5,7 +5,14 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  
+  <ion-refresher slot="fixed" (ionRefresh)="tvrdyRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="refresh-outline"
+      pullingText="Potiahnite pre stiahnutie aktualizácie"
+      refreshingSpinner="crescent"
+      refreshingText="Aktualizujem aplikáciu...">
+    </ion-refresher-content>
+  </ion-refresher>
   <div class="login-wrapper">
     
     <ion-icon name="cube-outline"></ion-icon>
