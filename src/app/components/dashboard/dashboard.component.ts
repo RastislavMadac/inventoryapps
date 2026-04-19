@@ -127,82 +127,83 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // 2. Samotná logika mapovania a otvorenia modálneho okna
-  // 🔥 NEPRIESTRELNÁ METÓDA PRE POKRAČOVANIE
   async otvoritValidaciu() {
-    // 1. Otestujeme, či vôbec reaguje dotyk
-    const testToast = await this.toastCtrl.create({ message: 'Dotyk prijatý! Štartujem...', duration: 1500, color: 'tertiary', position: 'top' });
-    await testToast.present();
+    // CHECKPOINT 1: Štart
+    const t1 = await this.toastCtrl.create({ message: '1. Dáta sa načítavajú...', duration: 1000, position: 'top' });
+    await t1.present();
 
     if (!this.aktualnaInventuraId) {
-      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: Chýba ID inventúry!', duration: 4000, color: 'danger' });
-      await errToast.present();
+      alert('❌ Chýba ID inventúry!');
       return;
     }
 
-    const loading = await this.loadingCtrl.create({ message: 'Porovnávam dáta a lokácie...' });
+    const loading = await this.loadingCtrl.create({ message: 'Spracovávam... (to môže chvíľu trvať)' });
     await loading.present();
 
     try {
+      // Krok 1: Stiahnutie základných dát
       const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
         this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
         this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
         this.supabase.getRawInventuraData(this.aktualnaInventuraId)
       ]);
 
-      const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
+      // CHECKPOINT 2: Dáta sú v telefóne
+      console.log('Základné dáta prijaté:', rozdiely.length);
 
-      this.vysledokPorovnania = await Promise.all(rozdiely.map(async (r: any) => {
+      const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
+      const vysledky: any[] = [];
+
+      // Krok 2: Spracovanie lokácií - IDEME PO JEDNOM (Safe mode pre mobil)
+      // Pôvodný Promise.all(map) sme nahradili klasickým cyklom for, aby sme nepreťažili sieť
+      for (const r of rozdiely) {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
 
         if (r.produkt_id) {
-          const zasoby = await this.supabase.ziskatLokacieProduktu(r.produkt_id);
-          if (zasoby && zasoby.length > 0) {
-            znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
-              const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
-              if (!regalObj) return null;
-              const skladData = regalObj.sklady;
-              const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || '';
-              return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
-            }).filter((item: any) => item !== null);
-          }
+          try {
+            const zasoby = await this.supabase.ziskatLokacieProduktu(r.produkt_id);
+            if (zasoby && zasoby.length > 0) {
+              znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
+                const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
+                const nazovSkladu = (Array.isArray(regalObj.sklady) ? regalObj.sklady[0]?.nazov : regalObj.sklady?.nazov) || 'Sklad';
+                return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
+              });
+            }
 
-          const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
-          const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
-
-          if (kategoriaId) {
-            mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
-              p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
-            );
+            const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
+            const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
+            if (kategoriaId) {
+              mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
+                p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
+              );
+            }
+          } catch (innerErr) {
+            console.warn('Chyba pri načítaní lokácie pre produkt:', r.produkt_id);
           }
         }
 
-        return {
+        vysledky.push({
           ...r, expanded: false, mnozstvo_uprava: null,
           regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null,
           odpocitat_z_id: null, mnozstvo_na_odpocet: null,
           zname_lokacie: znameLokacie, mozneZameny: mozneZameny
-        };
-      }));
+        });
+      }
 
-      this.neznameProdukty = nezname.map((p: any) => ({
-        ...p, expanded: false, kategoria_id: null, stredisko_id: null,
-        balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
-      }));
+      this.vysledokPorovnania = vysledky;
+      this.neznameProdukty = nezname.map((p: any) => ({ ...p, expanded: false }));
 
+      // CHECKPOINT 3: Otvárame modál
       if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
         this.isModalOpen = true;
       } else {
-        const t = await this.toastCtrl.create({ message: '100% zhoda!', color: 'success', duration: 3000 });
-        t.present();
+        alert('Všetko v poriadku, 100% zhoda.');
       }
+
     } catch (e: any) {
-      console.error(e);
-      // 🔥 Toto vypíše chybu aj keď e.message chýba (napr. CORS problém)
-      const errorMsg = e.message || JSON.stringify(e);
-      const errToast = await this.toastCtrl.create({ message: '❌ ZLYHANIE: ' + errorMsg, duration: 8000, color: 'danger' });
-      await errToast.present();
+      console.error('Fatálna chyba:', e);
+      alert('❌ CHYBA PRI SPRACOVANÍ: ' + (e.message || JSON.stringify(e)));
     } finally {
       await loading.dismiss();
     }
