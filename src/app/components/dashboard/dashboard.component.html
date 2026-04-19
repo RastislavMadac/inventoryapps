@@ -37,10 +37,12 @@
     <p class="import-info">Systém porovná fyzickú inventúru so stavom v Exceli z účtovníctva.</p>
     
     <div *ngIf="maNahranyImport">
-      <ion-button expand="block" color="primary" (click)="otvoritValidaciu()" style="margin-bottom: 15px;">
-        <ion-icon name="checkmark-done-circle-outline" slot="start"></ion-icon>
-        Pokračovať vo validácii
-      </ion-button>
+     <button 
+        type="button" 
+        (click)="otvoritValidaciu()" 
+        style="width: 100%; padding: 15px; background: var(--ion-color-primary); color: white; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 20px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;">
+        ✅ Pokračovať vo validácii
+      </button>
       
       <label class="mobile-safe-upload" style="display: block; width: 100%;">
         <input type="file" (change)="onFileChange($event)" accept=".xlsx, .xls" style="display: none;">
