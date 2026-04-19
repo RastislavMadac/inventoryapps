@@ -141,15 +141,18 @@ export class DashboardComponent implements OnInit {
     await loading.present();
 
     try {
-      // Krok 1: Stiahnutie základných dát
-      const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
-        this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
-        this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
-        this.supabase.getRawInventuraData(this.aktualnaInventuraId)
-      ]);
+      // Krok 1: Stiahnutie základných dát (SEKVENČNE PRE ZISTENIE CHYBY)
+      console.log('⏳ 1/3 Stťahujem: porovnatImportSInventurou...');
+      const rozdiely = await this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId);
+      console.log('✅ 1/3 Hotovo! Nájdené rozdiely:', rozdiely?.length || 0);
 
-      // CHECKPOINT 2: Dáta sú v telefóne
-      console.log('Základné dáta prijaté:', rozdiely.length);
+      console.log('⏳ 2/3 Sťahujem: skontrolovatNeznameProdukty...');
+      const nezname = await this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId);
+      console.log('✅ 2/3 Hotovo! Neznáme produkty:', nezname?.length || 0);
+
+      console.log('⏳ 3/3 Sťahujem: getRawInventuraData...');
+      const spocitaneZaznamy = await this.supabase.getRawInventuraData(this.aktualnaInventuraId);
+      console.log('✅ 3/3 Hotovo! Spočítané záznamy:', spocitaneZaznamy?.length || 0);
 
       const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
       const vysledky: any[] = [];
