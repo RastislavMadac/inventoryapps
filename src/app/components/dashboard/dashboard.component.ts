@@ -127,38 +127,44 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  // 🔥 ABSOLÚTNE NEPRIESTRELNÁ VERZIA BEZ LOADING SPINNERA
   async otvoritValidaciu() {
-    // CHECKPOINT 1: Štart
-    const t1 = await this.toastCtrl.create({ message: '1. Dáta sa načítavajú...', duration: 1000, position: 'top' });
-    await t1.present();
-
     if (!this.aktualnaInventuraId) {
-      alert('❌ Chýba ID inventúry!');
+      const err = await this.toastCtrl.create({ message: '❌ Chýba ID inventúry!', duration: 3000, color: 'danger', position: 'top' });
+      err.present();
       return;
     }
 
-    const loading = await this.loadingCtrl.create({ message: 'Spracovávam... (to môže chvíľu trvať)' });
-    await loading.present();
+    // 1. ZÁMERNE SME ZMAZALI LOADING CONTROLLER! 
+    // Namiesto neho používame bezpečné Toasty
+    const startToast = await this.toastCtrl.create({ message: 'Pripájam sa k databáze...', duration: 2000, position: 'top', color: 'tertiary' });
+    await startToast.present();
 
     try {
-      // Krok 1: Stiahnutie základných dát (SEKVENČNE PRE ZISTENIE CHYBY)
-      console.log('⏳ 1/3 Stťahujem: porovnatImportSInventurou...');
+      // Krok 1: Sťahujeme rozdiely
+      const t1 = await this.toastCtrl.create({ message: '⏳ 1/3: Sťahujem rozdiely', duration: 1500, position: 'top' });
+      await t1.present();
       const rozdiely = await this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId);
-      console.log('✅ 1/3 Hotovo! Nájdené rozdiely:', rozdiely?.length || 0);
 
-      console.log('⏳ 2/3 Sťahujem: skontrolovatNeznameProdukty...');
+      // Krok 2: Sťahujeme neznáme produkty
+      const t2 = await this.toastCtrl.create({ message: '⏳ 2/3: Sťahujem neznáme položky', duration: 1500, position: 'top' });
+      await t2.present();
       const nezname = await this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId);
-      console.log('✅ 2/3 Hotovo! Neznáme produkty:', nezname?.length || 0);
 
-      console.log('⏳ 3/3 Sťahujem: getRawInventuraData...');
+      // Krok 3: Sťahujeme spočítané dáta
+      const t3 = await this.toastCtrl.create({ message: '⏳ 3/3: Sťahujem históriu', duration: 1500, position: 'top' });
+      await t3.present();
       const spocitaneZaznamy = await this.supabase.getRawInventuraData(this.aktualnaInventuraId);
-      console.log('✅ 3/3 Hotovo! Spočítané záznamy:', spocitaneZaznamy?.length || 0);
 
+      const t4 = await this.toastCtrl.create({ message: '✅ Dáta stiahnuté! Mapujem...', duration: 1500, position: 'top', color: 'success' });
+      await t4.present();
+
+      // ------------------------------------------
+      // Samotné mapovanie dát
+      // ------------------------------------------
       const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
       const vysledky: any[] = [];
 
-      // Krok 2: Spracovanie lokácií - IDEME PO JEDNOM (Safe mode pre mobil)
-      // Pôvodný Promise.all(map) sme nahradili klasickým cyklom for, aby sme nepreťažili sieť
       for (const r of rozdiely) {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
@@ -169,20 +175,23 @@ export class DashboardComponent implements OnInit {
             if (zasoby && zasoby.length > 0) {
               znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
                 const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
-                const nazovSkladu = (Array.isArray(regalObj.sklady) ? regalObj.sklady[0]?.nazov : regalObj.sklady?.nazov) || 'Sklad';
+                if (!regalObj) return null;
+                const skladData = regalObj.sklady;
+                const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || '';
                 return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
-              });
+              }).filter((item: any) => item !== null);
             }
 
             const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
             const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
+
             if (kategoriaId) {
               mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
                 p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
               );
             }
           } catch (innerErr) {
-            console.warn('Chyba pri načítaní lokácie pre produkt:', r.produkt_id);
+            console.warn('Chyba pri lokáciách:', innerErr);
           }
         }
 
@@ -195,20 +204,19 @@ export class DashboardComponent implements OnInit {
       }
 
       this.vysledokPorovnania = vysledky;
-      this.neznameProdukty = nezname.map((p: any) => ({ ...p, expanded: false }));
+      this.neznameProdukty = nezname.map((p: any) => ({ ...p, expanded: false, kategoria_id: null, stredisko_id: null, balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null }));
 
-      // CHECKPOINT 3: Otvárame modál
       if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
         this.isModalOpen = true;
       } else {
-        alert('Všetko v poriadku, 100% zhoda.');
+        const t = await this.toastCtrl.create({ message: 'Excel je v 100% zhode!', color: 'success', duration: 3000, position: 'top' });
+        t.present();
       }
 
     } catch (e: any) {
-      console.error('Fatálna chyba:', e);
-      alert('❌ CHYBA PRI SPRACOVANÍ: ' + (e.message || JSON.stringify(e)));
-    } finally {
-      await loading.dismiss();
+      console.error(e);
+      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (e.message || 'Neznáma chyba databázy'), color: 'danger', duration: 8000, position: 'top' });
+      errToast.present();
     }
   }
 
