@@ -128,18 +128,29 @@ export class DashboardComponent implements OnInit {
   }
 
   // 2. Samotná logika mapovania a otvorenia modálneho okna
+  // 🔥 DEBUG VERZIA PRE ZISTENIE CHYBY NA MOBILE
   async otvoritValidaciu() {
-    if (!this.aktualnaInventuraId) return;
+    // 1. Zistíme, či vôbec reaguje tlačidlo a či máme ID
+    // alert('Tlačidlo funguje! ID inventúry: ' + this.aktualnaInventuraId);
+
+    if (!this.aktualnaInventuraId) {
+      alert('❌ CHYBA: Nemáme ID aktuálnej inventúry. Systém nevie, čo má načítať.');
+      return;
+    }
 
     const loading = await this.loadingCtrl.create({ message: 'Porovnávam dáta a lokácie...' });
     await loading.present();
 
     try {
+      // alert('Sťahujem dáta zo Supabase...');
+
       const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
         this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
         this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
         this.supabase.getRawInventuraData(this.aktualnaInventuraId)
       ]);
+
+      // alert(`Dáta stiahnuté! Rozdiely: ${rozdiely?.length || 0}, Neznáme: ${nezname?.length || 0}`);
 
       const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
 
@@ -190,8 +201,9 @@ export class DashboardComponent implements OnInit {
       }
     } catch (e: any) {
       console.error(e);
-      const t = await this.toastCtrl.create({ message: 'Chyba: ' + e.message, color: 'danger', duration: 4000 });
-      t.present();
+      // 🔥 TOTO JE KĽÚČ: Na Androide je e.message často prázdne, vybalíme celý objekt chyby!
+      const errorMsg = e.message || JSON.stringify(e);
+      alert('❌ KRITICKÁ CHYBA: ' + errorMsg);
     } finally {
       await loading.dismiss();
     }
