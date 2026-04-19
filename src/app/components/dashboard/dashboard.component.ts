@@ -127,8 +127,9 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // 🔥 ABSOLÚTNE NEPRIESTRELNÁ VERZIA BEZ LOADING SPINNERA
+  // 🔥 FINALNA NEPRIESTRELNA METODA PRE VALIDACIU EXCELU
   async otvoritValidaciu() {
+    // 0. Overenie ID
     if (!this.aktualnaInventuraId) {
       const err = await this.toastCtrl.create({ message: '❌ Chýba ID inventúry!', duration: 3000, color: 'danger', position: 'top' });
       err.present();
@@ -160,12 +161,19 @@ export class DashboardComponent implements OnInit {
       await t4.present();
 
       // ------------------------------------------
-      // Samotné mapovanie dát
+      // Samotné mapovanie dát (S EXTRÉMNOU OCHRANOU PROTI NULL)
       // ------------------------------------------
-      const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
+
+      // 🔥 Ochrana: Ak Supabase vráti null, spravíme z toho prázdne pole []
+      const safeRozdiely = rozdiely || [];
+      const safeNezname = nezname || [];
+      const safeSpocitane = spocitaneZaznamy || [];
+      const safeKatalog = this.vsetkyProduktyKatalog || [];
+
+      const spocitaneProduktIds = new Set(safeSpocitane.map((z: any) => z.produkt_id));
       const vysledky: any[] = [];
 
-      for (const r of rozdiely) {
+      for (const r of safeRozdiely) {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
 
@@ -182,11 +190,11 @@ export class DashboardComponent implements OnInit {
               }).filter((item: any) => item !== null);
             }
 
-            const produktVKatalogu = this.vsetkyProduktyKatalog.find(p => p.id === r.produkt_id);
+            const produktVKatalogu = safeKatalog.find(p => p.id === r.produkt_id);
             const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
 
             if (kategoriaId) {
-              mozneZameny = this.vsetkyProduktyKatalog.filter(p =>
+              mozneZameny = safeKatalog.filter(p =>
                 p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
               );
             }
@@ -204,19 +212,41 @@ export class DashboardComponent implements OnInit {
       }
 
       this.vysledokPorovnania = vysledky;
-      this.neznameProdukty = nezname.map((p: any) => ({ ...p, expanded: false, kategoria_id: null, stredisko_id: null, balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null }));
+      this.neznameProdukty = safeNezname.map((p: any) => ({
+        ...p, expanded: false, kategoria_id: null, stredisko_id: null,
+        balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
+      }));
 
-      if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
-        this.isModalOpen = true;
-      } else {
-        const t = await this.toastCtrl.create({ message: 'Excel je v 100% zhode!', color: 'success', duration: 3000, position: 'top' });
-        t.present();
-      }
+      // 🔥 Finálny test tesne pred otvorením
+      const finalToast = await this.toastCtrl.create({
+        message: `Pripravené: ${this.vysledokPorovnania.length} chýb, ${this.neznameProdukty.length} neznámych. Otváram...`,
+        duration: 2500, position: 'top', color: 'warning'
+      });
+      await finalToast.present();
+
+      // Zobrazíme modál alebo oslávime 100% zhodu
+      setTimeout(async () => { // 🔥 Pridali sme 'async' kvôli Toastu vo vnútri
+        this.vysledokPorovnania = vysledky;
+
+        this.neznameProdukty = safeNezname.map((p: any) => ({
+          ...p, expanded: false, kategoria_id: null, stredisko_id: null,
+          balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
+        }));
+
+        // Zobrazíme modál
+        if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
+          this.isModalOpen = true;
+        } else {
+          // 🔥 TOTO TI TAM CHÝBALO: Ak je všetko čisté, ukážeme úspech
+          const t = await this.toastCtrl.create({ message: 'Excel je v 100% zhode!', color: 'success', duration: 4000, position: 'top' });
+          await t.present();
+        }
+      }, 0);
 
     } catch (e: any) {
       console.error(e);
       const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (e.message || 'Neznáma chyba databázy'), color: 'danger', duration: 8000, position: 'top' });
-      errToast.present();
+      await errToast.present();
     }
   }
 
