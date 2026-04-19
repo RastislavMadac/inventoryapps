@@ -128,13 +128,15 @@ export class DashboardComponent implements OnInit {
   }
 
   // 2. Samotná logika mapovania a otvorenia modálneho okna
-  // 🔥 DEBUG VERZIA PRE ZISTENIE CHYBY NA MOBILE
+  // 🔥 NEPRIESTRELNÁ METÓDA PRE POKRAČOVANIE
   async otvoritValidaciu() {
-    // 1. Zistíme, či vôbec reaguje tlačidlo a či máme ID
-    // alert('Tlačidlo funguje! ID inventúry: ' + this.aktualnaInventuraId);
+    // 1. Otestujeme, či vôbec reaguje dotyk
+    const testToast = await this.toastCtrl.create({ message: 'Dotyk prijatý! Štartujem...', duration: 1500, color: 'tertiary', position: 'top' });
+    await testToast.present();
 
     if (!this.aktualnaInventuraId) {
-      alert('❌ CHYBA: Nemáme ID aktuálnej inventúry. Systém nevie, čo má načítať.');
+      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: Chýba ID inventúry!', duration: 4000, color: 'danger' });
+      await errToast.present();
       return;
     }
 
@@ -142,15 +144,11 @@ export class DashboardComponent implements OnInit {
     await loading.present();
 
     try {
-      // alert('Sťahujem dáta zo Supabase...');
-
       const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
         this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
         this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
         this.supabase.getRawInventuraData(this.aktualnaInventuraId)
       ]);
-
-      // alert(`Dáta stiahnuté! Rozdiely: ${rozdiely?.length || 0}, Neznáme: ${nezname?.length || 0}`);
 
       const spocitaneProduktIds = new Set(spocitaneZaznamy.map((z: any) => z.produkt_id));
 
@@ -201,9 +199,10 @@ export class DashboardComponent implements OnInit {
       }
     } catch (e: any) {
       console.error(e);
-      // 🔥 TOTO JE KĽÚČ: Na Androide je e.message často prázdne, vybalíme celý objekt chyby!
+      // 🔥 Toto vypíše chybu aj keď e.message chýba (napr. CORS problém)
       const errorMsg = e.message || JSON.stringify(e);
-      alert('❌ KRITICKÁ CHYBA: ' + errorMsg);
+      const errToast = await this.toastCtrl.create({ message: '❌ ZLYHANIE: ' + errorMsg, duration: 8000, color: 'danger' });
+      await errToast.present();
     } finally {
       await loading.dismiss();
     }
