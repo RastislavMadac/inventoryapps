@@ -531,7 +531,7 @@ export class SupabaseService {
         produkt:produkty (
           nazov,
           vlastne_id,
-          Interne_id,
+         "Interne_id",
           balenie_ks,
           jednotka,
           kategoria:kategorie ( nazov )
@@ -548,6 +548,7 @@ export class SupabaseService {
         return data.map((item: any) => ({
             'Produkt': item.produkt?.nazov || 'Neznámy',
             'Product ID': item.produkt?.vlastne_id || '',
+            'interne_id': item.produkt?.Interne_id || '',
             'Interné ID': item.produkt?.Interne_id || '',
             'Kategória': item.produkt?.kategoria?.nazov || '',
             'Sklad': item.regal?.sklad?.nazov || '',

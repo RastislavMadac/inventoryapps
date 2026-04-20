@@ -414,6 +414,120 @@ export class ExportService {
     }
 
 
+
+    // --- 5. ŠPECIÁLNA TLAČOVÁ ZOSTAVA spolu s názvami položiek (Podľa vzoru) ---
+    public generovatTlacovuZostavuSNazvamiPoloziek(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
+
+        const aoaData: any[][] = [];
+
+        // 1. Vloženie 4 čistých prázdnych riadkov (požiadavka pre šablónu importu)
+        aoaData.push([], [], [], []);
+
+        // 2. Presná hlavička (Riadok 5 v Exceli - Index 4)
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // --- AGREGÁCIA DAT (zlučovanie rovnakých ID) ---
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            const existujucaPolozka = akumulator.find(
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+            return akumulator;
+        }, []);
+
+        // --- MAPOVANIE DO AOA (Zápis riadkov s dátami) ---
+        zluceneData.forEach((item: any) => {
+            // Spracovanie Product ID (vlastne_id)
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
+            // Získanie Interne_id (CISLO) - berie kľúč z SQL View alebo tabuľky
+            let interneID = item['Interne ID'] || item['interne_id'] || item['Interne_id'] || '';
+
+            aoaData.push([
+                cisteProductID || '',                // A (0) - ID (vlastne_id)
+                interneID,                           // B (1) - CISLO (interne_id)
+                item['Produkt'] || '',               // C (2) - NAZOV
+                item['Jednotka'] || '',              // D (3) - MJ
+                item['Spočítané Množstvo'] || 0      // E (4) - FYZICKE MNOZSTVO
+            ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // --- FORMÁTOVANIE A ŠTÝLOVANIE BUNIEK ---
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+                    if (!cell) continue;
+                    if (!cell.s) cell.s = {};
+
+                    // 1. FORMÁT ČÍSEL (.z)
+                    if (R < 4) {
+                        cell.z = 'General';
+                    } else if (R === 4) {
+                        // Hlavička (Bold)
+                        cell.s.font = { bold: true };
+                        cell.s.fill = { fgColor: { rgb: "ECECEC" } }; // Jemná šedá pre hlavičku
+                    } else {
+                        // Dáta (od riadku 6 vyššie)
+                        if (C === 0 || C === 1) {
+                            cell.z = '0'; // ID a CISLO ako celé čísla
+                        } else if (C === 4) {
+                            cell.z = '0.000'; // Množstvo na 3 desatinné miesta
+                        }
+                    }
+
+                    // 2. ZAROVNANIE (Stred pre ID, CISLO a Množstvo)
+                    if (R >= 4) {
+                        if (C === 0 || C === 1 || C === 3 || C === 4) {
+                            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- EXPORT SÚBORU ---
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        downloadLink.download = `BG_Zostava_Nazvy_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href);
+
+        return true;
+    }
+
     // --- 5. EXCEL (KATALÓG PRODUKTOV) ---
     public generovatExcelCelehoSkladu(data: any[]) {
         if (!data || data.length === 0) return false;
