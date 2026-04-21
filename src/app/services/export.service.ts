@@ -413,7 +413,262 @@ export class ExportService {
         return true;
     }
 
+    // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
+    public generovatTlacovuZostavuSExportom(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
 
+        const aoaData: any[][] = [];
+
+        // Vloženie 4 čistých prázdnych riadkov (Riadky 1-4 v Exceli)
+        aoaData.push([], [], [], []);
+
+        // Presná hlavička (Riadok 5 v Exceli)
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // --- AGREGÁCIA DAT (zlučovanie rovnakých ID) ---
+        // Aj keď to už zlučujeme v SupabaseService, ponechávam tvoju logiku pre istotu
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            const existujucaPolozka = akumulator.find(
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+            return akumulator;
+        }, []);
+
+        // --- MAPOVANIE DO AOA ---
+        zluceneData.forEach((item: any) => {
+
+            // 1. Získame ID a ubezpečíme sa, že z neho nezostane string so zalomením (\n) z čítačky
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
+            // Vkladáme presne namapované hodnoty z nového datasetu
+            aoaData.push([
+                cisteProductID || '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                item['Spočítané Množstvo'] || 0
+            ]);
+        });
+
+        // Vytvorenie hárku
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // --- FORMÁTOVANIE A ŠTÝLOVANIE BUNIEK ---
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+
+                    if (!cell) continue;
+
+                    // Inicializácia objektu štýlov, ak neexistuje
+                    if (!cell.s) cell.s = {};
+
+                    // 1. FORMÁT ČÍSEL (.z)
+                    if (R < 4) {
+                        cell.z = 'General';
+                    } else {
+                        // Od hlavičky nižšie
+                        if (C >= 0 && C <= 4) {
+                            cell.z = '0'; // A, B, C, D, E (Celé čísla / Text)
+                        } else if (C === 5) {
+                            cell.z = '0.0000'; // F (Cena)
+                        } else if (C === 6 || C === 7) {
+                            cell.z = '0.000'; // G, H (Množstvá na 3 desatinné miesta)
+                        }
+                    }
+
+                    // 2. TUČNÉ PÍSMO (.s.font) - Iba riadok 5 (Index 4)
+                    if (R === 4) {
+                        if (!cell.s.font) cell.s.font = {};
+                        cell.s.font.bold = true;
+                    }
+
+                    // 3. ZAROVNANIE (.s.alignment)
+                    if (R >= 4) {
+                        if (C === 0 || C === 1 || C === 5 || C === 6 || C === 7) {
+                            if (!cell.s.alignment) cell.s.alignment = {};
+                            cell.s.alignment.horizontal = 'center';
+                            cell.s.alignment.vertical = 'center';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Vytvorenie zošita a vloženie hárku
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
+
+        // Vyčistenie názvu
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        // --- Browser-safe stiahnutie súboru bez Node.js (fs/stream) ---
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        downloadLink.download = `Tlacova_zostava_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href);
+
+        return true;
+    }
+
+    public generovatTlacovuZostavuSExportomSPolozkami(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
+
+        const aoaData: any[][] = [];
+
+        // Vloženie 4 čistých prázdnych riadkov (Riadky 1-4 v Exceli)
+        aoaData.push([], [], [], []);
+
+        // Presná hlavička (Riadok 5 v Exceli)
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // --- AGREGÁCIA DAT (zlučovanie rovnakých ID) ---
+        // Aj keď to už zlučujeme v SupabaseService, ponechávam tvoju logiku pre istotu
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            const existujucaPolozka = akumulator.find(
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+            return akumulator;
+        }, []);
+
+        // --- MAPOVANIE DO AOA ---
+        zluceneData.forEach((item: any) => {
+
+            // 1. Získame ID a ubezpečíme sa, že z neho nezostane string so zalomením (\n) z čítačky
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
+            // Vkladáme presne namapované hodnoty z nového datasetu
+            aoaData.push([
+                cisteProductID || '',               // A (0) - ID 
+                item['CISLO'] || '',                // B (1) - CISLO
+                item['NAZOV'] || '',                // C (2) - NAZOV 
+                item['MJ'] || '',                   // D (3) - MJ 
+                item['EAN'] || '',                  // E (4) - EAN
+                '',                                 // F (5) - CENA (štandardne prázdne)
+                item['PREDPOKLADANE MNOZSTVO'] || 0,// G (6) - PREDPOKLADANE MNOZSTVO
+                item['Spočítané Množstvo'] || 0     // H (7) - FYZICKE MNOZSTVO
+            ]);
+        });
+
+        // Vytvorenie hárku
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // --- FORMÁTOVANIE A ŠTÝLOVANIE BUNIEK ---
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+
+                    if (!cell) continue;
+
+                    // Inicializácia objektu štýlov, ak neexistuje
+                    if (!cell.s) cell.s = {};
+
+                    // 1. FORMÁT ČÍSEL (.z)
+                    if (R < 4) {
+                        cell.z = 'General';
+                    } else {
+                        // Od hlavičky nižšie
+                        if (C >= 0 && C <= 4) {
+                            cell.z = '0'; // A, B, C, D, E (Celé čísla / Text)
+                        } else if (C === 5) {
+                            cell.z = '0.0000'; // F (Cena)
+                        } else if (C === 6 || C === 7) {
+                            cell.z = '0.000'; // G, H (Množstvá na 3 desatinné miesta)
+                        }
+                    }
+
+                    // 2. TUČNÉ PÍSMO (.s.font) - Iba riadok 5 (Index 4)
+                    if (R === 4) {
+                        if (!cell.s.font) cell.s.font = {};
+                        cell.s.font.bold = true;
+                    }
+
+                    // 3. ZAROVNANIE (.s.alignment)
+                    if (R >= 4) {
+                        if (C === 0 || C === 1 || C === 5 || C === 6 || C === 7) {
+                            if (!cell.s.alignment) cell.s.alignment = {};
+                            cell.s.alignment.horizontal = 'center';
+                            cell.s.alignment.vertical = 'center';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Vytvorenie zošita a vloženie hárku
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava');
+
+        // Vyčistenie názvu
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        // --- Browser-safe stiahnutie súboru bez Node.js (fs/stream) ---
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        downloadLink.download = `Tlacova_zostava_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href);
+
+        return true;
+    }
 
     // --- 5. ŠPECIÁLNA TLAČOVÁ ZOSTAVA spolu s názvami položiek (Podľa vzoru) ---
     public generovatTlacovuZostavuSNazvamiPoloziek(data: any[], nazovInventury: string) {

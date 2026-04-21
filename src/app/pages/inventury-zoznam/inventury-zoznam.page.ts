@@ -192,15 +192,24 @@ export class InventuryZoznamPage implements OnInit {
       buttons: [
 
         {
-          text: 'Export pre blueGastro (.xls)',
+          text: 'Export pre blueGastro (Štandard)', // Pôvodný - len naskenované
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
         },
-
+        {
+          text: 'Export pre blueGastro (Kompletný)', // Nový - vrátane nenaskenovaných (0)
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'tlacova_zostava_s_exportom'); }
+        },
         {
           text: 'Export pre bG s položkami (.xls)', // Opravený preklep v názve
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava_nazvy'); } // <-- Nový identifikátor
+        },
+        {
+          text: 'Export pre blueGastro (Kompletný s polozkami)', // Opravený preklep v názve
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'tlacova_zostava_s_exportom_s_polozkami'); } // <-- Nový identifikátor
         },
         // {
         //   text: 'Doplniť chýbajúce ID (Formulár)',
@@ -266,10 +275,25 @@ export class InventuryZoznamPage implements OnInit {
     this.toast('Pripravujem súbor...', 'primary');
 
     try {
-      const data = await this.supabase.getDetailInventuryPreExport(inv.id);
+      let data: any[] = [];
+
+      // 🔥 ROZHODOVACIA LOGIKA PRE ZDROJ DÁT
+      // Zoznam typov, ktoré vyžadujú spojené dáta (Excel import + naskenované)
+      const typyPreKompletneData = [
+        'tlacova_zostava_s_exportom',
+        'tlacova_zostava_s_exportom_s_polozkami'
+      ];
+
+      if (typyPreKompletneData.includes(typ)) {
+        // Ťahá spojené dáta (vrátane nenaskenovaných s množstvom 0)
+        data = await this.supabase.getKompletneDataPreZostavuBezDB(inv.id);
+      } else {
+        // Ťahá len čisto naskenované položky
+        data = await this.supabase.getDetailInventuryPreExport(inv.id);
+      }
 
       if (!data || data.length === 0) {
-        this.toast('Inventúra je prázdna.', 'warning');
+        this.toast('Inventúra neobsahuje žiadne dáta na export.', 'warning');
         return;
       }
 
@@ -279,13 +303,19 @@ export class InventuryZoznamPage implements OnInit {
         case 'tlacova_zostava':
           uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
           break;
-        case 'tlacova_zostava_nazvy': // <-- Pridané spracovanie nového typu
+        case 'tlacova_zostava_s_exportom':
+          uspech = this.exportService.generovatTlacovuZostavuSExportom(data, inv.nazov);
+          break;
+        case 'tlacova_zostava_s_exportom_s_polozkami':
+          // Tu už budú do ExportService pritekať správne spojené dáta
+          uspech = this.exportService.generovatTlacovuZostavuSExportomSPolozkami(data, inv.nazov);
+          break;
+        case 'tlacova_zostava_nazvy':
           uspech = this.exportService.generovatTlacovuZostavuSNazvamiPoloziek(data, inv.nazov);
           break;
         case 'excel_komplet':
           this.exportService.generovatExcelKomplet(data, inv.nazov);
           break;
-
         case 'excel_id':
           uspech = this.exportService.generovatExcelSId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
@@ -293,17 +323,14 @@ export class InventuryZoznamPage implements OnInit {
         case 'pdf_2col':
           uspech = this.exportService.generovatPdfDvaStlpce(data, inv.nazov);
           break;
-
         case 'excel_noid':
           uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
           break;
-
         case 'pdf_id':
           uspech = this.exportService.generovatPdfSId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
           break;
-
         case 'pdf_noid':
           uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
@@ -311,7 +338,7 @@ export class InventuryZoznamPage implements OnInit {
       }
 
       if (uspech) {
-        this.toast('Súbor stiahnutý.', 'success');
+        this.toast('Súbor bol úspešne stiahnutý.', 'success');
       }
 
     } catch (e) {
@@ -319,6 +346,67 @@ export class InventuryZoznamPage implements OnInit {
       this.toast('Chyba pri exporte.', 'danger');
     }
   }
+
+  // async spustitExport(inv: Inventura, typ: string) {
+  //   this.toast('Pripravujem súbor...', 'primary');
+
+  //   try {
+  //     const data = await this.supabase.getDetailInventuryPreExport(inv.id);
+
+  //     if (!data || data.length === 0) {
+  //       this.toast('Inventúra je prázdna.', 'warning');
+  //       return;
+  //     }
+
+  //     let uspech = true;
+
+  //     switch (typ) {
+  //       case 'tlacova_zostava':
+  //         uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
+  //         break;
+  //       case 'tlacova_zostava_s_exportom':
+  //         uspech = this.exportService.generovatTlacovuZostavuSExportom(data, inv.nazov);
+  //         break;
+  //       case 'tlacova_zostava_nazvy': // <-- Pridané spracovanie nového typu
+  //         uspech = this.exportService.generovatTlacovuZostavuSNazvamiPoloziek(data, inv.nazov);
+  //         break;
+  //       case 'excel_komplet':
+  //         this.exportService.generovatExcelKomplet(data, inv.nazov);
+  //         break;
+
+  //       case 'excel_id':
+  //         uspech = this.exportService.generovatExcelSId(data, inv.nazov);
+  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
+  //         break;
+  //       case 'pdf_2col':
+  //         uspech = this.exportService.generovatPdfDvaStlpce(data, inv.nazov);
+  //         break;
+
+  //       case 'excel_noid':
+  //         uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
+  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
+  //         break;
+
+  //       case 'pdf_id':
+  //         uspech = this.exportService.generovatPdfSId(data, inv.nazov);
+  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
+  //         break;
+
+  //       case 'pdf_noid':
+  //         uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
+  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
+  //         break;
+  //     }
+
+  //     if (uspech) {
+  //       this.toast('Súbor stiahnutý.', 'success');
+  //     }
+
+  //   } catch (e) {
+  //     console.error(e);
+  //     this.toast('Chyba pri exporte.', 'danger');
+  //   }
+  // }
 
   // async spustitExportPreBG(inv: Inventura, typ: string) {
   //   this.toast('Pripravujem súbor...', 'primary');

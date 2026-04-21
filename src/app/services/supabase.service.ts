@@ -1407,4 +1407,76 @@ export class SupabaseService {
         }
         return count || 0;
     }
+
+    async getKompletneDataPreZostavuBezDB(inventuraId: number) {
+        // 1. Získame reálne naskenované položky z aplikácie
+        const { data: naskenovane, error: err1 } = await this.supabase
+            .from('inventura_polozky')
+            .select(`
+            mnozstvo,
+            produkt:produkty(vlastne_id, "Interne_id", nazov, jednotka, ean)
+        `)
+            .eq('inventura_id', inventuraId);
+
+        if (err1) throw err1;
+
+        // 2. Získame všetko, čo sa nahralo z Excelu do temp tabuľky
+        const { data: importovane, error: err2 } = await this.supabase
+            .from('importy_temp')
+            .select('*')
+            .eq('inventura_id', inventuraId);
+
+        if (err2) throw err2;
+
+        const vysledokMap = new Map<string, any>();
+
+        // A) Najprv vložíme všetko z Excelu (Importy). 
+        // Fyzické množstvo dáme na 0 (ak sa neskôr nenájde v naskenovaných).
+        if (importovane) {
+            importovane.forEach(imp => {
+                const idStr = String(imp.vlastne_id || '').replace(/\s+/g, '').toLowerCase();
+                vysledokMap.set(idStr, {
+                    'Product ID': imp.vlastne_id,
+                    'CISLO': imp.Interne_id,
+                    'NAZOV': imp.nazov,
+                    'MJ': 'ks', // Excel zvyčajne nemá MJ, nastavíme default
+                    'EAN': '',
+                    'PREDPOKLADANE MNOZSTVO': Number(imp.mnozstvo) || 0,
+                    'Spočítané Množstvo': 0 // Zatiaľ nula
+                });
+            });
+        }
+
+        // B) Potom prejdeme naskenované položky a aktualizujeme dáta
+        if (naskenovane) {
+            naskenovane.forEach((polozka: any) => {
+                const prod = polozka.produkt || {};
+                const idStr = String(prod.vlastne_id || '').replace(/\s+/g, '').toLowerCase();
+                const fyzMnozstvo = Number(polozka.mnozstvo) || 0;
+
+                if (vysledokMap.has(idStr)) {
+                    // Položka bola v importe a bola naskenovaná -> len pripočítame množstvo a doplníme detaily
+                    const existujuci = vysledokMap.get(idStr);
+                    existujuci['Spočítané Množstvo'] += fyzMnozstvo;
+                    if (prod.jednotka) existujuci['MJ'] = prod.jednotka;
+                    if (prod.ean) existujuci['EAN'] = prod.ean;
+                    if (prod.Interne_id) existujuci['CISLO'] = prod.Interne_id;
+                } else {
+                    // Položka sa naskenovala navyše (nebola vôbec v importe z Excelu)
+                    vysledokMap.set(idStr, {
+                        'Product ID': prod.vlastne_id,
+                        'CISLO': prod.Interne_id,
+                        'NAZOV': prod.nazov,
+                        'MJ': prod.jednotka,
+                        'EAN': prod.ean,
+                        'PREDPOKLADANE MNOZSTVO': 0, // Nebolo to v systéme
+                        'Spočítané Množstvo': fyzMnozstvo
+                    });
+                }
+            });
+        }
+
+        // Vrátime to ako čisté pole objektov pre ExportService
+        return Array.from(vysledokMap.values());
+    }
 }
