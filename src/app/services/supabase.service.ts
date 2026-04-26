@@ -1479,4 +1479,46 @@ export class SupabaseService {
         // Vrátime to ako čisté pole objektov pre ExportService
         return Array.from(vysledokMap.values());
     }
+
+    // NOVÁ FUNKCIA: Načíta celý katalóg a priradí k nemu naskenované položky z inventúry
+    async getKompletnyKatalogSInventurou(inventuraId: number) {
+        // 1. Získame VŠETKY produkty z databázy
+        const { data: vsetkyProdukty, error: errProd } = await this.supabase
+            .from('produkty')
+            .select('id, vlastne_id, "Interne_id", nazov, jednotka, ean');
+
+        if (errProd) throw errProd;
+
+        // 2. Získame naskenované položky pre danú inventúru
+        const { data: naskenovane, error: errInv } = await this.supabase
+            .from('inventura_polozky')
+            .select('produkt_id, mnozstvo')
+            .eq('inventura_id', inventuraId);
+
+        if (errInv) throw errInv;
+
+        // 3. Spojíme naskenované množstvá podľa produkt_id
+        const spocitaneMap = new Map<number, number>();
+        if (naskenovane) {
+            naskenovane.forEach((polozka: any) => {
+                const existujuce = spocitaneMap.get(polozka.produkt_id) || 0;
+                spocitaneMap.set(polozka.produkt_id, existujuce + Number(polozka.mnozstvo));
+            });
+        }
+
+        // 4. Vytvoríme finálne pole pre ExportService
+        return vsetkyProdukty.map((prod: any) => {
+            const mnozstvo = spocitaneMap.get(prod.id) || 0; // Ak sa nenašiel, dáme 0
+
+            return {
+                'Product ID': prod.vlastne_id || '',
+                'CISLO': prod.Interne_id || '',
+                'NAZOV': prod.nazov || '',
+                'MJ': prod.jednotka || '',
+                'EAN': prod.ean || '',
+                'PREDPOKLADANE MNOZSTVO': 0, // Ak systém neeviduje predpoklad
+                'Spočítané Množstvo': mnozstvo
+            };
+        });
+    }
 }

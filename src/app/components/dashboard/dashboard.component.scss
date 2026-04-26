@@ -1,259 +1,181 @@
-/* HLAVNÝ KONTAJNER PRE HORNÉ KARTY */
-.dashboard-container {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  justify-content: space-between;
+.dashboard-grid {
+  padding: 10px;
 }
 
-/* SPOLOČNÝ ŠTÝL PRE VŠETKY KARTY */
 .stat-card {
   margin: 0;
-  flex: 1;
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: visible;
-  border: none;
 
   ion-card-content {
-    padding: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 8px;
-  }
-
-  h2 {
-    font-size: 1.6rem;
-    font-weight: 800;
-    margin: 0;
-    line-height: 1.1;
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    opacity: 0.8;
-    color: var(--ion-color-dark);
-  }
-
-  /* Farebné témy */
-  &.blue {
-    background: #f0f9ff;
-
-    .icon-bg {
-      background: #bae6fd;
-      color: #0284c7;
-    }
-
-    h2 {
-      color: #0c4a6e;
-    }
-  }
-
-  &.orange {
-    background: #fff7ed;
-
-    .icon-bg {
-      background: #fed7aa;
-      color: #ea580c;
-    }
-
-    h2 {
-      color: #7c2d12;
-    }
-  }
-}
-
-/* POZADIE IKONY V KARTÁCH */
-.icon-bg {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px; // Trošku modernejší tvar ako čistý kruh
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-}
-
-/* --- NOVÁ ROZKLIKÁVACIA KARTA --- */
-.inventory-expand-card {
-  margin: 0 16px 16px 16px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f0f0;
-  background: white;
-  overflow: hidden;
-
-  .card-toggle-header {
     padding: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    transition: background 0.2s ease;
+  }
 
-    &:active {
-      background: #f9f9f9;
+  .bg-icon {
+    font-size: 3rem;
+    opacity: 0.2;
+    margin-bottom: 8px;
+  }
+
+  .stat-info {
+    h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 0 0 4px 0;
+      color: var(--ion-text-color);
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      h3 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--ion-color-dark);
-      }
-
-      p {
-        margin: 2px 0 0 0;
-        font-size: 0.75rem;
-        color: #888;
-      }
+    p {
+      font-size: 0.9rem;
+      margin: 0;
+      color: var(--ion-color-medium);
     }
   }
 
-  .card-expand-content {
-    border-top: 1px solid #f5f5f5;
-    background: #fafafa;
-
-    ion-list {
-      padding: 0;
-      background: transparent;
-    }
-
-    ion-item {
-      --padding-start: 16px;
-      --inner-padding-end: 16px;
-      --min-height: 64px;
-      --background: transparent;
-    }
-  }
-}
-
-/* INDIKÁTORY V ZOZNAME INVENTÚR */
-.status-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ccc;
-  margin-right: 4px;
-
-  &.open {
-    background: #2dd36f;
-    box-shadow: 0 0 8px rgba(45, 211, 111, 0.4);
-  }
-}
-
-.count-box {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-
-  strong {
-    font-size: 1.1rem;
+  &.blue .bg-icon {
     color: var(--ion-color-primary);
-    line-height: 1;
   }
 
-  span {
-    font-size: 0.65rem;
-    color: #999;
-    font-weight: 500;
+  &.orange .bg-icon {
+    color: var(--ion-color-warning);
   }
 }
 
-/* --- SPODNÝ ZOZNAM (DETAILE) --- */
-.internal-list-container {
-  background: white;
-  border-radius: 24px 24px 0 0;
-  margin-top: 8px;
-  padding: 8px 0 0 0;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
-  border: 1px solid #f0f0f0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.list-header {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  border-bottom: 1px solid #f2f2f2;
-
-  h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-  }
-}
-
-ion-list {
-  overflow-y: auto;
-  flex: 1;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* POMOCNÉ TRIEDY */
 .pulse-indicator {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
-  background-color: #ef4444;
+  top: 10px;
+  right: 10px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--ion-color-danger);
   border-radius: 50%;
   animation: pulse 2s infinite;
-  z-index: 10;
 }
 
 @keyframes pulse {
   0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-danger-rgb), 0.7);
   }
 
   70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 10px rgba(var(--ion-color-danger-rgb), 0);
   }
 
   100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-danger-rgb), 0);
   }
 }
 
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
+/* Custom Input Type File Upload UI */
+.custom-file-upload {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+  input[type="file"] {
+    display: none;
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  &.filled {
+    background-color: var(--ion-color-tertiary);
+    color: white;
+    box-shadow: 0 4px 6px rgba(var(--ion-color-tertiary-rgb), 0.2);
+  }
+
+  &.outline {
+    background-color: transparent;
+    color: var(--ion-color-medium);
+    border: 2px dashed var(--ion-color-medium);
+  }
+
+  &:active {
+    opacity: 0.7;
   }
 }
 
-.spinner-center,
-.empty-msg {
-  text-align: center;
-  padding: 30px;
-  color: #888;
+/* Modal form tuning */
+.section-header {
+  border-radius: 8px;
+  --min-height: 40px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.validation-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+
+  .item-content {
+    width: 100%;
+    padding: 12px 16px;
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      h2 {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      p {
+        margin: 0;
+        color: var(--ion-color-medium);
+        font-size: 0.9rem;
+      }
+    }
+  }
+
+  .expanded-form {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--ion-color-step-100);
+
+    /* Používame grid pre spacing, pridáme trochu gap-u */
+    ion-col {
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+
+    .location-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .substitution-box {
+      background: rgba(var(--ion-color-warning-rgb), 0.05);
+      border: 1px solid rgba(var(--ion-color-warning-rgb), 0.3);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 16px;
+
+      .subtitle {
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: var(--ion-color-warning-shade);
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+
+      .empty-hint {
+        font-size: 0.85rem;
+        color: var(--ion-color-medium);
+        margin: 0;
+      }
+    }
+  }
 }

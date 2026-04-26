@@ -279,7 +279,7 @@ export class ExportService {
         });
     }
 
-    // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
+    // ---1. Fizicke množstvo bez 0 poloziek bez nazvov položiek  ---
     public generovatTlacovuZostavu(data: any[], nazovInventury: string) {
         if (!data || data.length === 0) return false;
 
@@ -413,7 +413,7 @@ export class ExportService {
         return true;
     }
 
-    // --- 4. ŠPECIÁLNA TLAČOVÁ ZOSTAVA (Podľa vzoru) ---
+    // --- 2. Fizicke množstvo bez 0 poloziek s nazvami položiek ---
     public generovatTlacovuZostavuSExportom(data: any[], nazovInventury: string) {
         if (!data || data.length === 0) return false;
 
@@ -541,7 +541,7 @@ export class ExportService {
 
         return true;
     }
-
+    // --- 3. Fizicke množstvo s exportom s 0 poloziekami bez nazvami položiek ---
     public generovatTlacovuZostavuSExportomSPolozkami(data: any[], nazovInventury: string) {
         if (!data || data.length === 0) return false;
 
@@ -670,7 +670,7 @@ export class ExportService {
         return true;
     }
 
-    // --- 5. ŠPECIÁLNA TLAČOVÁ ZOSTAVA spolu s názvami položiek (Podľa vzoru) ---
+    // --- 4. Fizicke množstvo s exportom s 0 poloziekami s nazvami položiek ---
     public generovatTlacovuZostavuSNazvamiPoloziek(data: any[], nazovInventury: string) {
         if (!data || data.length === 0) return false;
 
@@ -775,6 +775,119 @@ export class ExportService {
         const downloadLink = document.createElement('a');
         downloadLink.href = window.URL.createObjectURL(dataBlob);
         downloadLink.download = `BG_Zostava_Nazvy_${cleanNazov}.xls`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(downloadLink.href);
+
+        return true;
+    }
+
+    public generovatTlacovuZostavuKompletDBSPolozkami(data: any[], nazovInventury: string) {
+        if (!data || data.length === 0) return false;
+
+        const aoaData: any[][] = [];
+
+        // Vloženie 4 čistých prázdnych riadkov
+        aoaData.push([], [], [], []);
+
+        // Presná hlavička
+        aoaData.push([
+            'ID', 'CISLO', 'NAZOV', 'MJ', 'EAN', 'CENA', 'PREDPOKLADANE MNOZSTVO', 'FYZICKE MNOZSTVO'
+        ]);
+
+        // Agregácia dát pre istotu (keby sa náhodou v dátach vyskytli duplicity)
+        const zluceneData = data.reduce((akumulator: any[], aktualnaPolozka: any) => {
+            const existujucaPolozka = akumulator.find(
+                (item: any) => item['Product ID'] === aktualnaPolozka['Product ID']
+            );
+
+            const aktualneMnozstvo = Number(aktualnaPolozka['Spočítané Množstvo']) || 0;
+
+            if (existujucaPolozka) {
+                existujucaPolozka['Spočítané Množstvo'] += aktualneMnozstvo;
+            } else {
+                akumulator.push({
+                    ...aktualnaPolozka,
+                    'Spočítané Množstvo': aktualneMnozstvo
+                });
+            }
+            return akumulator;
+        }, []);
+
+        // Mapovanie do AOA formátu
+        zluceneData.forEach((item: any) => {
+            let cisteProductID = item['Product ID'];
+            if (typeof cisteProductID === 'string') {
+                cisteProductID = Number(cisteProductID.replace(/[\r\n]+/g, '').trim());
+            } else {
+                cisteProductID = Number(cisteProductID);
+            }
+
+            aoaData.push([
+                cisteProductID || '',                 // A
+                item['CISLO'] || '',                  // B
+                item['NAZOV'] || '',                  // C
+                item['MJ'] || '',                     // D
+                item['EAN'] || '',                    // E
+                '',                                   // F (CENA)
+                item['PREDPOKLADANE MNOZSTVO'] || 0,  // G
+                item['Spočítané Množstvo'] || 0       // H (Fyzické množstvo, ak chýba, tak 0)
+            ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+        // Formátovanie a Štýly
+        if (ws['!ref']) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellAddress];
+
+                    if (!cell) continue;
+                    if (!cell.s) cell.s = {};
+
+                    if (R < 4) {
+                        cell.z = 'General';
+                    } else {
+                        if (C >= 0 && C <= 4) {
+                            cell.z = '0';
+                        } else if (C === 5) {
+                            cell.z = '0.0000';
+                        } else if (C === 6 || C === 7) {
+                            cell.z = '0.000';
+                        }
+                    }
+
+                    if (R === 4) {
+                        if (!cell.s.font) cell.s.font = {};
+                        cell.s.font.bold = true;
+                    }
+
+                    if (R >= 4) {
+                        if (C === 0 || C === 1 || C === 5 || C === 6 || C === 7) {
+                            if (!cell.s.alignment) cell.s.alignment = {};
+                            cell.s.alignment.horizontal = 'center';
+                            cell.s.alignment.vertical = 'center';
+                        }
+                    }
+                }
+            }
+        }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Zostava_Kompletna');
+
+        const cleanNazov = nazovInventury.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const excelBuffer: any = XLSX.write(wb, { bookType: 'xls', type: 'array' });
+        const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.ms-excel' });
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(dataBlob);
+        // 🔥 Zmenený názov súboru pre ľahšiu identifikáciu
+        downloadLink.download = `BG_Sklad_a_Inventura_${cleanNazov}.xls`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);

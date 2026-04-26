@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
   closeCircleOutline, alertCircle, checkmarkCircleOutline,
-  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline
+  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct
 } from 'ionicons/icons';
 import { AlertController, ToastController, LoadingController } from '@ionic/angular';
 
@@ -73,7 +73,7 @@ export class DashboardComponent implements OnInit {
     private exportService: ExportService,
     private loadingCtrl: LoadingController
   ) {
-    addIcons({ statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, warningOutline, informationCircleOutline, timeOutline, createOutline, cubeOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown });
+    addIcons({ statsChartOutline, alertCircleOutline, checkmarkDoneOutline, syncOutline, cloudUploadOutline, ellipse, timeOutline, saveOutline, construct, cubeOutline, closeCircleOutline, warningOutline, informationCircleOutline, createOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown });
   }
 
 

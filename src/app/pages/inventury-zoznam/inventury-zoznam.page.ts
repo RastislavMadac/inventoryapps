@@ -191,25 +191,39 @@ export class InventuryZoznamPage implements OnInit {
       header: `Možnosti: ${inv.nazov}`,
       buttons: [
 
+        // {
+        //   text: 'Export pre blueGastro (Štandard.xls)', // Pôvodný - len naskenované
+        //   icon: 'document-text-outline',
+        //   handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
+        // },
+
+        //0 polozky z importu
         {
-          text: 'Export pre blueGastro (Štandard)', // Pôvodný - len naskenované
-          icon: 'document-text-outline',
-          handler: () => { this.spustitExport(inv, 'tlacova_zostava'); }
-        },
-        {
-          text: 'Export pre blueGastro (Kompletný)', // Nový - vrátane nenaskenovaných (0)
+          text: 'Export pre blueGastro (Kompletný.xls)', // Nový - vrátane nenaskenovaných (0)
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava_s_exportom'); }
         },
+        //Bez 0 poloziek z importu + nazvy poloziek
         {
-          text: 'Export pre bG s položkami (.xls)', // Opravený preklep v názve
+          text: 'Export s názvami položiek (.xls)', // Opravený preklep v názve
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava_nazvy'); } // <-- Nový identifikátor
         },
+        //S 0 poloziek z importu + nazvy poloziek
         {
-          text: 'Export pre blueGastro (Kompletný s polozkami)', // Opravený preklep v názve
+          text: 'Export s názvami položiek + 0. položky', // Opravený preklep v názve
           icon: 'document-text-outline',
           handler: () => { this.spustitExport(inv, 'tlacova_zostava_s_exportom_s_polozkami'); } // <-- Nový identifikátor
+        },
+        // {
+        //   text: 'Export celej DB nez nazvu položiek (Nenaskenované = 0)',
+        //   icon: 'document-text-outline',
+        //   handler: () => { this.spustitExport(inv, 'tlacova_zostava_komplet_db'); }
+        // },
+        {
+          text: 'Export celej DB (Nenaskenované = 0)',
+          icon: 'document-text-outline',
+          handler: () => { this.spustitExport(inv, 'tlacova_zostava_komplet_db1'); }
         },
         // {
         //   text: 'Doplniť chýbajúce ID (Formulár)',
@@ -277,21 +291,30 @@ export class InventuryZoznamPage implements OnInit {
     try {
       let data: any[] = [];
 
-      // 🔥 ROZHODOVACIA LOGIKA PRE ZDROJ DÁT
-      // Zoznam typov, ktoré vyžadujú spojené dáta (Excel import + naskenované)
+      // ---------------------------------------------------------
+      // 1. KROK: ROZHODOVACIA LOGIKA PRE ZDROJ DÁT
+      // ---------------------------------------------------------
       const typyPreKompletneData = [
         'tlacova_zostava_s_exportom',
         'tlacova_zostava_s_exportom_s_polozkami'
       ];
 
       if (typyPreKompletneData.includes(typ)) {
-        // Ťahá spojené dáta (vrátane nenaskenovaných s množstvom 0)
+        // Ťahá spojené dáta: Excel import z 'importy_temp' + reálne naskenované položky
         data = await this.supabase.getKompletneDataPreZostavuBezDB(inv.id);
-      } else {
-        // Ťahá len čisto naskenované položky
+      }
+      else if (typ === 'tlacova_zostava_komplet_db') {
+        // Ťahá spojené dáta: Úplne CELÝ katalóg z DB + reálne naskenované položky (Nenájdené majú množstvo 0)
+        data = await this.supabase.getKompletnyKatalogSInventurou(inv.id);
+      }
+      else {
+        // Štandardný fallback: Ťahá iba čisto naskenované položky, ktoré fyzicky existujú v 'inventura_polozky'
         data = await this.supabase.getDetailInventuryPreExport(inv.id);
       }
 
+      // ---------------------------------------------------------
+      // 2. KROK: VALIDÁCIA DÁT
+      // ---------------------------------------------------------
       if (!data || data.length === 0) {
         this.toast('Inventúra neobsahuje žiadne dáta na export.', 'warning');
         return;
@@ -299,7 +322,11 @@ export class InventuryZoznamPage implements OnInit {
 
       let uspech = true;
 
+      // ---------------------------------------------------------
+      // 3. KROK: DELEGOVANIE NA EXPORT SERVICE
+      // ---------------------------------------------------------
       switch (typ) {
+        // ---1. tlacova zostava iba spocitanene polozky bez nazvu  ---
         case 'tlacova_zostava':
           uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
           break;
@@ -307,11 +334,13 @@ export class InventuryZoznamPage implements OnInit {
           uspech = this.exportService.generovatTlacovuZostavuSExportom(data, inv.nazov);
           break;
         case 'tlacova_zostava_s_exportom_s_polozkami':
-          // Tu už budú do ExportService pritekať správne spojené dáta
-          uspech = this.exportService.generovatTlacovuZostavuSExportomSPolozkami(data, inv.nazov);
+          uspech = this.exportService.generovatTlacovuZostavuKompletDBSPolozkami(data, inv.nazov);
           break;
         case 'tlacova_zostava_nazvy':
           uspech = this.exportService.generovatTlacovuZostavuSNazvamiPoloziek(data, inv.nazov);
+          break;
+        case 'tlacova_zostava_komplet_db':
+          uspech = this.exportService.generovatTlacovuZostavuSExportomSPolozkami(data, inv.nazov);
           break;
         case 'excel_komplet':
           this.exportService.generovatExcelKomplet(data, inv.nazov);
@@ -335,133 +364,25 @@ export class InventuryZoznamPage implements OnInit {
           uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
           if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
           break;
+        default:
+          this.toast('Neznámy typ exportu.', 'danger');
+          uspech = false;
+          break;
       }
 
+      // ---------------------------------------------------------
+      // 4. KROK: SPÄTNÁ VÄZBA PRE POUŽÍVATEĽA
+      // ---------------------------------------------------------
       if (uspech) {
         this.toast('Súbor bol úspešne stiahnutý.', 'success');
       }
 
     } catch (e) {
-      console.error(e);
-      this.toast('Chyba pri exporte.', 'danger');
+      console.error('Chyba pri generovaní exportu:', e);
+      this.toast('Nastala chyba pri príprave exportu.', 'danger');
     }
   }
 
-  // async spustitExport(inv: Inventura, typ: string) {
-  //   this.toast('Pripravujem súbor...', 'primary');
-
-  //   try {
-  //     const data = await this.supabase.getDetailInventuryPreExport(inv.id);
-
-  //     if (!data || data.length === 0) {
-  //       this.toast('Inventúra je prázdna.', 'warning');
-  //       return;
-  //     }
-
-  //     let uspech = true;
-
-  //     switch (typ) {
-  //       case 'tlacova_zostava':
-  //         uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
-  //         break;
-  //       case 'tlacova_zostava_s_exportom':
-  //         uspech = this.exportService.generovatTlacovuZostavuSExportom(data, inv.nazov);
-  //         break;
-  //       case 'tlacova_zostava_nazvy': // <-- Pridané spracovanie nového typu
-  //         uspech = this.exportService.generovatTlacovuZostavuSNazvamiPoloziek(data, inv.nazov);
-  //         break;
-  //       case 'excel_komplet':
-  //         this.exportService.generovatExcelKomplet(data, inv.nazov);
-  //         break;
-
-  //       case 'excel_id':
-  //         uspech = this.exportService.generovatExcelSId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
-  //         break;
-  //       case 'pdf_2col':
-  //         uspech = this.exportService.generovatPdfDvaStlpce(data, inv.nazov);
-  //         break;
-
-  //       case 'excel_noid':
-  //         uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
-  //         break;
-
-  //       case 'pdf_id':
-  //         uspech = this.exportService.generovatPdfSId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
-  //         break;
-
-  //       case 'pdf_noid':
-  //         uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
-  //         break;
-  //     }
-
-  //     if (uspech) {
-  //       this.toast('Súbor stiahnutý.', 'success');
-  //     }
-
-  //   } catch (e) {
-  //     console.error(e);
-  //     this.toast('Chyba pri exporte.', 'danger');
-  //   }
-  // }
-
-  // async spustitExportPreBG(inv: Inventura, typ: string) {
-  //   this.toast('Pripravujem súbor...', 'primary');
-
-  //   try {
-  //     const data = await this.supabase.generovatTlacovuZostavuSNazvamiPoloziek(inv.id);
-
-  //     if (!data || data.length === 0) {
-  //       this.toast('Inventúra je prázdna.', 'warning');
-  //       return;
-  //     }
-
-  //     let uspech = true;
-
-  //     switch (typ) {
-  //       case 'tlacova_zostava':
-  //         uspech = this.exportService.generovatTlacovuZostavu(data, inv.nazov);
-  //         break;
-  //       case 'excel_komplet':
-  //         this.exportService.generovatExcelKomplet(data, inv.nazov);
-  //         break;
-
-  //       case 'excel_id':
-  //         uspech = this.exportService.generovatExcelSId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
-  //         break;
-  //       case 'pdf_2col':
-  //         uspech = this.exportService.generovatPdfDvaStlpce(data, inv.nazov);
-  //         break;
-
-  //       case 'excel_noid':
-  //         uspech = this.exportService.generovatExcelBezId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
-  //         break;
-
-  //       case 'pdf_id':
-  //         uspech = this.exportService.generovatPdfSId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky s ID.', 'warning');
-  //         break;
-
-  //       case 'pdf_noid':
-  //         uspech = this.exportService.generovatPdfBezId(data, inv.nazov);
-  //         if (!uspech) this.toast('Žiadne položky bez ID.', 'warning');
-  //         break;
-  //     }
-
-  //     if (uspech) {
-  //       this.toast('Súbor stiahnutý.', 'success');
-  //     }
-
-  //   } catch (e) {
-  //     console.error(e);
-  //     this.toast('Chyba pri exporte.', 'danger');
-  //   }
-  // }
 
   async toast(msg: string, color: string) {
     const t = await this.toastCtrl.create({ message: msg, duration: 2000, color, position: 'top' });
