@@ -15,7 +15,7 @@ import {
   IonItem, IonLabel, IonBadge, IonButton, IonCardHeader,
   IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonCheckbox,
   IonSelect,
-  IonSelectOption,
+  IonSelectOption, IonBackButton,
   IonInput, IonChip, IonSearchbar, IonRippleEffect
 } from '@ionic/angular/standalone';
 
@@ -27,7 +27,7 @@ import { FormsModule } from '@angular/forms';
     CommonModule, FormsModule,
     IonCard, IonCardContent, IonIcon, IonSpinner,
     IonList, IonItem, IonLabel, IonBadge, IonButton, IonCardHeader, IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, FormsModule, IonChip,
-    IonCheckbox, IonSearchbar,
+    IonCheckbox, IonBackButton, IonSearchbar,
     IonSelect,
     IonSelectOption,
     IonInput, IonRippleEffect
@@ -103,28 +103,47 @@ export class DashboardComponent implements OnInit {
 
   // 1. Zabezpečí len samotné nahratie nového súboru do databázy
   async onFileChange(event: any) {
-    const file = event.target.files[0];
-    if (!file || !this.aktualnaInventuraId) return;
+    const file = event.target?.files?.[0];
 
-    const loading = await this.loadingCtrl.create({ message: 'Nahrávam Excel na server...' });
-    await loading.present();
-
-    try {
-      const jsonData = await this.exportService.parsovatExcelImport(file);
-      await this.supabase.nahratImportDoTemp(this.aktualnaInventuraId, jsonData);
-      this.maNahranyImport = true;
-
-      await loading.dismiss(); // Vypneme starý loading
-      await this.otvoritValidaciu(); // Otvoríme rovno validáciu
-
-    } catch (error: any) {
-      console.error(error);
-      const errToast = await this.toastCtrl.create({ message: 'Chyba importu: ' + error.message, color: 'danger', duration: 4000 });
-      errToast.present();
-      await loading.dismiss();
-    } finally {
-      event.target.value = '';
+    // 🔥 OCHRANA 1: Zamedzenie tichého pádu. Ak chýba ID, povie nám to.
+    if (!this.aktualnaInventuraId) {
+      const err = await this.toastCtrl.create({ message: '❌ Chýba ID otvorenej inventúry. Počkajte na načítanie dát.', duration: 4000, color: 'warning', position: 'top' });
+      await err.present();
+      return;
     }
+
+    // 🔥 OCHRANA 2: Ak sa súbor nepodarilo zachytiť z eventu
+    if (!file) {
+      const err = await this.toastCtrl.create({ message: '❌ Nepodarilo sa prečítať súbor.', duration: 3000, color: 'danger', position: 'top' });
+      await err.present();
+      return;
+    }
+
+    // 🔥 ZMAZANÝ LOADING CONTROLLER - Nahrádzame ho Toastom, aby nezamrzlo UI
+    const startToast = await this.toastCtrl.create({ message: '⏳ Parsujem a nahrávam Excel na server...', duration: 2000, position: 'top', color: 'tertiary' });
+    await startToast.present();
+
+    // 🔥 SETTIMEOUT: Uvoľníme hlavné vlákno Angularu, aby stihol ukázať Toast pred tým, než Excel parser "zožerie" výkon
+    setTimeout(async () => {
+      try {
+        const jsonData = await this.exportService.parsovatExcelImport(file);
+        await this.supabase.nahratImportDoTemp(this.aktualnaInventuraId!, jsonData);
+        this.maNahranyImport = true;
+
+        // Otvoríme rovno validáciu (tá už má svoje vlastné Toasty)
+        await this.otvoritValidaciu();
+
+      } catch (error: any) {
+        console.error('Chyba importu:', error);
+        const errToast = await this.toastCtrl.create({ message: '❌ Chyba importu: ' + (error.message || 'Neznáma chyba'), color: 'danger', duration: 5000, position: 'top' });
+        await errToast.present();
+      } finally {
+        // 🔥 Bezpečné vyčistenie inputu, aby bolo možné vybrať ten istý súbor znova (dôležité pre (change) event)
+        if (event.target) {
+          event.target.value = '';
+        }
+      }
+    }, 50);
   }
 
   // 🔥 BLESKOVÁ (TURBO) A NEPRIESTRELNÁ METÓDA PRE VALIDACIU EXCELU

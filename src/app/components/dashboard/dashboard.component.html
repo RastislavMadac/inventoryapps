@@ -1,3 +1,28 @@
+
+<!-- 🔥 Pridaný plnohodnotný modrý hlavičkový panel -->
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <!-- Ak potrebuješ tlačidlo späť, môžeš ho odkomentovať -->
+    
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/"></ion-back-button>
+    </ion-buttons>
+   
+    <ion-title>Dashboard</ion-title>
+    
+    <!-- Ak chceš na Dashboarde rýchle tlačidlo pre odhlásenie alebo iné funkcie -->
+    <!--
+    <ion-buttons slot="end">
+      <ion-button (click)="odhlasit()">
+        <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    -->
+  </ion-toolbar>
+</ion-header>
+
+<!-- 🔥 Celý pôvodný obsah musí byť zabalený v ion-content -->
+<ion-content [fullscreen]="true">
 <div class="dashboard-container">
   <ion-card class="stat-card blue" button (click)="zobrazitVsetky()">
     <ion-card-content>
@@ -319,3 +344,4 @@
     </div>
   </ion-list>
 </div>
+</ion-content>
