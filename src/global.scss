@@ -137,23 +137,37 @@ ion-toast {
   justify-content: flex-start !important;
 }
 
-/* Globálne štýly pre modálne okno kalkulačky */
-.my-custom-modal {
-  /* Predvolene na mobile necháme okno na celú obrazovku */
+/* ==============================================================
+   CUSTOM ION-SELECT (Celoobrazovkový výber regálov)
+   ============================================================== */
+/* src/global.scss */
 
-  /* Na tabletoch a PC z neho spravíme pekné plávajúce okno uprostred */
-  @media (min-width: 768px) {
-    --width: 100px;
-    /* Maximálna šírka okna */
-    --height: 450px;
-    /* Výška okna */
-    --border-radius: 16px;
-    /* Zaoblené rohy */
-    --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    /* Jemný tieň */
+.fullscreen-select-alert {
+  /* 1. Roztiahnutie presne na 100% šírky a výšky obrazovky */
+  --width: 100% !important;
+  --min-width: 100% !important;
+  --max-width: 100% !important;
 
-    /* Tieto vlastnosti zabezpečia, že sa okno pekne vycentruje a nebude od okraja po okraj */
-    --max-width: 90vw;
-    --max-height: 90vh;
+  --height: 100% !important;
+  --min-height: 100% !important;
+  --max-height: 100% !important;
+
+  --border-radius: 0px !important;
+
+  /* 2. Zalamovanie textu (správne vnorenie bez duplikácie mena nadradenej triedy) */
+  .alert-radio-label {
+    white-space: normal !important;
+    text-overflow: inherit !important;
+    line-height: 1.4 !important;
+    padding-top: 18px !important;
+    /* Optimalizovaný touch-target */
+    padding-bottom: 18px !important;
+    font-size: 1.1rem;
+  }
+
+  /* 3. Zvýraznenie aktívnej/vybranej položky */
+  [aria-checked="true"] .alert-radio-label {
+    font-weight: bold;
+    color: var(--ion-color-primary);
   }
 }

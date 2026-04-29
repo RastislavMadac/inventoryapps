@@ -1,110 +1,115 @@
-<ion-content class="ion-padding">
-  <div class="centered-content">
-
-    <div class="info-section">
-      <div class="product-header" *ngIf="nazovProduktu">
-        {{ nazovProduktu }}
-        <span style="font-weight: normal; opacity: 0.7;">({{ jednotka }})</span>
-      </div>
-
-      <div class="display-container">
-        <div class="formula-text" *ngIf="zobrazitDetail">
-          {{ fullFormula }}
-        </div>
-
-        <div class="calculation-text" [class.has-detail]="zobrazitDetail" [class.is-highlighted]="jeOznacene">
-          {{ mainDisplay }}
-        </div>
-
-        <div class="difference-tracker" *ngIf="povodnyStavPrePorovnanie > 0">
-          <span class="povodny">Pôvodne: {{ povodnyStavPrePorovnanie }} {{ jednotka }}</span>
-          <span class="oddlovac"> | </span>
-          <span class="rozdiel" [class.rozdiel-plus]="vypocitanyRozdiel > 0"
-            [class.rozdiel-minus]="vypocitanyRozdiel < 0">
-            Rozdiel: {{ vypocitanyRozdiel > 0 ? '+' : '' }}{{ vypocitanyRozdiel }} {{ jednotka }}
-          </span>
-        </div>
-      </div>
-
-      <div class="balenie-btn-container">
-
-        <ion-button *ngIf="povodnyStavPrePorovnanie > 0" expand="block"
-          [color]="!povodnyStavPouzity ? 'danger' : 'tertiary'" [fill]="!povodnyStavPouzity ? 'solid' : 'outline'"
-          (click)="pripocitatPovodnyStav()" class="action-btn">
-          <ion-icon [name]="!povodnyStavPouzity ? 'alert-circle-outline' : 'checkmark-outline'" slot="start"></ion-icon>
-          <strong>{{ povodnyStavPrePorovnanie }} {{ jednotka }} (Pôvodne)</strong>
-        </ion-button>
-
-        <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" (click)="pridatBalenie()"
-          class="action-btn">
-          <ion-icon name="cube-outline" slot="start"></ion-icon>
-          <strong>Balenie (x{{ balenie }})</strong>
-        </ion-button>
-
-        <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium"
-          (click)="zmenitVelkostBalenia()" class="action-btn">
-          <ion-icon name="add-circle-outline" slot="start"></ion-icon>
-          Pridať balenie
-        </ion-button>
-
-        <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" (click)="zmenitVelkostBalenia()"
-          class="edit-btn">
-          <ion-icon slot="icon-only" name="create-outline"></ion-icon>
-        </ion-button>
-
-      </div>
-    </div>
-
-
-    <!-- <div *ngIf="speechService.isSupported" class="voice-section ion-text-center ion-padding-vertical">
+<ion-content class="calculator-content">
+  
+  <ion-button fill="clear" class="btn-close-modal" (click)="zavriet()">
+    <ion-icon name="close-outline" slot="icon-only"></ion-icon>
+  </ion-button>
+  <div class="calc-wrapper">
+    <!-- Grid, ktorý to na desktope rozdelí vedľa seba a na mobile pod seba -->
+    <div class="calc-grid">
       
-      <div *ngIf="pocuva" style="color: var(--ion-color-tertiary); display: flex; align-items: center; justify-content: center; gap: 8px; animation: pulse 1.5s infinite;">
-        <ion-icon name="mic" style="font-size: 1.5rem;"></ion-icon> 
-        <span>Počúvam množstvo...</span>
+      <!-- ============================================== -->
+      <!-- ĽAVÁ STRANA: Informácie a Displej -->
+      <!-- ============================================== -->
+      <div class="info-column">
+        
+        <!-- Názov produktu -->
+        <div class="product-header" *ngIf="nazovProduktu">
+          <h3>{{ nazovProduktu }}</h3>
+          <span class="unit">({{ jednotka }})</span>
+        </div>
+
+        <!-- Displej kalkulačky -->
+        <div class="display-container">
+          <!-- Zobrazenie vzorca (napr. 10 + 20) -->
+          <div class="formula-text" *ngIf="zobrazitDetail">
+            {{ fullFormula }}
+          </div>
+
+          <!-- Hlavné veľké číslo -->
+          <div class="main-display" [class.has-detail]="zobrazitDetail" [class.is-highlighted]="jeOznacene">
+            {{ mainDisplay }}
+          </div>
+
+          <!-- Porovnanie rozdielu -->
+          <div class="context-info" *ngIf="povodnyStavPrePorovnanie > 0">
+            <span class="original">Pôvodne: {{ povodnyStavPrePorovnanie }} {{ jednotka }}</span>
+            <span class="divider">|</span>
+            <span class="difference" 
+                  [class.positive]="vypocitanyRozdiel > 0" 
+                  [class.negative]="vypocitanyRozdiel < 0">
+              Rozdiel: {{ vypocitanyRozdiel > 0 ? '+' : '' }}{{ vypocitanyRozdiel }} {{ jednotka }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Akčné tlačidlá (Balenie / Pôvodný stav) -->
+        <div class="action-buttons">
+          
+          <ion-button *ngIf="povodnyStavPrePorovnanie > 0" expand="block" 
+            [color]="!povodnyStavPouzity ? 'danger' : 'tertiary'" 
+            [fill]="!povodnyStavPouzity ? 'solid' : 'outline'" 
+            (click)="pripocitatPovodnyStav()" class="btn-action">
+            <ion-icon [name]="!povodnyStavPouzity ? 'alert-circle-outline' : 'checkmark-outline'" slot="start"></ion-icon>
+            {{ povodnyStavPrePorovnanie }} {{ jednotka }} (Pôvodne)
+          </ion-button>
+
+          <!-- Riadok pre balenie s tlačidlom na úpravu -->
+          <div class="balenie-row">
+            <ion-button *ngIf="balenie !== 1 && balenie > 0" expand="block" color="warning" (click)="pridatBalenie()" class="btn-action flex-grow">
+              <ion-icon name="cube-outline" slot="start"></ion-icon>
+              Balenie (x{{ balenie }})
+            </ion-button>
+
+            <ion-button *ngIf="!balenie || balenie === 1" expand="block" fill="outline" color="medium" (click)="zmenitVelkostBalenia()" class="btn-action flex-grow">
+              <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+              Pridať balenie
+            </ion-button>
+
+            <ion-button *ngIf="balenie !== 1 && balenie > 0" color="light" (click)="zmenitVelkostBalenia()" class="btn-edit">
+              <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+            </ion-button>
+          </div>
+
+        </div>
+
       </div>
 
-      <ion-button *ngIf="!pocuva" fill="clear" color="tertiary" (click)="spustiPocuvanie()">
-        <ion-icon slot="start" name="mic"></ion-icon>
-        Znova nadiktovať
-      </ion-button>
-    </div>  -->
+      <!-- ============================================== -->
+      <!-- PRAVÁ STRANA: Klávesnica -->
+      <!-- ============================================== -->
+      <div class="numpad-column">
+        <div class="numpad-grid">
+          <!-- Riadok 1 -->
+          <button class="calc-btn btn-danger" (click)="vymazat()">C</button>
+          <button class="calc-btn btn-operator" (click)="zmazatJeden()">⌫</button>
+          <button class="calc-btn btn-operator" (click)="stlacene('/')">÷</button>
+          <button class="calc-btn btn-operator" (click)="stlacene('*')">×</button>
 
-    <div class="keypad-section">
-      <div class="keypad">
-        <div class="row">
-          <ion-button color="danger" (click)="vymazat()">C</ion-button>
-          <ion-button color="medium" (click)="zmazatJeden()">⌫</ion-button>
-          <ion-button color="secondary" (click)="stlacene('/')">÷</ion-button>
-          <ion-button color="secondary" (click)="stlacene('*')">×</ion-button>
-        </div>
+          <!-- Riadok 2 -->
+          <button class="calc-btn btn-number" (click)="stlacene('7')">7</button>
+          <button class="calc-btn btn-number" (click)="stlacene('8')">8</button>
+          <button class="calc-btn btn-number" (click)="stlacene('9')">9</button>
+          <button class="calc-btn btn-operator" (click)="stlacene('-')">−</button>
 
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('7')">7</ion-button>
-          <ion-button color="light" (click)="stlacene('8')">8</ion-button>
-          <ion-button color="light" (click)="stlacene('9')">9</ion-button>
-          <ion-button color="secondary" (click)="stlacene('-')">−</ion-button>
-        </div>
+          <!-- Riadok 3 -->
+          <button class="calc-btn btn-number" (click)="stlacene('4')">4</button>
+          <button class="calc-btn btn-number" (click)="stlacene('5')">5</button>
+          <button class="calc-btn btn-number" (click)="stlacene('6')">6</button>
+          <button class="calc-btn btn-operator" (click)="stlacene('+')">+</button>
 
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('4')">4</ion-button>
-          <ion-button color="light" (click)="stlacene('5')">5</ion-button>
-          <ion-button color="light" (click)="stlacene('6')">6</ion-button>
-          <ion-button color="secondary" (click)="stlacene('+')">+</ion-button>
-        </div>
+          <!-- Riadok 4 -->
+          <button class="calc-btn btn-number" (click)="stlacene('1')">1</button>
+          <button class="calc-btn btn-number" (click)="stlacene('2')">2</button>
+          <button class="calc-btn btn-number" (click)="stlacene('3')">3</button>
+          <button class="calc-btn btn-primary" (click)="vypocitat()">=</button>
 
-        <div class="row">
-          <ion-button color="light" (click)="stlacene('1')">1</ion-button>
-          <ion-button color="light" (click)="stlacene('2')">2</ion-button>
-          <ion-button color="light" (click)="stlacene('3')">3</ion-button>
-          <ion-button color="tertiary" (click)="vypocitat()">=</ion-button>
-        </div>
-
-        <div class="row bottom-row">
-          <ion-button color="light" (click)="stlacene('0')">0</ion-button>
-          <ion-button color="light" (click)="stlacene('.')">.</ion-button>
-          <ion-button class="wide-btn" color="success" (click)="potvrdit()">OK</ion-button>
+          <!-- Riadok 5 -->
+          <button class="calc-btn btn-number col-span-2" (click)="stlacene('0')">0</button>
+          <button class="calc-btn btn-number" (click)="stlacene('.')">.</button>
+          <button class="calc-btn btn-success" (click)="potvrdit()">OK</button>
         </div>
       </div>
+
     </div>
   </div>
 </ion-content>

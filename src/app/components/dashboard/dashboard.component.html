@@ -221,13 +221,16 @@
                     </ion-chip>
                   </div>
 
-                  <div style="border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 0 5px; background: white;">
-                    <ion-select interface="popover" placeholder="📦 Ponechať bez umiestnenia" [(ngModel)]="chyba.regal_id" style="width: 100%;">
-                      <ion-select-option [value]="null">📦 Ponechať bez umiestnenia</ion-select-option>
-                      <ion-select-option *ngFor="let r of regalySkladu" [value]="r.id">{{ r.nazov }}</ion-select-option>
-                    </ion-select>
-                  </div>
-                </div>
+                 <!-- 🔥 ZMENA: interface="alert" a pridané interfaceOptions -->
+ <!-- Klikateľný box pre výber regálu (Nahrádza pôvodný ion-select) -->
+<div class="custom-select-trigger" (click)="otvoritVyberRegalu(chyba)">
+  <span class="text-truncate">
+    {{ ziskatNazovRegalu(chyba.regal_id) }}
+  </span>
+  <ion-icon name="chevron-down"></ion-icon>
+</div>
+
+</div>
 
                 <div style="background: rgba(var(--ion-color-warning-rgb), 0.1); padding: 10px; border-radius: 6px; border: 1px solid var(--ion-color-warning);">
                   <ion-label style="font-size: 0.8rem; color: var(--ion-color-dark); font-weight: bold; display: block; margin-bottom: 5px;">
@@ -344,4 +347,45 @@
     </div>
   </ion-list>
 </div>
+
+<!-- CELOOBRAZOVSKÝ MODÁL PRE VÝBER REGÁLU -->
+<ion-modal [isOpen]="isModalRegalOpen" (didDismiss)="zavrietVyberRegalu()">
+  <ng-template>
+    
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button color="medium" (click)="zavrietVyberRegalu()">Cancel</ion-button>
+        </ion-buttons>
+        <ion-title>Vyberte umiestnenie</ion-title>
+        <ion-buttons slot="end">
+          <ion-button strong="true" color="primary" (click)="ulozitVyberRegalu()">OK</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content color="light">
+      <ion-list inset="true">
+        <!-- Rádio skupina viazaná na našu dočasnú premennú -->
+        <ion-radio-group [(ngModel)]="docasnyRegalId">
+          
+          <ion-item (click)="docasnyRegalId = null" button>
+            <ion-radio [value]="null" justify="space-between">📦 Ponechať bez umiestnenia</ion-radio>
+          </ion-item>
+          
+          <ion-item *ngFor="let r of regalySkladu" (click)="docasnyRegalId = r.id" button>
+            <!-- justify="space-between" dá rádio na koniec a text na začiatok -->
+            <ion-radio [value]="r.id" justify="space-between">
+              <div class="multiline-radio-text">{{ r.nazov }}</div>
+            </ion-radio>
+          </ion-item>
+
+        </ion-radio-group>
+      </ion-list>
+    </ion-content>
+
+  </ng-template>
+</ion-modal>
+
 </ion-content>
+

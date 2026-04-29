@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { IonicModule, ModalController, AlertController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 // >>> UPRAVENÉ: Pridaná ikona createOutline <<<
-import { cubeOutline, eyeOutline, eyeOffOutline, createOutline } from 'ionicons/icons';
+import { cubeOutline, eyeOutline, eyeOffOutline, createOutline, closeOutline } from 'ionicons/icons';
 import { SupabaseService } from 'src/app/services/supabase.service';
 //import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
 
@@ -46,7 +46,7 @@ export class CalculatorModalComponent implements OnInit {
     //public speechService: SpeechRecognitionService,
     private toastController: ToastController
   ) {
-    addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline });
+    addIcons({ cubeOutline, eyeOutline, eyeOffOutline, createOutline, closeOutline });
   }
   ngOnInit() {
     this.balenie = this.balenie || 1;
@@ -529,5 +529,7 @@ export class CalculatorModalComponent implements OnInit {
   //   }
   // }
 
-
+  zavriet() {
+    this.modalController.dismiss(null, 'cancel');
+  }
 }

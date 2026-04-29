@@ -14,9 +14,7 @@ import {
   IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
   IonItem, IonLabel, IonBadge, IonButton, IonCardHeader,
   IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonCheckbox,
-  IonSelect,
-  IonSelectOption, IonBackButton,
-  IonInput, IonChip, IonSearchbar, IonRippleEffect
+  IonSelect, IonSelectOption, IonBackButton, IonInput, IonChip, IonSearchbar, IonRippleEffect, IonRadio, IonRadioGroup
 } from '@ionic/angular/standalone';
 
 import { FormsModule } from '@angular/forms';
@@ -30,7 +28,8 @@ import { FormsModule } from '@angular/forms';
     IonCheckbox, IonBackButton, IonSearchbar,
     IonSelect,
     IonSelectOption,
-    IonInput, IonRippleEffect
+    IonInput, IonRippleEffect, IonRadio,
+    IonRadioGroup
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
@@ -217,7 +216,7 @@ export class DashboardComponent implements OnInit {
         this.vysledokPorovnania = vysledky;
 
         this.neznameProdukty = safeNezname.map((p: any) => ({
-          ...p, expanded: false, kategoria_id: null, stredisko_id: null,
+          ...p, expanded: false, kategoria_id: null, stredisko_id: 1,
           balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
         }));
 
@@ -440,12 +439,13 @@ export class DashboardComponent implements OnInit {
   async ulozitNoveId(id: number, noveId: string) { /* Tvoja existujúca funkcia */ }
 
   // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt
+  // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt do katalógu a presun do chýb
   async importovatNeznamyProdukt(prod: any) {
-    // 🔥 ZMAZANÝ LOADING CONTROLLER - POUŽÍVAME BEZPEČNÝ TOAST
-    const startToast = await this.toastCtrl.create({ message: '⏳ Zapisujem do databázy...', duration: 1500, position: 'top', color: 'tertiary' });
+    const startToast = await this.toastCtrl.create({ message: '⏳ Zapisujem do katalógu...', duration: 1500, position: 'top', color: 'tertiary' });
     await startToast.present();
 
     try {
+      // 1. Uložíme produkt LEN do katalógu (bez zápisu do skladu/inventúry)
       const novyProdukt = await this.supabase.vytvoritProdukt({
         nazov: prod.nazov,
         vlastne_id: prod.vlastne_id,
@@ -456,27 +456,51 @@ export class DashboardComponent implements OnInit {
         jednotka: 'ks'
       });
 
-      await this.supabase.spracovatPrijemSoSubstituciou({
-        produkt_id: novyProdukt.id,
-        mnozstvo: prod.mnozstvo,
-        regal_id: prod.regal_id,
-        odpocitat_z_id: prod.odpocitat_z_id,
-        mnozstvo_na_odpocet: prod.mnozstvo_na_odpocet
-      });
-
-      // 🔥 Prebúdzame Angular, aby položka okamžite zmizla z obrazovky
+      // 2. Prebúdzame Angular a presúvame položku
       setTimeout(async () => {
+        // Odstránime produkt zo sekcie neznámych
         this.neznameProdukty = this.neznameProdukty.filter(p => p !== prod);
 
-        const toast = await this.toastCtrl.create({ message: '✅ Produkt úspešne pridaný.', duration: 2500, position: 'top', color: 'success' });
+        // Vytvoríme nový objekt, ktorý presne zodpovedá štruktúre v sekcii "Chyby"
+        const novaChyba = {
+          produkt_id: novyProdukt.id, // Priradíme nové reálne ID z databázy
+          vlastne_id: prod.vlastne_id,
+          nazov: prod.nazov,
+          stav: 'chyba_v_inventure', // Indikujeme, že je to nevyriešený rozdiel
+          mnozstvo: prod.mnozstvo, // Množstvo, ktoré prišlo z importu (Excelu)
+          expanded: true, // 🔥 Okamžite rozbalíme položku v UI
+          mnozstvo_uprava: prod.mnozstvo, // Predvyplníme input množstvom z Excelu
+          regal_id: prod.regal_id || null, // Zachováme vybraný regál, ak bol zadaný
+          odpocitat_z_id: null,
+          mnozstvo_na_odpocet: null,
+          zname_lokacie: [], // Úplne nový produkt ešte nemá lokácie
+          mozneZameny: []
+        };
+
+        // Zrušíme filter vyhľadávania, aby sa presunutá položka náhodou neskryla, ak hľadal niečo iné
+        this.searchQueryModal = '';
+
+        // Pridáme ju na ÚPLNÝ ZAČIATOK zoznamu chýb
+        this.vysledokPorovnania.unshift(novaChyba);
+
+        const toast = await this.toastCtrl.create({
+          message: '✅ Produkt je v katalógu. Bol presunutý do zoznamu chýb.',
+          duration: 3500,
+          position: 'top',
+          color: 'success'
+        });
         await toast.present();
 
-        await this.skontrolovatKoniecModalu();
       }, 0);
 
     } catch (error: any) {
       console.error('Chyba:', error);
-      const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)), duration: 5000, position: 'top', color: 'danger' });
+      const errToast = await this.toastCtrl.create({
+        message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)),
+        duration: 5000,
+        position: 'top',
+        color: 'danger'
+      });
       await errToast.present();
     }
   }
@@ -552,6 +576,37 @@ export class DashboardComponent implements OnInit {
     } else {
       chyba.mnozstvo_na_odpocet = null;
     }
+  }
+
+  // --- PREMENNÉ PRE VÝBER REGÁLU ---
+  isModalRegalOpen: boolean = false;
+  aktualnaChybaPreRegal: any = null; // Uchová referenciu na položku, ktorú práve upravujeme
+  docasnyRegalId: number | null = null; // Hodnota pre Radio Group
+
+  // --- METÓDY PRE MODÁL ---
+  otvoritVyberRegalu(chyba: any) {
+    this.aktualnaChybaPreRegal = chyba;
+    this.docasnyRegalId = chyba.regal_id;
+    this.isModalRegalOpen = true;
+  }
+
+  zavrietVyberRegalu() {
+    this.isModalRegalOpen = false;
+    this.aktualnaChybaPreRegal = null;
+  }
+
+  ulozitVyberRegalu() {
+    if (this.aktualnaChybaPreRegal) {
+      this.aktualnaChybaPreRegal.regal_id = this.docasnyRegalId;
+    }
+    this.zavrietVyberRegalu();
+  }
+
+  // Pomocná funkcia pre UI, aby sme videli názov regálu namiesto ID
+  ziskatNazovRegalu(id: number | null): string {
+    if (!id) return '📦 Ponechať bez umiestnenia';
+    const regal = this.regalySkladu.find(r => r.id === id);
+    return regal ? regal.nazov : '📦 Ponechať bez umiestnenia';
   }
 }
 

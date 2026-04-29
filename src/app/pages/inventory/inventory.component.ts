@@ -834,7 +834,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     // 👉 2. KROK: OTVORENIE KALKULAČKY S GARANTOVANÝMI DÁTAMI
     const modal = await this.modalController.create({
       component: CalculatorModalComponent,
-      cssClass: 'my-custom-modal',
+      // cssClass: 'my-custom-modal',
       componentProps: {
         produktId: zasoba.produkt_id,
         nazovProduktu: zasoba.nazov,
@@ -844,7 +844,13 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         // Tu pošleme čerstvo vytiahnutú hodnotu, ktorá obchádza chybu v RPC filtri
         balenie: cerstveBalenie,
         jednotka: zasoba.jednotka || 'ks'
-      }
+      },
+      // 🔥 PRIDAJ TIETO RIADKY PRE KONTROLU VEĽKOSTI
+      //initialBreakpoint: 1,      // Modál sa otvorí na maximálnu veľkosť podľa obsahu
+      breakpoints: [0, 0.5, 1],  // Definuje, do akých veľkostí (v percentách výšky okna) môže modál "zapadnúť". 0 = zatvorený, 1 = plná výška obsahu.
+      backdropDismiss: true,     // Zavrie sa po kliknutí mimo
+      handle: false,             // Ak nechceš zobraziť tenkú čiarku navrchu modálu pre "potiahnutie" (často sa používa pri sheet modals)
+      // Prípadne môžeš experimentovať s konkrétnym počiatočným breakpointom napr. 0.7 ak by 1 bolo priveľa.
     });
 
     await modal.present();
