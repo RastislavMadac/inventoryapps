@@ -1,7 +1,7 @@
 # InventorysApp
 
 ## O projekte
-InventorysApp (verzia 0.5.9) je komplexná hybridná aplikácia zameraná na správu skladových zásob, inventúr a kategorizáciu produktov[cite: 1, 2].
+InventorysApp (verzia 1.0.1) je komplexná hybridná aplikácia zameraná na správu skladových zásob, inventúr a kategorizáciu produktov
 
 ## Technologický Stack (Front-end)
 * Aplikácia je postavená na modernom frameworku Angular vo verzii 20.0.0[cite: 1].
