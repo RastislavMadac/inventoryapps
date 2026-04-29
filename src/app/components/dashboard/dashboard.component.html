@@ -91,9 +91,12 @@
   </ion-card-content>
 </ion-card>
 
-<ion-modal [isOpen]="isModalOpen" (didDismiss)="isModalOpen = false">
+<ion-modal [isOpen]="isModalOpen" (didDismiss)="isModalOpen = false" class="fullscreen-modal">
   <ng-template>
+    
+    <!-- 🔥 HEADER: Tu sú OBA toolbary. Všetko tu zostane zafixované na vrchu -->
     <ion-header>
+      <!-- 1. Hlavný nadpis s tlačidlom na zavretie -->
       <ion-toolbar color="primary">
         <ion-title>Nezrovnalosti ({{ vysledokPorovnania.length + neznameProdukty.length }})</ion-title>
         <ion-buttons slot="end">
@@ -102,20 +105,28 @@
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
+
+      <!-- 2. Panel s informáciou a vyhľadávaním -->
+      <ion-toolbar>
+        <div style="background: rgba(var(--ion-color-primary-rgb), 0.1); padding: 8px 12px; border-radius: 8px; margin: 10px 16px 5px 16px;">
+          <p style="margin: 0; font-size: 0.85rem; text-align: center; color: var(--ion-color-dark);">
+            Porovnanie fyzicky naskenovaného stavu voči importovanému Excelu.
+          </p>
+        </div>
+        
+        <ion-searchbar 
+          placeholder="Hľadať produkt (názov)..." 
+          [(ngModel)]="searchQueryModal" 
+          [debounce]="250"
+          style="padding: 5px 16px 10px 16px;">
+        </ion-searchbar>
+      </ion-toolbar>
     </ion-header>
 
+    <!-- 🔥 CONTENT: Tu sú už len čisté zoznamy (Neznáme produkty a Chyby), ktoré sa rolujú -->
     <ion-content class="ion-padding">
-      <div style="background: rgba(var(--ion-color-primary-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-        <p style="margin: 0; font-size: 0.9rem; text-align: center;">Porovnanie fyzicky naskenovaného stavu voči importovanému Excelu.</p>
-      </div>
-      
-      <ion-searchbar 
-        placeholder="Hľadať produkt (názov)..." 
-        [(ngModel)]="searchQueryModal" 
-        [debounce]="250"
-        style="padding: 0; padding-bottom: 15px;">
-      </ion-searchbar>
 
+      <!-- Sekcia: Neznáme produkty -->
       <div *ngIf="filtruvaneNezname.length > 0" style="margin-bottom: 30px;">
         <div style="background: rgba(var(--ion-color-dark-rgb), 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
           <p style="margin: 0; font-size: 0.9rem; font-weight: bold; color: var(--ion-color-dark); text-align: center;">
@@ -169,6 +180,7 @@
         </ion-list>
       </div>
 
+      <!-- Sekcia: Chyby v inventúre -->
       <div *ngIf="filtruvaneChyby.length > 0">
         <h3 style="font-size: 1rem; font-weight: bold; color: var(--ion-color-dark); margin-bottom: 10px; padding-left: 10px;">
           Chyby v inventúre (Úpravy a zámeny na sklade)
@@ -221,16 +233,14 @@
                     </ion-chip>
                   </div>
 
-                 <!-- 🔥 ZMENA: interface="alert" a pridané interfaceOptions -->
- <!-- Klikateľný box pre výber regálu (Nahrádza pôvodný ion-select) -->
-<div class="custom-select-trigger" (click)="otvoritVyberRegalu(chyba)">
-  <span class="text-truncate">
-    {{ ziskatNazovRegalu(chyba.regal_id) }}
-  </span>
-  <ion-icon name="chevron-down"></ion-icon>
-</div>
-
-</div>
+                  <!-- Klikateľný box pre výber regálu -->
+                  <div class="custom-select-trigger" (click)="otvoritVyberRegalu(chyba)">
+                    <span class="text-truncate">
+                      {{ ziskatNazovRegalu(chyba.regal_id) }}
+                    </span>
+                    <ion-icon name="chevron-down"></ion-icon>
+                  </div>
+                </div>
 
                 <div style="background: rgba(var(--ion-color-warning-rgb), 0.1); padding: 10px; border-radius: 6px; border: 1px solid var(--ion-color-warning);">
                   <ion-label style="font-size: 0.8rem; color: var(--ion-color-dark); font-weight: bold; display: block; margin-bottom: 5px;">
