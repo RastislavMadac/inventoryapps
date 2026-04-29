@@ -65,7 +65,7 @@
      <button 
         type="button" 
         (click)="otvoritValidaciu()" 
-        style="width: 100%; padding: 15px; background: var(--ion-color-primary); color: white; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 20px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;">
+        style="width: 100%; padding: 15px; background: red; color: white; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 20px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer;">
         ✅ Pokračovať vo validácii
       </button>
       
@@ -187,10 +187,10 @@
         </h3>
         
         <ion-list lines="full">
-          <ion-item *ngFor="let chyba of filtruvaneChyby">
+        <ion-item *ngFor="let chyba of filtruvaneChyby">
             <div style="width: 100%; padding: 10px 0;">
               
-              <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                   <h2 style="font-weight: bold; white-space: normal;">{{ chyba.nazov }}</h2>
                   <p style="margin-bottom: 0;">
@@ -199,13 +199,28 @@
                       {{ chyba.stav === 'chyba_v_inventure' ? 'Chýba' : 'Navyše' }}
                     </ion-badge>
                   </p>
+                  
+                  <!-- 🔥 NOVÉ: Informatívne zobrazenie pre položky NAVYŠE (bez možnosti úpravy) -->
+                  <div *ngIf="chyba.stav === 'navyse_v_inventure'" style="margin-top: 8px; font-size: 0.9rem; color: var(--ion-color-dark); background: rgba(var(--ion-color-warning-rgb), 0.1); padding: 8px; border-radius: 6px; border-left: 3px solid var(--ion-color-warning);">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <ion-icon name="information-circle-outline" color="warning"></ion-icon> 
+                      <strong>Naskenované navyše.</strong>
+                    </div>
+                    <div *ngIf="chyba.naskenovane_umiestnenie" style="color: var(--ion-color-medium); font-size: 0.8rem; margin-top: 4px; padding-left: 20px;">
+                      📍 Na regáli: {{ chyba.naskenovane_umiestnenie }}
+                    </div>
+                  </div>
+
                 </div>
-                <ion-button fill="outline" size="small" (click)="chyba.expanded = !chyba.expanded">
+
+                <!-- 🔥 Tlačidlo 'Riešiť' sa zobrazí VÝLUČNE pre položky, ktoré CHÝBAJÚ (Červené) -->
+                <ion-button *ngIf="chyba.stav === 'chyba_v_inventure'" fill="outline" size="small" (click)="chyba.expanded = !chyba.expanded">
                   {{ chyba.expanded ? 'Zbaliť' : 'Riešiť' }}
                 </ion-button>
               </div>
 
-              <div *ngIf="chyba.expanded" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+              <!-- 🔥 Formulár na úpravu sa vykreslí VÝLUČNE pre chýbajúce (Červené) položky -->
+              <div *ngIf="chyba.expanded && chyba.stav === 'chyba_v_inventure'" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
                 
                 <div style="border: 1px solid var(--ion-color-primary); border-radius: 6px; padding: 10px; margin-bottom: 10px; background: rgba(var(--ion-color-primary-rgb), 0.05);">
                   <ion-label style="font-size: 0.8rem; font-weight: bold; color: var(--ion-color-primary); display: block; margin-bottom: 5px;">
@@ -214,10 +229,11 @@
                   <ion-input type="number" 
                   [(ngModel)]="chyba.mnozstvo_uprava"
                   (ngModelChange)="aktualizujOdpocet(chyba)"
-                   placeholder="Zadaj počet (+/-)" 
+                   placeholder="Zadaj presný počet (+/-)" 
                    style="background: white; border-radius: 4px; border: 1px solid #ccc; padding-left: 10px;"></ion-input>
                 </div>
 
+                <!-- ... Umiestnenie na sklade a Zámena zostávajú bez zmeny ... -->
                 <div style="border: 1px solid var(--ion-color-light-shade); border-radius: 6px; padding: 10px; margin-bottom: 10px;">
                   <ion-label style="font-size: 0.8rem; color: var(--ion-color-medium); font-weight: bold; display: block; margin-bottom: 5px;">
                     2. Umiestnenie na sklade:
@@ -233,11 +249,8 @@
                     </ion-chip>
                   </div>
 
-                  <!-- Klikateľný box pre výber regálu -->
                   <div class="custom-select-trigger" (click)="otvoritVyberRegalu(chyba)">
-                    <span class="text-truncate">
-                      {{ ziskatNazovRegalu(chyba.regal_id) }}
-                    </span>
+                    <span class="text-truncate">{{ ziskatNazovRegalu(chyba.regal_id) }}</span>
                     <ion-icon name="chevron-down"></ion-icon>
                   </div>
                 </div>
@@ -267,7 +280,6 @@
                       <i> Žiadne iné produkty z tejto kategórie neboli v appke spočítané.</i>
                     </p>
                   </ng-template>
-
                 </div>
 
                 <ion-button expand="block" color="primary" style="margin-top: 15px;" (click)="opravitJednuChybu(chyba)">

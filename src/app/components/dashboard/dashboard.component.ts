@@ -146,6 +146,105 @@ export class DashboardComponent implements OnInit {
   }
 
   // 🔥 BLESKOVÁ (TURBO) A NEPRIESTRELNÁ METÓDA PRE VALIDACIU EXCELU
+  // async otvoritValidaciu() {
+  //   if (!this.aktualnaInventuraId) {
+  //     const err = await this.toastCtrl.create({ message: '❌ Chýba ID inventúry!', duration: 3000, color: 'danger', position: 'top' });
+  //     err.present();
+  //     return;
+  //   }
+
+  //   const startToast = await this.toastCtrl.create({ message: 'Spracovávam dáta...', duration: 1500, position: 'top', color: 'tertiary' });
+  //   await startToast.present();
+
+  //   try {
+  //     // 🔥 TURBO KROK 1: Sťahujeme všetky 3 hlavné balíky dát NARAZ (Paralelne)
+  //     const [rozdiely, nezname, spocitaneZaznamy] = await Promise.all([
+  //       this.supabase.porovnatImportSInventurou(this.aktualnaInventuraId),
+  //       this.supabase.skontrolovatNeznameProdukty(this.aktualnaInventuraId),
+  //       this.supabase.getRawInventuraData(this.aktualnaInventuraId)
+  //     ]);
+
+  //     // 🔥 Ochrana proti tichému pádu
+  //     const safeRozdiely = rozdiely || [];
+  //     const safeNezname = nezname || [];
+  //     const safeSpocitane = spocitaneZaznamy || [];
+  //     const safeKatalog = this.vsetkyProduktyKatalog || [];
+
+  //     const spocitaneProduktIds = new Set(safeSpocitane.map((z: any) => z.produkt_id));
+
+  //     // 🔥 TURBO KROK 2: Zisťujeme lokácie pre všetky problémové produkty NARAZ (Paralelne)
+  //     const vysledky = await Promise.all(safeRozdiely.map(async (r: any) => {
+  //       let znameLokacie: any[] = [];
+  //       let mozneZameny: any[] = [];
+  //       let naskenovaneUmiestnenie = null; // 🔥 NOVÁ PREMENNÁ PRE TEXT
+  //       let predvolenyRegal = null;
+
+  //       if (r.produkt_id) {
+  //         try {
+  //           const zasoby = await this.supabase.ziskatLokacieProduktu(r.produkt_id);
+  //           if (zasoby && zasoby.length > 0) {
+  //             znameLokacie = zasoby.filter((z: any) => z.regaly).map((z: any) => {
+  //               const regalObj = Array.isArray(z.regaly) ? z.regaly[0] : z.regaly;
+  //               if (!regalObj) return null;
+  //               const skladData = regalObj.sklady;
+  //               const nazovSkladu = (Array.isArray(skladData) ? skladData[0]?.nazov : skladData?.nazov) || '';
+  //               return { id: regalObj.id, nazov: `${nazovSkladu} - ${regalObj.nazov}`, mnozstvo: z.mnozstvo_ks };
+  //             }).filter((item: any) => item !== null);
+  //           }
+
+  //           const produktVKatalogu = safeKatalog.find(p => p.id === r.produkt_id);
+  //           const kategoriaId = produktVKatalogu ? produktVKatalogu.kategoria_id : null;
+
+  //           if (kategoriaId) {
+  //             mozneZameny = safeKatalog.filter(p =>
+  //               p.kategoria_id === kategoriaId && spocitaneProduktIds.has(p.id) && p.id !== r.produkt_id
+  //             );
+  //           }
+  //         } catch (innerErr) {
+  //           console.warn('Chyba pri lokáciách:', innerErr);
+  //         }
+  //       }
+  //       // 🔥 NOVÁ LOGIKA: Zistenie lokácie pre položku, ktorá je navyše
+  //       if (r.stav === 'navyse_v_inventure') {
+  //         const zaznamVInventure = safeSpocitane.find((z: any) => z.produkt_id === r.produkt_id);
+  //         if (zaznamVInventure && zaznamVInventure.regal_id) {
+  //           predvolenyRegal = zaznamVInventure.regal_id;
+  //           naskenovaneUmiestnenie = this.ziskatNazovRegalu(zaznamVInventure.regal_id);
+  //         }
+  //       }
+  //       return {
+  //         ...r, expanded: false, mnozstvo_uprava: null,
+  //         regal_id: predvolenyRegal || (znameLokacie.length === 1 ? znameLokacie[0].id : null),
+  //         odpocitat_z_id: null, mnozstvo_na_odpocet: null,
+  //         zname_lokacie: znameLokacie, mozneZameny: mozneZameny
+  //       };
+  //     }));
+
+  //     // 🔥 Prebúdzame Angular a otvárame modál bez sekania
+  //     setTimeout(async () => {
+  //       this.vysledokPorovnania = vysledky;
+
+  //       this.neznameProdukty = safeNezname.map((p: any) => ({
+  //         ...p, expanded: false, kategoria_id: null, stredisko_id: 1,
+  //         balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
+  //       }));
+
+  //       if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
+  //         this.isModalOpen = true;
+  //       } else {
+  //         const t = await this.toastCtrl.create({ message: 'Excel je v 100% zhode!', color: 'success', duration: 4000, position: 'top' });
+  //         await t.present();
+  //       }
+  //     }, 0);
+
+  //   } catch (e: any) {
+  //     console.error(e);
+  //     const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (e.message || 'Neznáma chyba databázy'), color: 'danger', duration: 8000, position: 'top' });
+  //     await errToast.present();
+  //   }
+  // }
+
+  // 🔥 BLESKOVÁ (TURBO) A NEPRIESTRELNÁ METÓDA PRE VALIDACIU EXCELU
   async otvoritValidaciu() {
     if (!this.aktualnaInventuraId) {
       const err = await this.toastCtrl.create({ message: '❌ Chýba ID inventúry!', duration: 3000, color: 'danger', position: 'top' });
@@ -172,10 +271,26 @@ export class DashboardComponent implements OnInit {
 
       const spocitaneProduktIds = new Set(safeSpocitane.map((z: any) => z.produkt_id));
 
+      // 🔥 NOVÉ: Zlúčenie duplicít (ak backend vráti viac riadkov pre rovnaký produkt a rovnaký stav)
+      const rozdielyMap = new Map();
+      for (const r of safeRozdiely) {
+        const kluc = r.produkt_id + '_' + r.stav; // Oddelíme chýba/navyše
+        if (rozdielyMap.has(kluc)) {
+          rozdielyMap.get(kluc).mnozstvo += Number(r.mnozstvo); // Zlúčime množstvá
+        } else {
+          rozdielyMap.set(kluc, { ...r, mnozstvo: Number(r.mnozstvo) });
+        }
+      }
+      const zluceneRozdiely = Array.from(rozdielyMap.values());
+
+
       // 🔥 TURBO KROK 2: Zisťujeme lokácie pre všetky problémové produkty NARAZ (Paralelne)
-      const vysledky = await Promise.all(safeRozdiely.map(async (r: any) => {
+      // Zmenené safeRozdiely na zluceneRozdiely
+      const vysledky = await Promise.all(zluceneRozdiely.map(async (r: any) => {
         let znameLokacie: any[] = [];
         let mozneZameny: any[] = [];
+        let naskenovaneLokacie: any[] = []; // 🔥 POLE PRE VŠETKY MIESTA
+        let predvolenyRegal = null;
 
         if (r.produkt_id) {
           try {
@@ -203,11 +318,30 @@ export class DashboardComponent implements OnInit {
           }
         }
 
+        // 🔥 NOVÁ LOGIKA: Extrakcia všetkých regálov z inventúry
+        if (r.stav === 'navyse_v_inventure') {
+          // Nájdeme VŠETKY miesta, kde bol tento produkt fyzicky naskenovaný
+          const vsetkyZaznamy = safeSpocitane.filter((z: any) => z.produkt_id === r.produkt_id);
+
+          naskenovaneLokacie = vsetkyZaznamy.map((z: any) => ({
+            id: z.regal_id,
+            nazov: this.ziskatNazovRegalu(z.regal_id),
+            mnozstvo: z.mnozstvo // Koľko kusov sme tu naskenovali
+          }));
+
+          // Predvolíme regál, kde ho naskenovali najviac
+          if (naskenovaneLokacie.length > 0) {
+            naskenovaneLokacie.sort((a, b) => b.mnozstvo - a.mnozstvo);
+            predvolenyRegal = naskenovaneLokacie[0].id;
+          }
+        }
+
         return {
           ...r, expanded: false, mnozstvo_uprava: null,
-          regal_id: znameLokacie.length === 1 ? znameLokacie[0].id : null,
+          regal_id: predvolenyRegal || (znameLokacie.length === 1 ? znameLokacie[0].id : null),
           odpocitat_z_id: null, mnozstvo_na_odpocet: null,
-          zname_lokacie: znameLokacie, mozneZameny: mozneZameny
+          zname_lokacie: znameLokacie, mozneZameny: mozneZameny,
+          naskenovane_lokacie: naskenovaneLokacie // 🔥 Pridáme pole do objektu pre HTML
         };
       }));
 
@@ -506,28 +640,73 @@ export class DashboardComponent implements OnInit {
   }
 
   // 2. INDIVIDUÁLNE ULOŽENIE: Oprava chyby (Červené / Žlté)
+  // async opravitJednuChybu(chyba: any) {
+  //   if (!chyba.produkt_id || !this.aktualnaInventuraId) {
+  //     const t = await this.toastCtrl.create({ message: '❌ Zlyhanie: Chýba ID.', duration: 3000, position: 'top', color: 'danger' });
+  //     t.present();
+  //     return;
+  //   }
+
+  //   // 🔥 ZMAZANÝ LOADING CONTROLLER - POUŽÍVAME BEZPEČNÝ TOAST
+  //   const startToast = await this.toastCtrl.create({ message: '⏳ Aplikujem opravu na sklad...', duration: 1500, position: 'top', color: 'tertiary' });
+  //   await startToast.present();
+
+  //   try {
+  //     await this.supabase.opravitChybuNaSklade({
+  //       inventura_id: this.aktualnaInventuraId,
+  //       produkt_id: chyba.produkt_id,
+  //       mnozstvo_uprava: chyba.mnozstvo_uprava,
+  //       regal_id: chyba.regal_id,
+  //       odpocitat_z_id: chyba.odpocitat_z_id,
+  //       mnozstvo_na_odpocet: chyba.mnozstvo_na_odpocet
+  //     });
+
+  //     // 🔥 Prebúdzame Angular, aby vybavená chyba zmizla zo zoznamu
+  //     setTimeout(async () => {
+  //       this.vysledokPorovnania = this.vysledokPorovnania.filter(c => c !== chyba);
+
+  //       const toast = await this.toastCtrl.create({ message: '✅ Oprava úspešne aplikovaná.', duration: 2500, position: 'top', color: 'success' });
+  //       await toast.present();
+
+  //       await this.skontrolovatKoniecModalu();
+  //     }, 0);
+
+  //   } catch (error: any) {
+  //     console.error('Chyba:', error);
+  //     const errToast = await this.toastCtrl.create({ message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)), duration: 5000, position: 'top', color: 'danger' });
+  //     await errToast.present();
+  //   }
+  // }
+
   async opravitJednuChybu(chyba: any) {
+    if (chyba.stav === 'navyse_v_inventure') return;
+
     if (!chyba.produkt_id || !this.aktualnaInventuraId) {
       const t = await this.toastCtrl.create({ message: '❌ Zlyhanie: Chýba ID.', duration: 3000, position: 'top', color: 'danger' });
       t.present();
       return;
     }
 
-    // 🔥 ZMAZANÝ LOADING CONTROLLER - POUŽÍVAME BEZPEČNÝ TOAST
-    const startToast = await this.toastCtrl.create({ message: '⏳ Aplikujem opravu na sklad...', duration: 1500, position: 'top', color: 'tertiary' });
+    const startToast = await this.toastCtrl.create({ message: '⏳ Aplikujem opravu na sklad a inventúru...', duration: 1500, position: 'top', color: 'tertiary' });
     await startToast.present();
 
+    // 🔴 ČERVENÁ POLOŽKA (Chýba): 
+    // Množstvo úpravy (chyba.mnozstvo_uprava) je napr. +5 (Toľko chceme pridať chýbajúcej položke)
+    // Množstvo na odpočet pošleme ako ZÁPORNÚ hodnotu, napr. -5 (Toľko chceme odpočítať zo zámeny)
+    const mnozstvo_pre_zamenu = chyba.mnozstvo_na_odpocet ? -Math.abs(chyba.mnozstvo_na_odpocet) : 0;
+
     try {
+      // 1. ZÁPIS NA SKLAD A DO INVENTÚRY (Jedno bezpečné volanie)
       await this.supabase.opravitChybuNaSklade({
         inventura_id: this.aktualnaInventuraId,
         produkt_id: chyba.produkt_id,
-        mnozstvo_uprava: chyba.mnozstvo_uprava,
+        mnozstvo_uprava: chyba.mnozstvo_uprava, // napr. +5
         regal_id: chyba.regal_id,
-        odpocitat_z_id: chyba.odpocitat_z_id,
-        mnozstvo_na_odpocet: chyba.mnozstvo_na_odpocet
+        odpocitat_z_id: chyba.odpocitat_z_id,   // napr. Položka A
+        mnozstvo_na_odpocet: mnozstvo_pre_zamenu // napr. -5
       });
 
-      // 🔥 Prebúdzame Angular, aby vybavená chyba zmizla zo zoznamu
+      // Vyčistenie a obnova UI
       setTimeout(async () => {
         this.vysledokPorovnania = this.vysledokPorovnania.filter(c => c !== chyba);
 
@@ -547,7 +726,12 @@ export class DashboardComponent implements OnInit {
   // 3. POMOCNÁ FUNKCIA: Ak vyriešime všetko, zavrie sa okno
   async skontrolovatKoniecModalu() {
     await this.obnovitStatistiky();
-    if (this.neznameProdukty.length === 0 && this.vysledokPorovnania.length === 0) {
+
+    // 🔥 ZMENA: Kontrolujeme už len "červené" nevyriešené chyby. 
+    // Žlté (navyse_v_inventure) v poli zostávajú, ale neblokujú zatvorenie okna.
+    const pocetActionableChyb = this.vysledokPorovnania.filter(c => c.stav === 'chyba_v_inventure').length;
+
+    if (this.neznameProdukty.length === 0 && pocetActionableChyb === 0) {
       this.isModalOpen = false;
     }
   }
