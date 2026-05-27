@@ -351,7 +351,8 @@ export class DashboardComponent implements OnInit {
 
         this.neznameProdukty = safeNezname.map((p: any) => ({
           ...p, expanded: false, kategoria_id: null, stredisko_id: 1,
-          balenie_ks: 1, regal_id: null, odpocitat_z_id: null, mnozstvo_na_odpocet: null
+          // Priradíme rovno virtuálny regál namiesto null
+          balenie_ks: 1, regal_id: 0, odpocitat_z_id: null, mnozstvo_na_odpocet: null
         }));
 
         if (this.vysledokPorovnania.length > 0 || this.neznameProdukty.length > 0) {
@@ -572,15 +573,17 @@ export class DashboardComponent implements OnInit {
   async zmenitId(p: any) { /* Tvoja existujúca funkcia na zmenu ID */ }
   async ulozitNoveId(id: number, noveId: string) { /* Tvoja existujúca funkcia */ }
 
-  // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt
-  // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt do katalógu a presun do chýb
+  // 1. INDIVIDUÁLNE ULOŽENIE: Neznámy produkt do katalógu a ROVNO NA SKLAD
   async importovatNeznamyProdukt(prod: any) {
-    const startToast = await this.toastCtrl.create({ message: '⏳ Zapisujem do katalógu...', duration: 1500, position: 'top', color: 'tertiary' });
+    const startToast = await this.toastCtrl.create({ message: '⏳ Zapisujem do katalógu a na sklad...', duration: 1500, position: 'top', color: 'tertiary' });
     await startToast.present();
 
     try {
-      // 1. Uložíme produkt LEN do katalógu (bez zápisu do skladu/inventúry)
-      const novyProdukt = await this.supabase.vytvoritProdukt({
+      // Striktná kontrola: Ak regal_id chýba, použijeme Virtuálny regál (0)
+      const fallbackRegal = (prod.regal_id !== null && prod.regal_id !== undefined) ? prod.regal_id : 0;
+
+      // 🔥 ZMENA: Používame vytvoritProduktSLocation. Tým sa produkt hneď fyzicky prepojí s regálom v DB!
+      const novyProdukt = await this.supabase.vytvoritProduktSLocation({
         nazov: prod.nazov,
         vlastne_id: prod.vlastne_id,
         Interne_id: prod.interne_id,
@@ -588,40 +591,35 @@ export class DashboardComponent implements OnInit {
         stredisko_id: prod.stredisko_id,
         balenie_ks: prod.balenie_ks,
         jednotka: 'ks'
-      });
+      }, fallbackRegal);
 
-      // 2. Prebúdzame Angular a presúvame položku
       setTimeout(async () => {
         // Odstránime produkt zo sekcie neznámych
         this.neznameProdukty = this.neznameProdukty.filter(p => p !== prod);
 
-        // Vytvoríme nový objekt, ktorý presne zodpovedá štruktúre v sekcii "Chyby"
+        // Vytvoríme nový objekt pre sekciu "Chyby"
         const novaChyba = {
-          produkt_id: novyProdukt.id, // Priradíme nové reálne ID z databázy
+          produkt_id: novyProdukt.id,
           vlastne_id: prod.vlastne_id,
           nazov: prod.nazov,
-          stav: 'chyba_v_inventure', // Indikujeme, že je to nevyriešený rozdiel
-          mnozstvo: prod.mnozstvo, // Množstvo, ktoré prišlo z importu (Excelu)
-          expanded: true, // 🔥 Okamžite rozbalíme položku v UI
-          mnozstvo_uprava: prod.mnozstvo, // Predvyplníme input množstvom z Excelu
-          regal_id: prod.regal_id || null, // Zachováme vybraný regál, ak bol zadaný
+          stav: 'chyba_v_inventure',
+          mnozstvo: prod.mnozstvo,
+          expanded: true,
+          mnozstvo_uprava: prod.mnozstvo,
+          regal_id: fallbackRegal, // Bezpečne priradené ID
           odpocitat_z_id: null,
           mnozstvo_na_odpocet: null,
-          zname_lokacie: [], // Úplne nový produkt ešte nemá lokácie
+          // 🔥 Hneď mu priradíme lokáciu aj vizuálne do modálu, aby UI vedelo, kde je
+          zname_lokacie: [{ id: fallbackRegal, nazov: '📦 Nezaradené / Virtuálny regál', mnozstvo: 0 }],
           mozneZameny: []
         };
 
-        // Zrušíme filter vyhľadávania, aby sa presunutá položka náhodou neskryla, ak hľadal niečo iné
         this.searchQueryModal = '';
-
-        // Pridáme ju na ÚPLNÝ ZAČIATOK zoznamu chýb
         this.vysledokPorovnania.unshift(novaChyba);
 
         const toast = await this.toastCtrl.create({
-          message: '✅ Produkt je v katalógu. Bol presunutý do zoznamu chýb.',
-          duration: 3500,
-          position: 'top',
-          color: 'success'
+          message: '✅ Produkt úspešne pridaný na virtuálny regál.',
+          duration: 3500, position: 'top', color: 'success'
         });
         await toast.present();
 
@@ -631,9 +629,7 @@ export class DashboardComponent implements OnInit {
       console.error('Chyba:', error);
       const errToast = await this.toastCtrl.create({
         message: '❌ CHYBA: ' + (error.message || JSON.stringify(error)),
-        duration: 5000,
-        position: 'top',
-        color: 'danger'
+        duration: 5000, position: 'top', color: 'danger'
       });
       await errToast.present();
     }
@@ -765,7 +761,7 @@ export class DashboardComponent implements OnInit {
   // --- PREMENNÉ PRE VÝBER REGÁLU ---
   isModalRegalOpen: boolean = false;
   aktualnaChybaPreRegal: any = null; // Uchová referenciu na položku, ktorú práve upravujeme
-  docasnyRegalId: number | null = null; // Hodnota pre Radio Group
+  docasnyRegalId: number = 0;
 
   // --- METÓDY PRE MODÁL ---
   otvoritVyberRegalu(chyba: any) {
@@ -787,10 +783,13 @@ export class DashboardComponent implements OnInit {
   }
 
   // Pomocná funkcia pre UI, aby sme videli názov regálu namiesto ID
-  ziskatNazovRegalu(id: number | null): string {
-    if (!id) return '📦 Ponechať bez umiestnenia';
-    const regal = this.regalySkladu.find(r => r.id === id);
-    return regal ? regal.nazov : '📦 Ponechať bez umiestnenia';
+  ziskatNazovRegalu(id: number | null | undefined): string {
+    // Ak dostaneme prázdnu hodnotu (null/undefined), hľadáme ID 0 (virtuálny regál)
+    const hladaneId = id ? id : 0;
+    const regal = this.regalySkladu.find(r => r.id === hladaneId);
+
+    // Ak by sa regál 0 náhodou nenašiel v zozname (pri prvom načítaní), vrátime fallback text
+    return regal ? regal.nazov : '📦 Nezaradené / Virtuálny regál';
   }
 }
 

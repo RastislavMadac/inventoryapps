@@ -868,8 +868,40 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       // 2. Extrakcia jednotky pre krajšie formátovanie (napr. ks, kg, l)
       const jednotka = zasoba.jednotka || 'ks';
 
-      // 3. Zobrazenie veľkého vlastného toastu (3. parameter je css trieda)
-      this.zobrazToast(`Zadané: ${zasoba.nazov} ➔ ${novyStav} ${jednotka}`, 'success', 'kalkulacka-toast');
+      // 👉 3. KROK: OVERENIE SKUTOČNÉHO STAVU PRIAMO V DATABÁZE
+      try {
+        let overeneMnozstvo = 0;
+        const regalPreOverenie = zasoba.regal_id || this.vybranyRegalId || 0; // Fallback na virtuálny regál 0
+
+        if (this.aktivnaInventura) {
+          // OVERENIE A: Sme v režime inventúry -> kontrolujeme tabuľku inventura_polozky
+          const vsetkyNaRegali = await this.supabaseService.getInventuraStavNaRegali(this.aktivnaInventura.id, regalPreOverenie);
+          const polozkaDB = vsetkyNaRegali.find(p => p.produkt_id === zasoba.produkt_id);
+
+          // Ak sme zadali množstvo 0, funkcia 'ulozitZmenu' položku z inventúry fyzicky vymaže.
+          // Ak sa položka v DB nenašla (polozkaDB je undefined), znamená to úspešný výmaz, teda stav je korektne 0.
+          overeneMnozstvo = polozkaDB ? polozkaDB.mnozstvo : 0;
+
+        } else {
+          // OVERENIE B: Bežný režim -> kontrolujeme tabuľku skladove_zasoby
+          const polozkaDB = await this.supabaseService.getZasobaNaRegali(zasoba.produkt_id, regalPreOverenie);
+          overeneMnozstvo = polozkaDB ? polozkaDB.mnozstvo_ks : 0;
+        }
+
+        // Ak sa údaje nezhodujú (databáza vrátila iné číslo, než sme zadali), vizuálne na to upozorníme
+        if (overeneMnozstvo !== novyStav) {
+          console.warn(`Nesúlad dát! Zadané: ${novyStav}, V databáze je: ${overeneMnozstvo}`);
+          this.zobrazToast(`⚠️ Uložené s odchýlkou! DB hlási: ${overeneMnozstvo} ${jednotka}`, 'warning', 'kalkulacka-toast');
+        } else {
+          // Zobrazenie veľkého vlastného toastu s GARANTOVANOU informáciou z DB
+          this.zobrazToast(`V DB uložené: ${zasoba.nazov} ➔ ${overeneMnozstvo} ${jednotka}`, 'success', 'kalkulacka-toast');
+        }
+
+      } catch (err) {
+        console.error('Chyba pri overovaní dát z DB:', err);
+        // Fallback pre prípad, že zápis prešiel, ale okamžité overenie zlyhalo napr. na mikro-výpadku internetu
+        this.zobrazToast(`Zadané: ${zasoba.nazov} ➔ ${novyStav} ${jednotka} (Neoverené v DB)`, 'medium', 'kalkulacka-toast');
+      }
 
       // Vynútenie prekreslenia UI
       this.cdr.detectChanges();

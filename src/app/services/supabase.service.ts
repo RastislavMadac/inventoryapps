@@ -242,12 +242,14 @@ export class SupabaseService {
         return true;
     }
 
-    async insertZasobu(produktId: number, regalId: number, mnozstvo: number) {
+    async insertZasobu(produktId: number, regalId: number | null | undefined, mnozstvo: number) {
+        const finalRegalId = regalId ? regalId : 0;
+
         const { error } = await this.supabase
             .from('skladove_zasoby')
             .insert({
                 produkt_id: produktId,
-                regal_id: regalId,
+                regal_id: finalRegalId,
                 mnozstvo_ks: mnozstvo
             });
 
@@ -386,20 +388,23 @@ export class SupabaseService {
     //     return true;
     // }
 
-    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number, mnozstvo: number, balenie: number) {
+    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number | null | undefined, mnozstvo: number, balenie: number) {
         const user = await this.getCurrentUserDetails();
+
+        // Fallback na virtuálny regál
+        const finalRegalId = regalId ? regalId : 0;
 
         // 1. KROK: RPC volanie pre bezpečný zápis do inventúry
         const { error: invError } = await this.supabase.rpc('zapisat_do_inventury_bezpecne', {
             p_inventura_id: inventuraId,
             p_produkt_id: produktId,
-            p_regal_id: regalId,
+            p_regal_id: finalRegalId, // Posielame ošetrené ID
             p_mnozstvo: mnozstvo
         });
 
         if (invError) throw invError;
 
-        // Tu zostáva tvoja pôvodná logika pre aktualizáciu balenia v katalógu
+        // 2. KROK: Aktualizácia balenia v katalógu
         const { error: prodError } = await this.supabase
             .from('produkty')
             .update({ balenie_ks: balenie })
@@ -666,9 +671,8 @@ export class SupabaseService {
         }
         return data;
     }
-    async vytvoritProduktSLocation(novyProdukt: any, regalId: number | null) {
+    async vytvoritProduktSLocation(novyProdukt: any, regalId: number | null | undefined) {
         console.log('🛠️ Vytváram produkt...', novyProdukt, 'na regál:', regalId);
-
 
         const { data: produkt, error: errProd } = await this.supabase
             .from('produkty')
@@ -683,31 +687,30 @@ export class SupabaseService {
 
         console.log('✅ Produkt vytvorený, ID:', produkt.id);
 
+        // Fallback: Ak regalId neexistuje (null, undefined, 0), použijeme náš virtuálny regál 0
+        const finalRegalId = regalId ? regalId : 0;
 
-        if (regalId && produkt) {
-            console.log('🛠️ Vytváram záznam v skladove_zasoby...');
+        if (produkt) {
+            console.log(`🛠️ Vytváram záznam v skladove_zasoby na regál ID: ${finalRegalId}...`);
 
             const { error: errStock } = await this.supabase
                 .from('skladove_zasoby')
                 .insert({
                     produkt_id: produkt.id,
-                    regal_id: regalId,
+                    regal_id: finalRegalId,
                     mnozstvo_ks: 0
                 });
 
             if (errStock) {
                 console.error('❌ CRITICAL: Chyba pri vytváraní zásoby:', errStock);
-
-
             } else {
                 console.log('✅ Zásoba (0ks) úspešne vytvorená.');
             }
-        } else {
-            console.warn('⚠️ Pozor: Nevytváram zásobu, lebo chýba regalId:', regalId);
         }
 
         return produkt;
     }
+
     async zmazatZaznamZInventury(inventuraId: number, produktId: number, regalId: number) {
         const { error } = await this.supabase
             .from('inventura_polozky')
@@ -1336,14 +1339,15 @@ export class SupabaseService {
     async spracovatPrijemSoSubstituciou(payload: {
         produkt_id: number,
         mnozstvo: number,
-        regal_id: number | null,
+        regal_id: number | null | undefined,
         odpocitat_z_id: number | null,
         mnozstvo_na_odpocet: number
     }) {
         const { error } = await this.supabase.rpc('spracovat_prijem_so_substituciou', {
             p_novy_produkt_id: payload.produkt_id,
             p_mnozstvo_plus: payload.mnozstvo,
-            p_regal_id: payload.regal_id || null, // Zabezpečí, že ak nie je regál, pošle sa čistý NULL
+            // Ak nie je regál, pošle sa 0 (Virtuálny regál)
+            p_regal_id: payload.regal_id ? payload.regal_id : 0,
             p_odpocitat_produkt_id: payload.odpocitat_z_id || null,
             p_mnozstvo_minus: payload.mnozstvo_na_odpocet || 0
         });
@@ -1354,18 +1358,19 @@ export class SupabaseService {
         }
     }
     async opravitChybuNaSklade(payload: {
-        inventura_id: number, // 🔥 PRIDANÉ
+        inventura_id: number,
         produkt_id: number,
         mnozstvo_uprava: number,
-        regal_id: number | null,
+        regal_id: number | null | undefined,
         odpocitat_z_id: number | null,
         mnozstvo_na_odpocet: number
     }) {
         const { error } = await this.supabase.rpc('opravit_chybu_v_skladovych_zasobach', {
-            p_inventura_id: payload.inventura_id, // 🔥 PRIDANÉ
+            p_inventura_id: payload.inventura_id,
             p_produkt_id: payload.produkt_id,
             p_mnozstvo_uprava: payload.mnozstvo_uprava || 0,
-            p_regal_id: payload.regal_id || null,
+            // Zmena na virtuálny regál 0 namiesto null
+            p_regal_id: payload.regal_id ? payload.regal_id : 0,
             p_odpocitat_produkt_id: payload.odpocitat_z_id || null,
             p_mnozstvo_minus: payload.mnozstvo_na_odpocet || 0
         });
@@ -1375,7 +1380,6 @@ export class SupabaseService {
             throw error;
         }
     }
-
     async getVsetkyRegaly() {
         const { data, error } = await this.supabase
             .from('regaly')
