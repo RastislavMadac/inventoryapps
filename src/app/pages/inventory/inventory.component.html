@@ -150,6 +150,11 @@
 
 
 <ion-content #content [fullscreen]="true" class="bg-gray">
+  <!-- 🔥 NOVÁ ĽAVÁ ZÁLOŽKA: Zobrazí sa len v sekcii 'Hotové' -->
+  <div class="side-drawer-tab-left" *ngIf="rezimZobrazenia === 'v_inventure'" (click)="navratDoValidacie()">
+    <ion-icon name="chevron-forward-outline"></ion-icon>
+   
+  </div>
 
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content></ion-refresher-content>

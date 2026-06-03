@@ -6,10 +6,10 @@ import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
   closeCircleOutline, alertCircle, checkmarkCircleOutline,
-  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct
+  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct, chevronBackOutline
 } from 'ionicons/icons';
 import { AlertController, ToastController, LoadingController } from '@ionic/angular';
-
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonCard, IonCardContent, IonIcon, IonSpinner, IonList,
   IonItem, IonLabel, IonBadge, IonButton, IonCardHeader,
@@ -70,9 +70,11 @@ export class DashboardComponent implements OnInit {
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
     private exportService: ExportService,
-    private loadingCtrl: LoadingController
+    private loadingCtrl: LoadingController,
+    private router: Router,
+    private route: ActivatedRoute
   ) {
-    addIcons({ statsChartOutline, alertCircleOutline, checkmarkDoneOutline, syncOutline, cloudUploadOutline, ellipse, timeOutline, saveOutline, construct, cubeOutline, closeCircleOutline, warningOutline, informationCircleOutline, createOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown });
+    addIcons({ statsChartOutline, alertCircleOutline, checkmarkDoneOutline, syncOutline, cloudUploadOutline, ellipse, timeOutline, saveOutline, construct, cubeOutline, closeCircleOutline, warningOutline, informationCircleOutline, createOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown, chevronBackOutline });
   }
 
 
@@ -83,7 +85,25 @@ export class DashboardComponent implements OnInit {
     this.strediska = await this.supabase.getStrediska();
     this.vsetkyProduktyKatalog = await this.supabase.getVsetkyProduktyZoznam();
     this.regalySkladu = await this.supabase.getVsetkyRegaly();
+    // Zistíme, či beží inventúra a či má nahrane dáta
     await this.overitExistujuciImport();
+
+    // 🔥 ZACHYTENIE PARAMETRA PRE AUTOMATICKÝ NÁVRAT DO MODÁLU 🔥
+    this.route.queryParams.subscribe(params => {
+      if (params['otvoritValidaciu'] === 'true') {
+
+        // 1. Očistíme URL od parametra, aby sa modál neotváral pri každom refreshi
+        this.router.navigate([], { queryParams: { otvoritValidaciu: null }, queryParamsHandling: 'merge' });
+
+        // 2. Ak máme v DB nahraný excel, okamžite otvoríme validáciu
+        if (this.maNahranyImport) {
+          // Menšie oneskorenie zaručí, že UI je plne vyrenderované a nespôsobí to trhanie
+          setTimeout(() => {
+            this.otvoritValidaciu();
+          }, 300);
+        }
+      }
+    });
   }
 
   get pocetVybranychNeznamych() {
@@ -790,6 +810,15 @@ export class DashboardComponent implements OnInit {
 
     // Ak by sa regál 0 náhodou nenašiel v zozname (pri prvom načítaní), vrátime fallback text
     return regal ? regal.nazov : '📦 Nezaradené / Virtuálny regál';
+  }
+
+  prejstDoHotovych() {
+    this.isModalOpen = false; // 1. Zadáme príkaz na zatvorenie modálu
+
+    // 2. Počkáme 300ms (aby sa spustila animácia zatvárania) a až potom prejdeme
+    setTimeout(() => {
+      this.router.navigate(['/inventory'], { queryParams: { sekcia: 'v_inventure' } });
+    }, 300);
   }
 }
 

@@ -6,7 +6,7 @@ import { ViewWillEnter } from '@ionic/angular';
 import {
   ModalController, ToastController, AlertController, IonicSafeString, ItemReorderEventDetail
 } from '@ionic/angular';
-
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonContent, IonHeader, IonTitle, IonToolbar, IonButtons, IonBackButton, ActionSheetController, IonToggle,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonChip,
@@ -28,7 +28,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline, chevronForwardOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -138,14 +138,26 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private cdr: ChangeDetectorRef,
     private modalCtrl: ModalController,
     private renderer: Renderer2,
-    public speechService: SpeechRecognitionService
+    public speechService: SpeechRecognitionService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {
     // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
-    addIcons({ clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline });
+    addIcons({ chevronForwardOutline, clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline });
   }
 
   ngOnInit() {
     this.nacitajSklady();
+    this.route.queryParams.subscribe(params => {
+      if (params['sekcia']) {
+        // 🔥 OPRAVA: Nevkladáme len čistú hodnotu, ale simulujeme udalosť z ion-segmentu.
+        // Vďaka tomuto sa bezpečne zavolá tvoja metóda 'zmenitRezim', 
+        // ktorá vynuluje vybranySkladId, vybranyRegalId a potiahne správne dáta.
+
+        const fakeEvent = { detail: { value: params['sekcia'] } };
+        this.zmenitRezim(fakeEvent);
+      }
+    });
   }
   toggleFiltre() {
     this.zobrazitFiltre = !this.zobrazitFiltre;
@@ -862,52 +874,47 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       const novyStav = data.novyStav;
       const balenieZModalu = data.balenie;
 
-      // 1. Zápis do databázy (toto vykoná backend operácie)
+      // 1. Zápis do databázy
       await this.ulozitZmenu(zasoba, novyStav, balenieZModalu, true);
 
-      // 2. Extrakcia jednotky pre krajšie formátovanie (napr. ks, kg, l)
+      // 2. Extrakcia jednotky pre formátovanie
       const jednotka = zasoba.jednotka || 'ks';
 
-      // 👉 3. KROK: OVERENIE SKUTOČNÉHO STAVU PRIAMO V DATABÁZE
+      // 3. VERIFIKÁCIA: Načítanie skutočného stavu priamo z DB
       try {
         let overeneMnozstvo = 0;
-        const regalPreOverenie = zasoba.regal_id || this.vybranyRegalId || 0; // Fallback na virtuálny regál 0
+        const regalPreOverenie = zasoba.regal_id || this.vybranyRegalId || 0;
 
         if (this.aktivnaInventura) {
-          // OVERENIE A: Sme v režime inventúry -> kontrolujeme tabuľku inventura_polozky
+          // Kontrola v tabuľke inventura_polozky
           const vsetkyNaRegali = await this.supabaseService.getInventuraStavNaRegali(this.aktivnaInventura.id, regalPreOverenie);
           const polozkaDB = vsetkyNaRegali.find(p => p.produkt_id === zasoba.produkt_id);
-
-          // Ak sme zadali množstvo 0, funkcia 'ulozitZmenu' položku z inventúry fyzicky vymaže.
-          // Ak sa položka v DB nenašla (polozkaDB je undefined), znamená to úspešný výmaz, teda stav je korektne 0.
           overeneMnozstvo = polozkaDB ? polozkaDB.mnozstvo : 0;
-
         } else {
-          // OVERENIE B: Bežný režim -> kontrolujeme tabuľku skladove_zasoby
+          // Kontrola v tabuľke skladove_zasoby
           const polozkaDB = await this.supabaseService.getZasobaNaRegali(zasoba.produkt_id, regalPreOverenie);
           overeneMnozstvo = polozkaDB ? polozkaDB.mnozstvo_ks : 0;
         }
 
-        // Ak sa údaje nezhodujú (databáza vrátila iné číslo, než sme zadali), vizuálne na to upozorníme
+        // 4. Zobrazenie toastu s overenou hodnotou
         if (overeneMnozstvo !== novyStav) {
           console.warn(`Nesúlad dát! Zadané: ${novyStav}, V databáze je: ${overeneMnozstvo}`);
           this.zobrazToast(`⚠️ Uložené s odchýlkou! DB hlási: ${overeneMnozstvo} ${jednotka}`, 'warning', 'kalkulacka-toast');
         } else {
-          // Zobrazenie veľkého vlastného toastu s GARANTOVANOU informáciou z DB
           this.zobrazToast(`V DB uložené: ${zasoba.nazov} ➔ ${overeneMnozstvo} ${jednotka}`, 'success', 'kalkulacka-toast');
         }
 
       } catch (err) {
         console.error('Chyba pri overovaní dát z DB:', err);
-        // Fallback pre prípad, že zápis prešiel, ale okamžité overenie zlyhalo napr. na mikro-výpadku internetu
-        this.zobrazToast(`Zadané: ${zasoba.nazov} ➔ ${novyStav} ${jednotka} (Neoverené v DB)`, 'medium', 'kalkulacka-toast');
+        // Fallback ak overenie zlyhá (napísanie hodnoty z front-endu)
+        this.zobrazToast(`Zadané: ${zasoba.nazov} ➔ ${novyStav} ${jednotka} (Neoverené)`, 'medium', 'kalkulacka-toast');
       }
 
-      // Vynútenie prekreslenia UI
+      // Vynútenie prekreslenia UI po zmene dát
       this.cdr.detectChanges();
 
     } else {
-      // Ak používateľ okno zrušil bez uloženia
+      // Ak používateľ okno zrušil (role === 'cancel' alebo klik mimo)
       this.idPolozkyPreScroll = null;
     }
   }
@@ -1706,5 +1713,10 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.subsetZasob = [];
     this.aplikovatFiltre();
     this.cdr.detectChanges();
+  }
+
+  navratDoValidacie() {
+    // Presmerujeme na Dashboard a pridáme parameter, že chceme okamžite otvoriť validáciu
+    this.router.navigate(['/dashboard'], { queryParams: { otvoritValidaciu: 'true' } });
   }
 }

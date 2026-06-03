@@ -124,7 +124,14 @@
     </ion-header>
 
     <!-- 🔥 CONTENT: Tu sú už len čisté zoznamy (Neznáme produkty a Chyby), ktoré sa rolujú -->
-    <ion-content class="ion-padding">
+    <ion-content class="ion-padding position-relative">
+      
+      <div class="side-drawer-tab" (click)="prejstDoHotovych()">
+        <ion-icon name="chevron-back-outline"></ion-icon>
+        <span>Hotové</span>
+      </div>
+
+      
 
       <!-- Sekcia: Neznáme produkty -->
       <div *ngIf="filtruvaneNezname.length > 0" style="margin-bottom: 30px;">
