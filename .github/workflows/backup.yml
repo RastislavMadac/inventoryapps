@@ -1,0 +1,77 @@
+name: Supabase Backup 
+
+  
+
+on: 
+
+  workflow_dispatch: 
+
+  
+
+jobs: 
+
+  backup: 
+
+    runs-on: ubuntu-latest 
+
+    steps: 
+
+      - name: Checkout code 
+
+        uses: actions/checkout@v4 
+
+  
+
+      - name: Setup Supabase CLI 
+
+        uses: supabase/setup-cli@v1 
+
+        with: 
+
+          version: latest 
+
+  
+
+      # PRIDANÝ KROK: Vytvorí zložku, ak neexistuje 
+
+      - name: Create backup directory 
+
+        run: mkdir -p supabase 
+
+  
+
+      - name: Dump Database Schema 
+
+        env: 
+
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }} 
+
+        run: | 
+
+          supabase db dump --db-url "$DB_URL" --schema public -f supabase/backup_schema.sql 
+
+  
+
+      - name: Dump Database Data 
+
+        env: 
+
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }} 
+
+        run: | 
+
+          supabase db dump --db-url "$DB_URL" --data-only --use-copy -f supabase/backup_data.sql 
+
+  
+
+      - name: Upload Artifact 
+
+        uses: actions/upload-artifact@v4 
+
+        with: 
+
+          name: supabase-backup 
+
+          path: supabase/backup_*.sql 
+
+          retention-days: 7 
