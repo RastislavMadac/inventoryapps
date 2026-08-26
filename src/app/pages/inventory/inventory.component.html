@@ -3,6 +3,7 @@
   <ion-toolbar color="primary">
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/home" text=""></ion-back-button>
+     
     </ion-buttons>
 
     <ion-title>Inventúra</ion-title>
@@ -11,7 +12,9 @@
       <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
+        
       </ion-chip>
+       <app-quick-nav></app-quick-nav>
     </ion-buttons>
   </ion-toolbar>
 
@@ -151,10 +154,10 @@
 
 <ion-content #content [fullscreen]="true" class="bg-gray">
   <!-- 🔥 NOVÁ ĽAVÁ ZÁLOŽKA: Zobrazí sa len v sekcii 'Hotové' -->
-  <div class="side-drawer-tab-left" *ngIf="rezimZobrazenia === 'v_inventure'" (click)="navratDoValidacie()">
+  <!-- <div class="side-drawer-tab-left" *ngIf="rezimZobrazenia === 'v_inventure'" (click)="navratDoValidacie()">
     <ion-icon name="chevron-forward-outline"></ion-icon>
    
-  </div>
+  </div> -->
 
   <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
     <ion-refresher-content></ion-refresher-content>

@@ -18,6 +18,7 @@ import {
 } from 'ionicons/icons';
 import { DoplnitIdModalComponent } from 'src/app/components/doplnit-id-modal/doplnit-id-modal.component';
 import { ModalController } from '@ionic/angular';
+import { QuickNavComponent } from 'src/app/components/quick-nav/quick-nav.component';
 
 @Component({
   selector: 'app-inventury-zoznam',
@@ -29,7 +30,7 @@ import { ModalController } from '@ionic/angular';
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonButtons, IonBackButton, IonButton, IonIcon,
     IonList, IonListHeader, IonItem, IonLabel,
-    IonSpinner
+    IonSpinner, QuickNavComponent
   ],
   providers: [ActionSheetController, ModalController]
 })

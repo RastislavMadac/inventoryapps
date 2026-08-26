@@ -6,7 +6,7 @@ import { addIcons } from 'ionicons';
 import {
   statsChartOutline, alertCircleOutline, refreshOutline,
   closeCircleOutline, alertCircle, checkmarkCircleOutline,
-  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct, chevronBackOutline
+  createOutline, checkmarkDoneCircleOutline, chevronForward, timeOutline, cloudUploadOutline, documentTextOutline, listOutline, addCircle, chevronDown, warningOutline, cubeOutline, informationCircleOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct, chevronBackOutline, logOutOutline
 } from 'ionicons/icons';
 import { AlertController, ToastController, LoadingController } from '@ionic/angular';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -16,8 +16,11 @@ import {
   IonCardTitle, IonCardSubtitle, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonCheckbox,
   IonSelect, IonSelectOption, IonBackButton, IonInput, IonChip, IonSearchbar, IonRippleEffect, IonRadio, IonRadioGroup
 } from '@ionic/angular/standalone';
+import { QuickNavComponent } from 'src/app/components/quick-nav/quick-nav.component';
 
 import { FormsModule } from '@angular/forms';
+
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -29,7 +32,7 @@ import { FormsModule } from '@angular/forms';
     IonSelect,
     IonSelectOption,
     IonInput, IonRippleEffect, IonRadio,
-    IonRadioGroup
+    IonRadioGroup, QuickNavComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
@@ -74,7 +77,7 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute
   ) {
-    addIcons({ statsChartOutline, alertCircleOutline, checkmarkDoneOutline, syncOutline, cloudUploadOutline, ellipse, timeOutline, saveOutline, construct, cubeOutline, closeCircleOutline, warningOutline, informationCircleOutline, createOutline, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle, chevronDown, chevronBackOutline });
+    addIcons({ logOutOutline, statsChartOutline, alertCircleOutline, cloudUploadOutline, closeCircleOutline, chevronBackOutline, warningOutline, informationCircleOutline, cubeOutline, chevronDown, timeOutline, createOutline, checkmarkDoneOutline, syncOutline, ellipse, saveOutline, construct, refreshOutline, alertCircle, checkmarkCircleOutline, checkmarkDoneCircleOutline, chevronForward, documentTextOutline, listOutline, addCircle });
   }
 
 
@@ -92,8 +95,14 @@ export class DashboardComponent implements OnInit {
     this.route.queryParams.subscribe(params => {
       if (params['otvoritValidaciu'] === 'true') {
 
-        // 1. Očistíme URL od parametra, aby sa modál neotváral pri každom refreshi
-        this.router.navigate([], { queryParams: { otvoritValidaciu: null }, queryParamsHandling: 'merge' });
+        // 🔥 1. TOTO TU CHÝBALO: Musíme reálne spustiť validáciu a otvoriť modál
+        this.otvoritValidaciu();
+
+        // 2. Až potom očistíme URL od parametra, aby sa modál neotváral pri každom refreshi
+        this.router.navigate([], {
+          queryParams: { otvoritValidaciu: null },
+          queryParamsHandling: 'merge'
+        });
 
         // 2. Ak máme v DB nahraný excel, okamžite otvoríme validáciu
         if (this.maNahranyImport) {

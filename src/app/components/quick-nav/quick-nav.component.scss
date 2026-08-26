@@ -1,0 +1,22 @@
+.nav-list {
+    padding: 4px 0;
+
+    ion-item {
+        --padding-start: 16px;
+        --min-height: 44px;
+        font-weight: 500;
+        font-size: 0.95rem;
+
+        /* Vizuálne odlíšenie podskupín */
+        &.sub-item {
+            --padding-start: 28px;
+            font-size: 0.85rem;
+            font-weight: 400;
+            --min-height: 38px;
+
+            ion-icon {
+                font-size: 1.2rem;
+            }
+        }
+    }
+}

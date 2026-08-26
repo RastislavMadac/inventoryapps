@@ -6,19 +6,20 @@
     
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/"></ion-back-button>
+      
     </ion-buttons>
    
     <ion-title>Dashboard</ion-title>
     
+    
     <!-- Ak chceš na Dashboarde rýchle tlačidlo pre odhlásenie alebo iné funkcie -->
-    <!--
+    
     <ion-buttons slot="end">
-      <ion-button (click)="odhlasit()">
-        <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
-      </ion-button>
+      <app-quick-nav></app-quick-nav>
     </ion-buttons>
-    -->
+    
   </ion-toolbar>
+   
 </ion-header>
 
 <!-- 🔥 Celý pôvodný obsah musí byť zabalený v ion-content -->
@@ -100,6 +101,7 @@
       <ion-toolbar color="primary">
         <ion-title>Nezrovnalosti ({{ vysledokPorovnania.length + neznameProdukty.length }})</ion-title>
         <ion-buttons slot="end">
+          <app-quick-nav></app-quick-nav>
           <ion-button (click)="isModalOpen = false">
             <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
           </ion-button>
@@ -126,10 +128,10 @@
     <!-- 🔥 CONTENT: Tu sú už len čisté zoznamy (Neznáme produkty a Chyby), ktoré sa rolujú -->
     <ion-content class="ion-padding position-relative">
       
-      <div class="side-drawer-tab" (click)="prejstDoHotovych()">
+    <!--   <div class="side-drawer-tab" (click)="prejstDoHotovych()">
         <ion-icon name="chevron-back-outline"></ion-icon>
         <span>Hotové</span>
-      </div>
+      </div>-->
 
       
 

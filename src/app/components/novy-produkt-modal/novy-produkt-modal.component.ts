@@ -113,7 +113,7 @@ export class NovyProduktModalComponent implements OnInit {
 
 
   async onSkladChange() {
-    this.vybranyRegalId = null;
+    this.vybranyRegalId = 0;
     this.regaly = [];
 
     if (this.vybranySkladId) {

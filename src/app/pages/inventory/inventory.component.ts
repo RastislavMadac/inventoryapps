@@ -28,7 +28,7 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline, chevronForwardOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline, chevronUpOutline, chevronForwardOutline
 } from 'ionicons/icons';
 
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
@@ -37,6 +37,7 @@ import { NovyProduktModalComponent } from 'src/app/components/novy-produkt-modal
 import { NovaLokaciaModalComponent } from 'src/app/components/nova-lokacia-modal/nova-lokacia-modal.component';
 import { Subscription } from 'rxjs';
 import { SpeechRecognitionService } from 'src/app/services/speech-recognition.service';
+import { QuickNavComponent } from 'src/app/components/quick-nav/quick-nav.component';
 
 @Component({
   selector: 'app-inventory',
@@ -57,7 +58,7 @@ import { SpeechRecognitionService } from 'src/app/services/speech-recognition.se
     IonItem,
     IonReorderGroup,
     IonReorder,
-    IonToggle, IonToast
+    IonToggle, IonToast, QuickNavComponent
   ],
   providers: [
     ModalController,
@@ -143,19 +144,19 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private router: Router
   ) {
     // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
-    addIcons({ chevronForwardOutline, clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline });
+    addIcons({ chevronForwardOutline, clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline, chevronUpOutline });
   }
 
   ngOnInit() {
     this.nacitajSklady();
     this.route.queryParams.subscribe(params => {
+      if (params['rezim']) {
+        this.rezimZobrazenia = params['rezim']; // Nastaví 'global', 'regal' alebo 'v_inventure'
+        this.obnovitZoznamPodlaRezimu();      // Spustí načítanie dát pre daný režim
+      }
       if (params['sekcia']) {
-        // 🔥 OPRAVA: Nevkladáme len čistú hodnotu, ale simulujeme udalosť z ion-segmentu.
-        // Vďaka tomuto sa bezpečne zavolá tvoja metóda 'zmenitRezim', 
-        // ktorá vynuluje vybranySkladId, vybranyRegalId a potiahne správne dáta.
-
-        const fakeEvent = { detail: { value: params['sekcia'] } };
-        this.zmenitRezim(fakeEvent);
+        this.rezimZobrazenia = params['sekcia'];
+        this.obnovitZoznamPodlaRezimu();
       }
     });
   }
@@ -658,22 +659,18 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         }
 
         // 2. LOGIKA PRE UMIESTNENIE (TU JE ZMENA)
-        const novyRegalId = Number(data.novyRegalId || data.regal_id);
+        // ✅ OPRAVA: Použitie ternárneho operátora namiesto ||
+        const novyRegalId = Number(data.novyRegalId !== undefined ? data.novyRegalId : data.regal_id);
         const staryRegalId = Number(zasoba.regal_id);
 
-        // Ak sa zmenil regál (alebo sklad) a produkt už existuje
-        if (zasoba.id > 0 && novyRegalId && novyRegalId !== staryRegalId) {
+        // ✅ OPRAVA: Namiesto kontroly "&& novyRegalId" (čo blokuje 0), skontrolujeme, či to je platné číslo
+        if (zasoba.id > 0 && !isNaN(novyRegalId) && novyRegalId !== staryRegalId) {
 
-          // --- STARÝ KÓD (Presun) ---
-          // await this.supabaseService.presunutZasobu(zasoba.id, novyRegalId);
-
-          // --- NOVÝ KÓD (Pridanie nového umiestnenia) ---
           // Vytvoríme novú zásobu na novom regáli s 0 ks. Pôvodná ostane nedotknutá.
           await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
-
           this.zobrazToast('Nové umiestnenie pridané. Pôvodné ostalo zachované.', 'success');
 
-        } else if (zasoba.id === 0 && novyRegalId) {
+        } else if (zasoba.id === 0 && !isNaN(novyRegalId)) {
           // Ak tovar ešte nikde nebol (bol len v katalógu), vytvoríme ho tam
           await this.supabaseService.insertZasobu(zasoba.produkt_id, novyRegalId, 0);
           this.zobrazToast('Produkt bol priradený na regál.', 'success');
@@ -702,25 +699,21 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
     console.log('✏️ Kliknutie na položku:', zasoba.nazov);
 
-    // 1. Ak prebieha inventúra, rovno zadávame množstvo (preskakujeme výber lokácie)
     if (this.aktivnaInventura) {
+      // ✅ OPRAVA: Striktné priradenie (ak je to 0, zachová nulu)
+      const cielovyRegal = (zasoba.regal_id !== null && zasoba.regal_id !== undefined)
+        ? zasoba.regal_id
+        : this.vybranyRegalId;
 
-      const cielovyRegal = zasoba.regal_id || this.vybranyRegalId;
-
-      if (!cielovyRegal) {
+      // ✅ OPRAVA: Prepustí nulu, zastaví len null/undefined
+      if (cielovyRegal === null || cielovyRegal === undefined) {
         this.zobrazToast('Táto položka nemá priradený regál. Priradte ju najprv na regál.', 'warning');
         return;
       }
 
-      // Poistka: Zabezpečíme, aby objekt 'zasoba' určite mal regal_id pre metódu ulozitZmenu()
       zasoba.regal_id = cielovyRegal;
-
-      // Spúšťame priamo modálne okno na zadanie množstva
       await this.spustitKalkulacku(zasoba);
-
-    }
-    // 2. Ak neprebieha inventúra, otvoríme bežný detail produktu pre úpravu vlastností
-    else {
+    } else {
       this.upravitProduktDetail(zasoba);
     }
   }
@@ -931,10 +924,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     // 3. ZAOKRÚHLENIE NA 2 DESATINNÉ MIESTA
     const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
 
-    let cielovyRegalId = zasoba.regal_id || this.vybranyRegalId;
+    // ✅ OPRAVA: Rovnaký princíp ako vyššie
+    let cielovyRegalId = (zasoba.regal_id !== null && zasoba.regal_id !== undefined)
+      ? zasoba.regal_id
+      : this.vybranyRegalId;
     const cielovyProduktId = zasoba.produkt_id;
 
-    if (!cielovyRegalId) {
+    // ✅ OPRAVA: Striktná kontrola
+    if (cielovyRegalId === null || cielovyRegalId === undefined) {
       this.zobrazToast('Chyba: Nie je vybraný regál pre zápis.', 'danger');
       return;
     }
@@ -1179,9 +1176,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   async vykonatVymazanie(zasoba: SkladovaZasobaView) {
     this.isLoading = true;
     try {
-      const regalId = zasoba.regal_id || this.vybranyRegalId;
+      // ✅ OPRAVA 1: Striktné priradenie regálu (prepustí nulu)
+      const regalId = (zasoba.regal_id !== null && zasoba.regal_id !== undefined)
+        ? zasoba.regal_id
+        : this.vybranyRegalId;
+
       if (this.rezimZobrazenia === 'v_inventure') {
-        if (this.aktivnaInventura && regalId) {
+        // ✅ OPRAVA 2: Skontrolujeme, či regál nie je prázdny (Namiesto "&& regalId")
+        if (this.aktivnaInventura && regalId !== null && regalId !== undefined) {
           await this.supabaseService.zmazatZaznamZInventury(
             this.aktivnaInventura.id,
             zasoba.produkt_id,
@@ -1190,7 +1192,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           this.zobrazToast('Zápis bol zrušený.', 'success');
         }
       } else {
-        if (this.aktivnaInventura && regalId) {
+        // ✅ OPRAVA 3: Rovnaké ošetrenie aj pre globálny režim mimo inventúry
+        if (this.aktivnaInventura && regalId !== null && regalId !== undefined) {
           try {
             await this.supabaseService.zmazatZaznamZInventury(
               this.aktivnaInventura.id,
