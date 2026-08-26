@@ -21,11 +21,13 @@
   <ion-toolbar color="primary">
     <div class="header-controls-wrapper">
 
-      <!--   !!!MIKROFON!!!
-      <ion-button *ngIf="speechService.isSupported" (click)="vyhladatHlasom()" fill="clear"
-        [color]="isVoiceModeActive ? 'danger' : 'light'" [class.pulsing-mic]="isVoiceModeActive" class="mic-btn">
-        <ion-icon slot="icon-only" [name]="isVoiceModeActive ? 'mic' : 'mic-outline'"></ion-icon>
-      </ion-button> -->
+     
+      <ion-button (click)="vyhladatHlasom()" fill="clear"
+  [disabled]="!speechService.isSupported"
+  [color]="speechService.isSupported ? (isVoiceModeActive ? 'danger' : 'light') : 'medium'"
+  [class.pulsing-mic]="isVoiceModeActive" class="mic-btn">
+  <ion-icon slot="icon-only" [name]="isVoiceModeActive ? 'mic' : 'mic-outline'"></ion-icon>
+</ion-button>
 
 <!--  !!!ZOBRAZENIE CELEHO SKLADU !!!
   <ion-toggle class="custom-header-toggle" mode="ios" [(ngModel)]="zobrazitVsetkoVRegaloch"
