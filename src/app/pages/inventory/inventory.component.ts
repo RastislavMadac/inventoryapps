@@ -1611,7 +1611,18 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       return;
     }
 
-    // 🔥 TOTO TI CHÝBALO: Zapnutie módu a úvodný toast
+    // 🔥 VYLEPŠENIE: Reset vyhľadávania a filtrov pri aktivácii mikrofónu
+    this.searchQuery = '';
+    this.filterKategoria = 'vsetky';
+
+    // Obnovenie UI, aby zmizli predchádzajúce výsledky
+    if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
+      this.aplikovatFiltre();
+    } else {
+      this.obnovitZoznamPodlaRezimu();
+    }
+
+    // Zapnutie módu
     this.isVoiceModeActive = true;
     this.zobrazToast('Hlasový režim aktívny. Počúvam...', 'tertiary');
 
@@ -1619,8 +1630,8 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   }
 
   /**
-   * Nekonečný cyklus, ktorý beží, kým je mód aktívny
-   */
+    * Nekonečný cyklus, ktorý beží, kým je mód aktívny
+    */
   private async spustitHlasovuSlucku() {
     while (this.isVoiceModeActive) {
       try {
@@ -1636,78 +1647,64 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         if (povelyNaReset.some(povel => originalText.includes(povel))) {
           console.log('🧹 Povel prijatý: Resetujem vyhľadávanie.');
           this.searchQuery = '';
-          this.ukoncitiSpresnovanie();
+          this.aplikovatFiltre();
+          this.cdr.detectChanges();
           this.zobrazToast('Vyhľadávanie vymazané. Počúvam...', 'medium');
           continue;
         }
 
         // 2. HLAVNÁ LOGIKA VYHĽADÁVANIA
-        const vstupOcisteny = this.odstranitDiakritiku(hlasovyVstup).toLowerCase().trim();
+        this.searchQuery = hlasovyVstup;
+        this.zobrazToast(`Hľadám "${hlasovyVstup}" v databáze...`, 'tertiary');
 
-        if (this.isRefiningSearch) {
-          // A) Sme v režime SPRESŇOVANIA (Už sme stiahli napr. 5 druhov piva a teraz vyberáme jedno)
-          const najdenyVSubsete = this.subsetZasob.find(p =>
-            this.odstranitDiakritiku(p.nazov || '').toLowerCase().includes(vstupOcisteny)
-          );
-
-          if (najdenyVSubsete) {
-            this.ukoncitiSpresnovanie();
-            await this.spustitKalkulacku(najdenyVSubsete);
-          } else {
-            this.zobrazToast(`Zobrazené položky neobsahujú "${hlasovyVstup}". Povedzte iný názov alebo "vymaž".`, 'warning');
-          }
-
+        if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
+          this.aplikovatFiltre();
         } else {
-          // B) PRVOTNÉ HĽADANIE - Ideme priamo cez hlavný systém (Prehľadá VŠETKO na serveri)
-          this.searchQuery = hlasovyVstup;
-          this.zobrazToast(`Hľadám "${hlasovyVstup}" v databáze...`, 'tertiary');
-
-          // Spustíme obnovu (toto zavolá server, ak treba, a naplní premennú this.filtrovaneZasoby)
-          if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
-            this.aplikovatFiltre();
-          } else {
-            this.isLoading = true;
-            await this.obnovitZoznamPodlaRezimu();
-          }
-
-          // Počkáme, kým sa zoznam na obrazovke aktualizuje
-          this.cdr.detectChanges();
-          const vsetkyZhody = this.filtrovaneZasoby;
-
-          // C) Vyhodnotíme, koľko toho server našiel
-          if (vsetkyZhody.length === 1) {
-            // Našli sme presne 1 kus v celom sklade - otvárame kalkulačku!
-            await this.spustitKalkulacku(vsetkyZhody[0]);
-          }
-          else if (vsetkyZhody.length > 1) {
-            // Server vrátil viacero produktov. Zapneme spresňovanie.
-            this.isRefiningSearch = true;
-            this.subsetZasob = vsetkyZhody;
-            this.zobrazToast(`Našiel som ${vsetkyZhody.length} zhôd. Povedzte presný názov alebo "vymaž".`, 'tertiary');
-          }
-          else {
-            // Server nenašiel nič
-            this.zobrazToast(`Produkt "${hlasovyVstup}" nebol nájdený. Skúste iný názov.`, 'warning');
-          }
+          this.isLoading = true;
+          await this.obnovitZoznamPodlaRezimu();
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.cdr.detectChanges();
+        const vsetkyZhody = this.filtrovaneZasoby;
+
+        // 3. VYHODNOTENIE VÝSLEDKOV A UKONČENIE SLUČKY
+        if (vsetkyZhody.length === 1) {
+          // A) Presne 1 zhoda - Vypíname mikrofón a ideme do kalkulačky
+          this.isVoiceModeActive = false;
+          this.speechService.stopListening();
+          await this.spustitKalkulacku(vsetkyZhody[0]);
+          break;
+        }
+        else if (vsetkyZhody.length > 1) {
+          // B) Viac zhôd - Vypíname mikrofón, užívateľ si klikne sám
+          this.isVoiceModeActive = false;
+          this.speechService.stopListening();
+          this.zobrazToast(`Našiel som ${vsetkyZhody.length} zhôd. Vyberte položku zo zoznamu.`, 'tertiary');
+          break;
+        }
+        else {
+          // C) Nič sa nenašlo - Mikrofón beží ďalej, môže diktovať iné slovo
+          this.zobrazToast(`Produkt "${hlasovyVstup}" nebol nájdený. Skúste iný názov.`, 'warning');
+        }
+
+        // Jemné uvoľnenie vlákna pred ďalším cyklom (ak sme nedali break)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
       } catch (error) {
-        if (error === 'no-speech') {
+        if (error === 'no-speech' || error === 'timeout') {
           if (this.isVoiceModeActive) await new Promise(resolve => setTimeout(resolve, 200));
         } else if (error === 'not-allowed') {
           this.zobrazToast('Prístup k mikrofónu bol zamietnutý.', 'danger');
           this.isVoiceModeActive = false;
-          this.ukoncitiSpresnovanie();
+        } else if (error === 'aborted') {
+          this.isVoiceModeActive = false;
         } else {
           console.warn('Hlasová slučka zachytila chybu:', error);
-          await new Promise(resolve => setTimeout(resolve, 500));
+          if (this.isVoiceModeActive) await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
     }
   }
-
   /**
    * Pomocná metóda na návrat do pôvodného stavu
    */

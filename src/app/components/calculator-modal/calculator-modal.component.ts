@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, ModalController, AlertController, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -145,10 +145,12 @@ export class CalculatorModalComponent implements OnInit {
 
 
   stlacene(hodnota: string) {
-    // Debounce (proti dvojkliku)
+    // Upravený Debounce (znížený na 40ms)
+    // Bezpečne odfiltruje hardvérové dvojkliky, ale neobmedzí rýchle zadávanie čísel
     const now = Date.now();
-    if (now - this.lastClickTime < 100) return;
+    if (now - this.lastClickTime < 20) return;
     this.lastClickTime = now;
+
     this.varovanieZobrazene = false;
     this.ignorovaniePovodnehStavuPotvrdene = false;
     const isOperator = ['+', '-', '*', '/'].includes(hodnota);
@@ -529,7 +531,70 @@ export class CalculatorModalComponent implements OnInit {
   //   }
   // }
 
+  // 👉 ZACHYTÁVANIE HARDVÉROVEJ KLÁVESNICE A NUMPADU
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    // Bezpečnostná poistka: Ignorujeme klávesnicu, ak má používateľ 
+    // práve aktívny iný textový input (napríklad Alert input pre nové balenie)
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      return;
+    }
+
+    const key = event.key;
+
+    // 1. Čísla a základné operátory (vrátane NumPad znakov)
+    const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/'];
+    if (allowedKeys.includes(key)) {
+      event.preventDefault(); // Zabraňuje predvoleným akciám prehliadača (napr. hľadanie pri stlačení "/")
+      this.stlacene(key);
+    }
+    // 2. Desatinná čiarka alebo bodka (zjednotíme obe na bodku pre tvoju logiku)
+    else if (key === '.' || key === ',') {
+      event.preventDefault();
+      this.stlacene('.');
+    }
+    // 3. Klávesa Enter alebo NumPad Enter -> Uložiť a zavrieť modal (OK)
+    else if (key === 'Enter') {
+      event.preventDefault();
+      this.potvrdit();
+    }
+    // 4. Klávesa Rovná sa (=) -> Vypočítať priebežný stav
+    else if (key === '=') {
+      event.preventDefault();
+      this.vypocitat();
+    }
+    // 5. Klávesa Backspace -> Zmazať jeden znak (⌫)
+    else if (key === 'Backspace') {
+      event.preventDefault();
+      this.zmazatJeden();
+    }
+    // 6. Klávesa Delete -> Úplne vymazať displej (C)
+    else if (key === 'Delete') {
+      event.preventDefault();
+      this.vymazat();
+    }
+    // 7. Klávesa Escape -> Zavrieť modal bez uloženia
+    else if (key === 'Escape') {
+      event.preventDefault();
+      this.zavriet();
+    }
+    // 8. Klávesa Space -> Potvrdiť povodne množstvo
+    else if (key === ' ') {
+      event.preventDefault();
+      this.pripocitatPovodnyStav();
+    }
+
+    // 9. Klávesa = -> Vypočítať hodnotu
+    else if (key === 'ArrowRight') {
+      event.preventDefault();
+      this.vypocitat();
+    }
+  }
+
   zavriet() {
     this.modalController.dismiss(null, 'cancel');
   }
+
+
 }
