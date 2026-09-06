@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { Subject, Observable } from 'rxjs';
-
+import { SyncService } from './sync.service';
 
 export interface ZmenaPoradia {
     id: number;      // ID zo skladove_zasoby
@@ -59,7 +59,7 @@ export interface Inventura {
 export class SupabaseService {
     public supabase: SupabaseClient;
 
-    constructor() {
+    constructor(private syncService: SyncService) {
         this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey, {
             auth: {
                 persistSession: true,
@@ -388,32 +388,7 @@ export class SupabaseService {
     //     return true;
     // }
 
-    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number | null | undefined, mnozstvo: number, balenie: number) {
-        const user = await this.getCurrentUserDetails();
 
-        // Fallback na virtuálny regál
-        const finalRegalId = regalId ? regalId : 0;
-
-        // 1. KROK: RPC volanie pre bezpečný zápis do inventúry
-        const { error: invError } = await this.supabase.rpc('zapisat_do_inventury_bezpecne', {
-            p_inventura_id: inventuraId,
-            p_produkt_id: produktId,
-            p_regal_id: finalRegalId, // Posielame ošetrené ID
-            p_mnozstvo: mnozstvo
-        });
-
-        if (invError) throw invError;
-
-        // 2. KROK: Aktualizácia balenia v katalógu
-        const { error: prodError } = await this.supabase
-            .from('produkty')
-            .update({ balenie_ks: balenie })
-            .eq('id', produktId);
-
-        if (prodError) throw prodError;
-
-        return true;
-    }
     async getPolozkyVInventure(inventuraId: number, od: number, do_poctu: number): Promise<SkladovaZasobaView[]> {
         const { data, error } = await this.supabase
             .from('inventura_polozky')
@@ -850,59 +825,7 @@ export class SupabaseService {
         };
     }
 
-
-    // async getZasobyFiltrovaneServer(
-    //     skladId: number | null,
-    //     regalId: number | null,
-    //     kategoria: string | null,
-    //     search: string,
-    //     limit: number = 50,
-    //     offset: number = 0
-    // ) {
-
-    //     let query = this.supabase
-    //         .from('skladova_zasoba_view')
-    //         .select('*');
-
-    //     if (skladId) {
-    //         query = query.eq('sklad_id', skladId);
-    //     }
-    //     if (regalId) {
-    //         query = query.eq('regal_id', regalId);
-    //     }
-    //     if (kategoria && kategoria !== 'vsetky') {
-    //         query = query.eq('kategoria', kategoria);
-    //     }
-
-    //     if (search && search !== '') {
-    //         const cleanedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    //         const ilikePattern = `%${cleanedSearch}%`;
-    //         query = query.or(
-    //             `nazov.ilike.${ilikePattern},` +
-    //             `ean.ilike.${ilikePattern},` +
-    //             `vlastne_id.ilike.${ilikePattern},` +
-    //             `interne_id::text.ilike.${ilikePattern},` +
-    //             `id::text.ilike.${ilikePattern},` +
-    //             `produkt_id::text.ilike.${ilikePattern}`
-    //         );
-    //     }
-
-    //     const rangeEnd = offset + limit - 1;
-
-    //     query = query
-    //         .order('poradie', { ascending: true })
-    //         .order('nazov', { ascending: true })
-    //         .range(offset, rangeEnd < offset ? offset : rangeEnd);
-
-    //     const { data, error } = await query;
-
-    //     if (error) {
-    //         console.error('Chyba pri getZasobyFiltrovaneServer:', error);
-    //         throw error;
-    //     }
-
-    //     return (data as SkladovaZasobaView[]) || [];
-    // }
+    // V src/app/services/supabase.service.ts upravte metódu:
 
     async getZasobyFiltrovaneServer(
         skladId: number | null,
@@ -912,31 +835,26 @@ export class SupabaseService {
         limit: number = 50,
         offset: number = 0
     ) {
-        // Pripravíme parametre presne podľa tvojej SQL (RPC) funkcie
+        // Ak sme OFFLINE, vôbec nevoláme databázu, rovno vrátime prázdne pole
+        // (O načítanie sa postará priamo komponent z lokálnej cache)
+        if (!this.syncService.isOnline) {
+            return [];
+        }
+
         const params: any = {
             p_sklad_id: skladId || null,
             p_regal_id: regalId || null,
-            p_stredisko_id: null, // Stredisko tu aktuálne nevyužívame
+            p_stredisko_id: null,
             p_limit: limit,
             p_offset: offset
         };
 
-        // Kategória (ak je "vsetky", pošleme do SQL null)
-        if (kategoria && kategoria !== 'vsetky') {
-            params.p_kategoria = kategoria;
-        } else {
-            params.p_kategoria = null;
-        }
+        if (kategoria && kategoria !== 'vsetky') params.p_kategoria = kategoria;
+        else params.p_kategoria = null;
 
-        // Vyhľadávanie
-        if (search && search.trim() !== '') {
-            // Nemusíme robiť replace znakov, o to sa postará ILIKE a unaccent priamo v SQL
-            params.p_search = search.trim();
-        } else {
-            params.p_search = null;
-        }
+        if (search && search.trim() !== '') params.p_search = search.trim();
+        else params.p_search = null;
 
-        // Volanie uloženej procedúry (RPC) v Supabase
         const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', params);
 
         if (error) {
@@ -944,10 +862,36 @@ export class SupabaseService {
             throw error;
         }
 
-        // Databáza nám vráti už správne prefiltrované a zoradené dáta
-        return (data as SkladovaZasobaView[]) || [];
-    }
+        const zasoby = (data as SkladovaZasobaView[]) || [];
 
+
+
+        return zasoby;
+    }
+    // PRIDAŤ AKO NOVÚ METÓDU:
+    async stiahnutKatalogDoCache() {
+        if (!this.syncService.isOnline) return;
+
+        try {
+            const params: any = {
+                p_sklad_id: null,
+                p_regal_id: null,
+                p_stredisko_id: null,
+                p_kategoria: null,
+                p_search: null,
+                p_limit: 10000, // Zabezpečí stiahnutie celej databázy naraz
+                p_offset: 0
+            };
+
+            const { data, error } = await this.supabase.rpc('get_zasoby_filtrovane', params);
+
+            if (!error && data) {
+                await this.syncService.cacheKatalog(data);
+            }
+        } catch (e) {
+            console.error('❌ Chyba pri tichom sťahovaní offline katalógu:', e);
+        }
+    }
 
     async getKategoriePreFilter(regalId: number | null): Promise<string[]> {
         if (regalId) {
@@ -1524,5 +1468,42 @@ export class SupabaseService {
                 'Spočítané Množstvo': mnozstvo
             };
         });
+    }
+
+    async zapisatDoInventury(inventuraId: number, produktId: number, regalId: number | null | undefined, mnozstvo: number, balenie: number) {
+
+        // Ak sme offline, zapíšeme požiadavku iba do lokálnej pamäte (fronty)
+        if (!this.syncService.isOnline) {
+            await this.syncService.addToQueue('ZAPIS_DO_INVENTURY', {
+                inventuraId, produktId, regalId, mnozstvo, balenie
+            });
+            return true; // Z pohľadu UI (Kalkulačky) bola operácia bleskovo vybavená
+        }
+
+        // Ak sme online, posielame štandardne do cloudu
+        return this.zapisatDoInventuryBezQueue(inventuraId, produktId, regalId, mnozstvo, balenie);
+    }
+
+    // TOTO JE PÔVODNÁ LOGIKA presunutá do oddelenej metódy
+    async zapisatDoInventuryBezQueue(inventuraId: number, produktId: number, regalId: number | null | undefined, mnozstvo: number, balenie: number) {
+        const finalRegalId = regalId ? regalId : 0;
+
+        // 1. KROK: RPC volanie
+        const { error: invError } = await this.supabase.rpc('zapisat_do_inventury_bezpecne', {
+            p_inventura_id: inventuraId,
+            p_produkt_id: produktId,
+            p_regal_id: finalRegalId,
+            p_mnozstvo: mnozstvo
+        });
+        if (invError) throw invError;
+
+        // 2. KROK: Aktualizácia balenia
+        const { error: prodError } = await this.supabase
+            .from('produkty')
+            .update({ balenie_ks: balenie })
+            .eq('id', produktId);
+        if (prodError) throw prodError;
+
+        return true;
     }
 }

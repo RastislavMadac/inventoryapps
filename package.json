@@ -1,6 +1,6 @@
 {
   "name": "inventoryapp",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Ionic Framework",
   "homepage": "https://ionicframework.com/",
   "scripts": {
@@ -30,10 +30,13 @@
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/haptics": "8.0.0",
     "@capacitor/keyboard": "^8.0.0",
+    "@capacitor/network": "^8.0.1",
     "@capacitor/share": "^8.0.0",
     "@capacitor/status-bar": "8.0.0",
     "@ionic/angular": "^8.0.0",
+    "@ionic/storage-angular": "^4.0.0",
     "@supabase/supabase-js": "^2.89.0",
+    "cordova-sqlite-storage": "^7.0.0",
     "ionicons": "^7.0.0",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",

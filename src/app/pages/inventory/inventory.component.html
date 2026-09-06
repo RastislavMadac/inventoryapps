@@ -1,21 +1,33 @@
-<ion-header class="ion-no-border">
-
+<ion-header [translucent]="true">
   <ion-toolbar color="primary">
+    
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/home" text=""></ion-back-button>
-     
+      <ion-back-button defaultHref="/home"></ion-back-button>
     </ion-buttons>
-
+    
     <ion-title>Inventúra</ion-title>
 
+    <!-- Zlúčené do jedného kontajnera slot="end" -->
     <ion-buttons slot="end">
+      
+      <!-- 🔥 ONLINE Indikátor -->
+      <ion-badge *ngIf="syncService.isOnline" style="margin-right: 15px; --background: #2dd36f !important; color: white !important; display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; padding: 4px 8px;">
+        <ion-icon name="wifi-outline" style="font-size: 0.9rem;"></ion-icon> ONLINE
+      </ion-badge>
+
+      <!-- 🔥 OFFLINE Indikátor -->
+      <ion-badge *ngIf="!syncService.isOnline" class="pulsing-offline" style="margin-right: 15px; --background: #eb445a !important; color: white !important; display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; padding: 4px 8px;">
+        <ion-icon name="cloud-offline-outline" style="font-size: 0.9rem;"></ion-icon> OFFLINE
+      </ion-badge>
+
       <ion-chip *ngIf="aktivnaInventura" class="inv-chip" style="margin-right: 8px;">
         <ion-icon name="clipboard-outline"></ion-icon>
         <ion-label>{{ aktivnaInventura.nazov }}</ion-label>
-        
       </ion-chip>
-       <app-quick-nav></app-quick-nav>
+      
+      <app-quick-nav></app-quick-nav>
     </ion-buttons>
+    
   </ion-toolbar>
 
   <ion-toolbar color="primary">
@@ -68,7 +80,7 @@
       </ion-segment-button>
     </ion-segment>
   </ion-toolbar>
-
+<!-- 
   <ion-toolbar color="primary" *ngIf="rezimZobrazenia === 'regal' && !vybranyRegalId" class="fade-in tollbar-segment"
     style="--min-height: 45px;">
 
@@ -82,7 +94,7 @@
       </ion-toggle>
     </ion-item>
   </ion-toolbar>
-
+-->
   <div class="filter-panel-wrapper" [class.is-open]="zobrazitFiltre">
     <div class="filter-panel">
 

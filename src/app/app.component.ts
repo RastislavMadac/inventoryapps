@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import packageInfo from '../../package.json';
+import { SyncService } from './services/sync.service';
 
 @Component({
   selector: 'app-root',
@@ -9,7 +10,7 @@ import packageInfo from '../../package.json';
   imports: [IonApp, IonRouterOutlet],
 })
 export class AppComponent {
-  constructor() { }
+  constructor(private syncService: SyncService) { }
 
   public appVersion: string = packageInfo.version;
 }
