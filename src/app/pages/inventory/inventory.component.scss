@@ -615,3 +615,21 @@ ion-toast.kalkulacka-toast {
     box-shadow: 0 0 0 0 rgba(235, 68, 90, 0);
   }
 }
+
+/* Vizuálne odlíšenie vyradených produktov (vidí len admin) */
+.vyradeny-produkt {
+  background: rgba(var(--ion-color-danger-rgb), 0.04) !important;
+  border-left: 4px solid var(--ion-color-danger) !important;
+  opacity: 0.85;
+
+  h3 {
+    color: var(--ion-color-danger) !important;
+    text-decoration: line-through;
+  }
+
+  /* Ikonky na pravej strane budú jemne sivé, keďže sú neaktívne */
+  .qty-box ion-badge,
+  .info-actions ion-icon {
+    opacity: 0.5;
+  }
+}

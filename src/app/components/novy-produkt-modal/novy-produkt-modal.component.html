@@ -39,6 +39,13 @@
         </ion-input>
       </ion-item>
 
+      <div class="ion-margin-top" style="background: white; border-radius: 8px; border: 1px solid #e0e0e0;">
+        <ion-item lines="none">
+          <ion-label>Produkt je aktívny</ion-label>
+          <ion-toggle slot="end" [(ngModel)]="produkt.is_active" name="is_active" color="success"></ion-toggle>
+        </ion-item>
+      </div>
+
       <div class="ion-margin-top">
         <ion-item lines="none" class="custom-select">
           <ion-label position="stacked">Kategória</ion-label>

@@ -26,7 +26,8 @@ export class NovyProduktModalComponent implements OnInit {
     vlastne_id: '',
     kategoria_id: null,
     jednotka: 'kg',
-    balenie_ks: 1
+    balenie_ks: 1,
+    is_active: true
   };
 
   kategorie: any[] = [];
@@ -87,16 +88,14 @@ export class NovyProduktModalComponent implements OnInit {
         }
       }
 
-      // 2. Naplníme formulár
+      // 2. Zmena v priraďovaní dát:
       this.produkt = {
         nazov: this.produktNaUpravu.nazov,
         vlastne_id: this.produktNaUpravu.vlastne_id || this.produktNaUpravu.ean || '',
-
-        // Použijeme zistené ID
         kategoria_id: kategoriaId,
-
         jednotka: this.produktNaUpravu.jednotka || 'ks',
-        balenie_ks: this.produktNaUpravu.balenie_ks || 1
+        balenie_ks: this.produktNaUpravu.balenie_ks || 1,
+        is_active: this.produktNaUpravu.is_active !== false // <--- PRIDAŤ TENTO RIADOK
       };
 
       // 3. Nastavenie Skladu a Regálu (pre presun)

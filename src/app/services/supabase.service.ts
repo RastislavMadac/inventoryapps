@@ -42,6 +42,7 @@ export interface SkladovaZasobaView {
     regal_nazov?: string;
     sklad_nazov?: string;
     vlastne_id?: string;
+    is_active?: boolean;
 }
 
 export interface Inventura {

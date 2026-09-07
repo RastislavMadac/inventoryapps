@@ -28,9 +28,9 @@ import {
   checkmarkCircle, checkmarkDoneOutline, timeOutline,
   addCircleOutline, createOutline, trashOutline, closeCircle, settingsOutline, checkmarkCircleOutline,
   // >>> PRIDANÉ: Ikony pre radenie <<<
-  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline, chevronUpOutline, chevronForwardOutline,wifiOutline, cloudOfflineOutline
+  reorderFourOutline, menuOutline, arrowRedoOutline, mic, micOutline, closeCircleOutline, chevronUpOutline, chevronForwardOutline, wifiOutline, cloudOfflineOutline, chevronDownOutline
 } from 'ionicons/icons';
-
+import { IonModal } from '@ionic/angular/standalone';
 import { SupabaseService, Sklad, Regal, SkladovaZasobaView, Inventura } from 'src/app/services/supabase.service';
 import { CalculatorModalComponent } from 'src/app/components/calculator-modal/calculator-modal.component';
 import { NovyProduktModalComponent } from 'src/app/components/novy-produkt-modal/novy-produkt-modal.component';
@@ -59,7 +59,7 @@ import { SyncService } from 'src/app/services/sync.service';
     IonItem,
     IonReorderGroup,
     IonReorder,
-    IonToggle, IonToast, QuickNavComponent
+    IonToggle, IonToast, QuickNavComponent, IonModal
   ],
   providers: [
     ModalController,
@@ -131,11 +131,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     kategoria: 'vsetky'
   };
   zobrazitFiltre: boolean = true;
-
+  userRole: string = 'user';
   constructor(
     public supabaseService: SupabaseService,
     public syncService: SyncService,
-    
+
     private toastController: ToastController,
     private alertController: AlertController,
     private modalController: ModalController,
@@ -147,10 +147,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     private router: Router
   ) {
     // >>> UPRAVENÉ: Pridané ikony do zoznamu <<<
-    addIcons({ chevronForwardOutline, clipboardOutline, closeCircle, caretDownOutline, filterOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline, chevronUpOutline,wifiOutline, cloudOfflineOutline });
+    addIcons({ wifiOutline, cloudOfflineOutline, clipboardOutline, filterOutline, chevronDownOutline, arrowUpOutline, mic, closeCircleOutline, locationOutline, checkmarkDoneOutline, arrowRedoOutline, createOutline, trashOutline, menuOutline, closeCircle, chevronForwardOutline, caretDownOutline, add, addCircleOutline, settingsOutline, searchOutline, addOutline, cubeOutline, listOutline, checkmarkCircle, timeOutline, reorderFourOutline, checkmarkCircleOutline, micOutline, chevronUpOutline });
   }
 
   ngOnInit() {
+
     this.nacitajSklady();
     this.route.queryParams.subscribe(params => {
       if (params['rezim']) {
@@ -162,6 +163,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         this.obnovitZoznamPodlaRezimu();
       }
     });
+
   }
   toggleFiltre() {
     this.zobrazitFiltre = !this.zobrazitFiltre;
@@ -178,7 +180,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     this.prihlasitOdberZmien();
     this.aktualnaRola = await this.supabaseService.ziskatRoluPouzivatela();
     console.log('👮 Prihlásený ako:', this.aktualnaRola);
-}
+  }
 
   get jeAdmin(): boolean {
     return this.aktualnaRola === 'admin';
@@ -318,38 +320,38 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       if (event) event.target.complete(); // Povieme scrolleru, že sme hotoví
     }
   }
- async obnovitZoznamPodlaRezimu() {
+  async obnovitZoznamPodlaRezimu() {
     this.isLoading = true;
     try {
-        console.log('🚀 Sťahujem dáta... Režim:', this.rezimZobrazenia);
+      console.log('🚀 Sťahujem dáta... Režim:', this.rezimZobrazenia);
 
-        // 1. Zabezpečenie offline režimu (Vyhľadávanie bez internetu)
-        if (!this.syncService.isOnline) {
-            console.log('📶 OFFLINE: Načítavam dáta z lokálnej Cache');
-            
-            // Vytiahneme celý katalóg z lokálnej databázy
-            const lokalnyKatalog = await this.syncService.getOfflineKatalog();
-            
-            // Lokálna simulácia inventúry (priradenie v_inventure)
-            if (this.aktivnaInventura) {
-                // Keďže inventúru nezískame offline z DB, pracujeme len so zásobami.
-                // Ak potrebujete presné počty z inventúry, museli by sa tiež cachovať pri štarte.
-            }
+      // 1. Zabezpečenie offline režimu (Vyhľadávanie bez internetu)
+      if (!this.syncService.isOnline) {
+        console.log('📶 OFFLINE: Načítavam dáta z lokálnej Cache');
 
-            this.zasoby = lokalnyKatalog;
-            this.aplikovatFiltre(); // Tento tvoj existujúci JS filter odvedie skvelú prácu (má vyhľadávanie bez diakritiky)
-            this.isLoading = false;
-            return;
+        // Vytiahneme celý katalóg z lokálnej databázy
+        const lokalnyKatalog = await this.syncService.getOfflineKatalog();
+
+        // Lokálna simulácia inventúry (priradenie v_inventure)
+        if (this.aktivnaInventura) {
+          // Keďže inventúru nezískame offline z DB, pracujeme len so zásobami.
+          // Ak potrebujete presné počty z inventúry, museli by sa tiež cachovať pri štarte.
         }
 
-        // 2. Štandardná ONLINE logika (zvyšok pôvodnej metódy)...
-        if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
-            this.pocetNacitanych = 0;
-            this.vsetkyHotoveNacitane = false;
-            this.zasoby = [];
-            await this.nacitatDalsieHotove(null);
-        } else {
-            
+        this.zasoby = lokalnyKatalog;
+        this.aplikovatFiltre(); // Tento tvoj existujúci JS filter odvedie skvelú prácu (má vyhľadávanie bez diakritiky)
+        this.isLoading = false;
+        return;
+      }
+
+      // 2. Štandardná ONLINE logika (zvyšok pôvodnej metódy)...
+      if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
+        this.pocetNacitanych = 0;
+        this.vsetkyHotoveNacitane = false;
+        this.zasoby = [];
+        await this.nacitatDalsieHotove(null);
+      } else {
+
         let hladatSkladId = null;
         let hladatRegalId = null;
         let textPreServer = this.searchQuery;
@@ -716,8 +718,15 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     }
   }
 
+
   async otvoritUpravu(zasoba: SkladovaZasobaView) {
     console.log('✏️ Kliknutie na položku:', zasoba.nazov);
+
+    // >>> 2. NOVÁ ÚPRAVA: Zablokovanie počítania pre neaktívne produkty <<<
+    if (zasoba.is_active === false && this.aktivnaInventura) {
+      this.zobrazToast('Tento produkt je vyradený a nie je možné ho zapísať do inventúry.', 'danger');
+      return;
+    }
 
     if (this.aktivnaInventura) {
       // ✅ OPRAVA: Striktné priradenie (ak je to 0, zachová nulu)
@@ -931,133 +940,133 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       this.idPolozkyPreScroll = null;
     }
   }
- async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number, potlacitToast: boolean = false) {
+  async ulozitZmenu(zasoba: SkladovaZasobaView, novyStavInput: string | number, balenie?: number, potlacitToast: boolean = false) {
     // 1. Prevedieme vstup na číslo
     let suroveCislo = Number(novyStavInput);
 
     // 2. Ošetrenie: Ak to nie je číslo, skončíme
     if (isNaN(suroveCislo)) {
-        this.zobrazToast('Zadaná hodnota nie je číslo', 'warning');
-        return;
+      this.zobrazToast('Zadaná hodnota nie je číslo', 'warning');
+      return;
     }
 
     // 3. Zaokrúhlenie na 2 desatinné miesta
     const novyStav = Math.round((suroveCislo + Number.EPSILON) * 100) / 100;
 
     let cielovyRegalId = (zasoba.regal_id !== null && zasoba.regal_id !== undefined)
-        ? zasoba.regal_id
-        : this.vybranyRegalId;
+      ? zasoba.regal_id
+      : this.vybranyRegalId;
     const cielovyProduktId = zasoba.produkt_id;
 
     if (cielovyRegalId === null || cielovyRegalId === undefined) {
-        this.zobrazToast('Chyba: Nie je vybraný regál pre zápis.', 'danger');
-        return;
+      this.zobrazToast('Chyba: Nie je vybraný regál pre zápis.', 'danger');
+      return;
     }
 
     const finalBalenie = balenie ?? zasoba.balenie_ks ?? 1;
     const jednotka = zasoba.jednotka || 'ks';
-    
+
     // 🔥 Zistenie stavu siete pre UX a logiku
     const isOffline = !this.syncService.isOnline;
 
     console.log(`💾 Ukladám... ID: ${zasoba.id}, Regál: ${cielovyRegalId}, Množstvo: ${novyStav}, Režim: ${isOffline ? 'OFFLINE' : 'ONLINE'}`);
 
     try {
-        // --- HLAVNÁ LOGIKA PRE MNOŽSTVÁ ---
-        if (zasoba.id === 0) {
-            // A) Nová zásoba na regáli
-            if (!isOffline) await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
+      // --- HLAVNÁ LOGIKA PRE MNOŽSTVÁ ---
+      if (zasoba.id === 0) {
+        // A) Nová zásoba na regáli
+        if (!isOffline) await this.supabaseService.insertZasobu(zasoba.produkt_id, cielovyRegalId, novyStav);
 
-            if (this.aktivnaInventura) {
-                await this.supabaseService.zapisatDoInventury(
-                    this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav, finalBalenie
-                );
-            }
+        if (this.aktivnaInventura) {
+          await this.supabaseService.zapisatDoInventury(
+            this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav, finalBalenie
+          );
+        }
+
+        if (!potlacitToast) {
+          const sprava = isOffline
+            ? `💾 Uložené do zariadenia: ${zasoba.nazov}`
+            : `➕ Vytvorené: ${zasoba.nazov} (${novyStav} ${jednotka})`;
+          this.zobrazToast(sprava, isOffline ? 'warning' : 'success');
+        }
+      } else {
+        // B) Existujúca zásoba
+        if (this.aktivnaInventura) {
+          if (novyStav > 0) {
+            // Zápis do inventúry (Ošetrené offline frontou v SupabaseService)
+            await this.supabaseService.zapisatDoInventury(
+              this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav, finalBalenie
+            );
 
             if (!potlacitToast) {
-                const sprava = isOffline 
-                    ? `💾 Uložené do zariadenia: ${zasoba.nazov}`
-                    : `➕ Vytvorené: ${zasoba.nazov} (${novyStav} ${jednotka})`;
-                this.zobrazToast(sprava, isOffline ? 'warning' : 'success');
+              const sprava = isOffline
+                ? `💾 Uložené (Čaká na sieť): ${zasoba.nazov}`
+                : `✅ Zapísané: ${zasoba.nazov} (${novyStav} ${jednotka})`;
+              this.zobrazToast(sprava, isOffline ? 'warning' : 'success');
             }
+          } else {
+            // Vymazanie záznamu
+            if (!isOffline) await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
+
+            if (!potlacitToast) {
+              this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
+            }
+          }
         } else {
-            // B) Existujúca zásoba
-            if (this.aktivnaInventura) {
-                if (novyStav > 0) {
-                    // Zápis do inventúry (Ošetrené offline frontou v SupabaseService)
-                    await this.supabaseService.zapisatDoInventury(
-                        this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId, novyStav, finalBalenie
-                    );
+          // Bežná aktualizácia skladu (mimo inventúry)
+          if (!isOffline) await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
 
-                    if (!potlacitToast) {
-                        const sprava = isOffline 
-                            ? `💾 Uložené (Čaká na sieť): ${zasoba.nazov}`
-                            : `✅ Zapísané: ${zasoba.nazov} (${novyStav} ${jednotka})`;
-                        this.zobrazToast(sprava, isOffline ? 'warning' : 'success');
-                    }
-                } else {
-                    // Vymazanie záznamu
-                    if (!isOffline) await this.supabaseService.zmazatZaznamZInventury(this.aktivnaInventura.id, zasoba.produkt_id, cielovyRegalId);
+          if (!potlacitToast) {
+            this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
+          }
+        }
+      }
 
-                    if (!potlacitToast) {
-                        this.zobrazToast(`🗑️ ${zasoba.nazov}: Vymazané z inventúry`, 'medium');
-                    }
-                }
-            } else {
-                // Bežná aktualizácia skladu (mimo inventúry)
-                if (!isOffline) await this.supabaseService.updateZasobu(zasoba.id, zasoba.produkt_id, novyStav, zasoba.mnozstvo_ks);
-
-                if (!potlacitToast) {
-                    this.zobrazToast(`🔄 ${zasoba.nazov}: Aktualizované na ${novyStav} ${jednotka}`, 'success');
-                }
-            }
+      // --- OPRAVA: SPOLOČNÁ LOGIKA PRE BALENIE ---
+      if (balenie && balenie !== zasoba.balenie_ks) {
+        // V inventúre sa balenie zapisuje už v "zapisatDoInventury", tu to robíme len ak inventúra nebeží
+        if (!this.aktivnaInventura && !isOffline) {
+          await this.supabaseService.updateProdukt(zasoba.produkt_id, { balenie_ks: balenie });
         }
 
-        // --- OPRAVA: SPOLOČNÁ LOGIKA PRE BALENIE ---
-        if (balenie && balenie !== zasoba.balenie_ks) {
-            // V inventúre sa balenie zapisuje už v "zapisatDoInventury", tu to robíme len ak inventúra nebeží
-            if (!this.aktivnaInventura && !isOffline) {
-                await this.supabaseService.updateProdukt(zasoba.produkt_id, { balenie_ks: balenie });
-            }
-            
-            if (!potlacitToast && !isOffline) {
-                this.zobrazToast('Balenie produktu bolo aktualizované.', 'success');
-            }
-            // Okamžitá lokálna úprava pamäte pre UI
-            zasoba.balenie_ks = balenie;
+        if (!potlacitToast && !isOffline) {
+          this.zobrazToast('Balenie produktu bolo aktualizované.', 'success');
         }
+        // Okamžitá lokálna úprava pamäte pre UI
+        zasoba.balenie_ks = balenie;
+      }
 
-        // --- OBNOVA UI (Smart Sync) ---
-        if (isOffline) {
-            // Ak sme offline, nesťahujeme dáta zo servera, len upravíme pamäť aby UI okamžite reagovalo
-            zasoba.mnozstvo_ks = novyStav;
-            if (this.aktivnaInventura) {
-                (zasoba as any).spocitane_mnozstvo = novyStav;
-                zasoba.v_inventure = novyStav > 0;
-            }
-        } else {
-            // Ak sme online, zoznam obnovíme štandardne z databázy
-            await this.obnovitZoznamPodlaRezimu();
+      // --- OBNOVA UI (Smart Sync) ---
+      if (isOffline) {
+        // Ak sme offline, nesťahujeme dáta zo servera, len upravíme pamäť aby UI okamžite reagovalo
+        zasoba.mnozstvo_ks = novyStav;
+        if (this.aktivnaInventura) {
+          (zasoba as any).spocitane_mnozstvo = novyStav;
+          zasoba.v_inventure = novyStav > 0;
         }
+      } else {
+        // Ak sme online, zoznam obnovíme štandardne z databázy
+        await this.obnovitZoznamPodlaRezimu();
+      }
 
-        // Zabezpečenie scrollu na upravenú položku
-        const najdenaPolozka = this.filtrovaneZasoby.find(z =>
-            z.produkt_id === cielovyProduktId && z.regal_id === cielovyRegalId
-        );
+      // Zabezpečenie scrollu na upravenú položku
+      const najdenaPolozka = this.filtrovaneZasoby.find(z =>
+        z.produkt_id === cielovyProduktId && z.regal_id === cielovyRegalId
+      );
 
-        if (najdenaPolozka) {
-            this.idPolozkyPreScroll = najdenaPolozka.id;
-            this.cdr.detectChanges();
-            setTimeout(() => {
-                this.skrolovatNaZapamatanuPolozku();
-            }, 150);
-        }
+      if (najdenaPolozka) {
+        this.idPolozkyPreScroll = najdenaPolozka.id;
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.skrolovatNaZapamatanuPolozku();
+        }, 150);
+      }
 
     } catch (error: any) {
-        console.error('❌ Chyba pri zápise:', error);
-        this.zobrazToast('Chyba pri ukladaní: ' + error.message, 'danger');
+      console.error('❌ Chyba pri zápise:', error);
+      this.zobrazToast('Chyba pri ukladaní: ' + error.message, 'danger');
     }
-}
+  }
 
   zobrazToast(sprava: string, farba: string, cssTrieda: string = '') {
     console.log('🔔 Spúšťam toast cez šablónu:', sprava);
@@ -1303,6 +1312,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
     console.log('🔍 Aplikujem lokálne filtre...');
 
     let data = [...this.zasoby];
+
+    // >>> 1. NOVÁ ÚPRAVA: Schovanie neaktívnych produktov pre workera <<<
+    if (!this.jeAdmin) {
+      // Ak nie je admin, nechaj v zozname iba tie, ktoré nemajú is_active = false
+      data = data.filter(z => z.is_active !== false);
+    }
 
     // 1. Filter pre regály a automatické zotriedenie
     if (this.rezimZobrazenia === 'regal') {
@@ -1617,7 +1632,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         );
       }
 
-await this.obnovitZoznamPodlaRezimu();
+      await this.obnovitZoznamPodlaRezimu();
 
     } catch (error: any) {
       console.error('Chyba pri presune/priradení:', error);
