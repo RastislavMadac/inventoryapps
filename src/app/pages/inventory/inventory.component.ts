@@ -332,19 +332,20 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         // Vytiahneme celý katalóg z lokálnej databázy
         const lokalnyKatalog = await this.syncService.getOfflineKatalog();
 
-        // Lokálna simulácia inventúry (priradenie v_inventure)
-        if (this.aktivnaInventura) {
-          // Keďže inventúru nezískame offline z DB, pracujeme len so zásobami.
-          // Ak potrebujete presné počty z inventúry, museli by sa tiež cachovať pri štarte.
-        }
+        // 🔥 OPTIMALIZÁCIA 1 (OFFLINE VETVA): Vypočítame index pre bleskové vyhľadávanie
+        this.zasoby = lokalnyKatalog.map((z: any) => ({
+          ...z,
+          _searchIndex: this.odstranitDiakritiku(
+            `${z.nazov || ''} ${z.vlastne_id || ''} ${z.ean || ''} ${z.interne_id || ''} ${z.id || ''} ${z.produkt_id || ''}`
+          )
+        }));
 
-        this.zasoby = lokalnyKatalog;
-        this.aplikovatFiltre(); // Tento tvoj existujúci JS filter odvedie skvelú prácu (má vyhľadávanie bez diakritiky)
+        this.aplikovatFiltre();
         this.isLoading = false;
         return;
       }
 
-      // 2. Štandardná ONLINE logika (zvyšok pôvodnej metódy)...
+      // 2. Štandardná ONLINE logika
       if (this.rezimZobrazenia === 'v_inventure' && this.aktivnaInventura) {
         this.pocetNacitanych = 0;
         this.vsetkyHotoveNacitane = false;
@@ -356,9 +357,7 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
         let hladatRegalId = null;
         let textPreServer = this.searchQuery;
 
-
         if (this.rezimZobrazenia === 'regal') {
-          // Kontrola, či nezobrazujeme prázdny stav
           if (!this.vybranyRegalId && !this.zobrazitVsetkoVRegaloch) {
             this.filtrovaneZasoby = [];
             this.zasoby = [];
@@ -367,16 +366,12 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           }
 
           hladatSkladId = this.vybranySkladId;
-
-          // >>> ZMENA: Zabezpečíme, že na server ide ID regálu, inak null
           hladatRegalId = this.vybranyRegalId ? this.vybranyRegalId : null;
 
-          // Ak je vybraný konkrétny regál, hľadáme iba lokálne (nepoľeme searchQuery na server)
           if (this.vybranyRegalId) {
             textPreServer = '';
           }
         }
-
 
         const vysledky = await this.supabaseService.getZasobyFiltrovaneServer(
           hladatSkladId,
@@ -386,11 +381,15 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
           100
         );
 
-        this.zasoby = vysledky;
-
+        // 🔥 OPTIMALIZÁCIA 1 (ONLINE VETVA): Vypočítame index pre bleskové vyhľadávanie
+        this.zasoby = vysledky.map((z: any) => ({
+          ...z,
+          _searchIndex: this.odstranitDiakritiku(
+            `${z.nazov || ''} ${z.vlastne_id || ''} ${z.ean || ''} ${z.interne_id || ''} ${z.id || ''} ${z.produkt_id || ''}`
+          )
+        }));
 
         if (this.aktivnaInventura) {
-
           const rawInventura = await this.supabaseService.getRawInventuraData(this.aktivnaInventura.id);
           const mapa = new Map<string, number>();
           rawInventura.forEach(item => mapa.set(`${item.produkt_id}-${item.regal_id}`, item.mnozstvo));
@@ -402,19 +401,14 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
 
               if (mapa.has(kluc)) {
                 z.v_inventure = true;
-                // Namiesto prepísania mnozstvo_ks si to uložíme bokom
                 (z as any).spocitane_mnozstvo = mapa.get(kluc);
               } else {
                 z.v_inventure = false;
-                // Ak tovar v inventúre ešte nie je, spočítané je 0
                 (z as any).spocitane_mnozstvo = 0;
               }
             }
           });
         }
-
-
-
 
         this.aplikovatFiltre();
       }
@@ -429,10 +423,11 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
   handleSearch(event: any) {
     this.searchQuery = event.target.value;
 
-
-    if (this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
+    // 🔥 OPTIMALIZÁCIA 3: Ak sme offline, vždy filtrujeme iba lokálne pamäťové pole
+    if (!this.syncService.isOnline || this.rezimZobrazenia === 'v_inventure' || (this.rezimZobrazenia === 'regal' && this.vybranyRegalId)) {
       this.aplikovatFiltre();
     } else {
+      // Iba keď sme online a hľadáme v "Global", ideme reálne na Supabase server
       this.obnovitZoznamPodlaRezimu();
     }
   }
@@ -1345,32 +1340,16 @@ export class InventoryComponent implements OnInit, ViewWillEnter {
       data = data.filter(z => z.kategoria === this.filterKategoria);
     }
 
-    // 4. Textové vyhľadávanie
+    // 🔥 4. Textové vyhľadávanie (OPTIMALIZÁCIA 1)
+    // Tento kód nahradil starý zložitý filter. Teraz len rýchlo prehľadáva už vopred vypočítaný textový index.
     if (this.searchQuery) {
-      // Hľadaný výraz očistíme (odstráni diakritiku, dá na malé písmená, y -> i)
-      const q = this.odstranitDiakritiku(this.searchQuery);
-
-      data = data.filter(z => {
-        // Textové polia (musia prejsť rovnakou premenou y->i ako hľadaný výraz)
-        const nazov = this.odstranitDiakritiku(z.nazov || '');
-        const vlastneId = this.odstranitDiakritiku(z.vlastne_id || '');
-
-        // Kódy a čísla (EAN spravidla nemá 'y', stačí lowercase)
-        const ean = (z.ean || '').toLowerCase();
-        const idZasoby = String(z.id || '');
-        const idProduktu = String(z.produkt_id || '');
-        const interneId = String(z.interne_id || ''); // 🔥 TOTO TI CHÝBALO
-
-        return nazov.includes(q) ||
-          vlastneId.includes(q) ||
-          ean.includes(q) ||
-          idZasoby.includes(q) ||
-          idProduktu.includes(q) ||
-          interneId.includes(q); // 🔥 PRIDANÉ POROVNANIE
-      });
+      const q = this.odstranitDiakritiku(this.searchQuery.trim());
+      data = data.filter(z => z._searchIndex && z._searchIndex.includes(q));
     }
 
-    this.filtrovaneZasoby = data;
+    // 🔥 OPTIMALIZÁCIA 2: Zamedzenie zamrznutiu DOM stromu vykreslením max 100 položiek
+    // Zápis a reálne dáta v pamäti zostávajú nedotknuté, obmedzujeme len zobrazenie v HTML
+    this.filtrovaneZasoby = data.slice(0, 100);
   }
 
   onDragStart(event: TouchEvent) {
